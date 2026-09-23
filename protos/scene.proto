@@ -1,8 +1,8 @@
-syntax = "proto3";
+syntax = "proto3"; // Версия синтаксиса Protobuf
 
-package romance_club;
+package romance_club; // Пространство имён
 
-import "choice.proto";
+import "choice.proto"; // Подключаю choice.proto
 
 // Сцена (текст и возможные выборы)
 message Scene {

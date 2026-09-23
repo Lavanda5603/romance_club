@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package romance_club;
+
+import "action.proto";
+
+// Выбор (вариант, видит игрок)
+message Choice {
+  string text = 1; // Текст выбора
+  repeated Action actions = 2; // Действия после выбора
+}

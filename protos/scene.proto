@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package romance_club;
+
+import "choice.proto";
+
+// Сцена (текст и возможные выборы)
+message Scene {
+  int32 id = 1; // Id сцены
+  string background = 2; // Фон
+  string character = 3; // Персонаж
+  repeated string texts = 4; // Тексты сцены
+  repeated Choice choices = 5; // Выборы
+  string condition = 6; // Условие показа
+}

@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package romance_club;
+
+// Действие (происходит после выбора)
+message Action {
+    string type = 1; // Тип действия
+    int32 scene_id = 2; // Id сцены
+    string flag_name = 3; // Имя флага
+    bool flag_value = 4; // Значение флага
+    string counter_name = 5; // Имя счётчика
+    int32 counter_value = 6; // Значение счётчика
+    string sound_path = 7; // Путь к звуку
+    string image_path = 8; // Путь к картинке
+}

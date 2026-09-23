@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package romance_club;
+
+import "scene.proto";
+
+// Эпизод (одна глава истории)
+message Episode {
+  int32 id = 1; // Id эпизода
+  string title = 2; // Название
+  repeated Scene scenes = 3; // Сцены
+  int32 version = 4; // Версия
+}

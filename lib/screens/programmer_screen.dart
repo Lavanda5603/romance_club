@@ -1,46 +1,54 @@
-import 'package:flutter/material.dart';
-import '../models/episode.dart';
-import 'episode_editor_screen.dart';
-import '../services/storage_service.dart';
+import 'package:flutter/material.dart'; // Импорт Material UI
+import '../models/episode.dart'; // Импорт класса Episode
+import 'episode_editor_screen.dart'; // Импорт экрана редактирования эпизода
+import '../services/storage_service.dart'; // Импорт сервиса сохранения/загрузки
 
+// Экран режима разработчика
 class ProgrammerScreen extends StatefulWidget {
+  // Конструктор класса ProgrammerScreen
   const ProgrammerScreen({super.key});
 
+  // Метод createState (создание объекта состояния)
   @override
   State<ProgrammerScreen> createState() => _ProgrammerScreenState();
 }
 
 class _ProgrammerScreenState extends State<ProgrammerScreen> {
-  final List<Episode> _episodes = [];
+  final List<Episode> _episodes = []; // Список эпизодов
 
   @override
   void initState() {
     super.initState();
+    // Загружаю эпизоды при открытии экрана
     _loadEpisodes();
   }
 
+  // Загрузка эпизодов из хранилища
   Future<void> _loadEpisodes() async {
     final episodes = await StorageService.loadEpisodes();
     setState(() {
-      _episodes.clear();
-      _episodes.addAll(episodes);
+      _episodes.clear(); // Очищаю текущий список
+      _episodes.addAll(episodes); // Добавляю загруженные эпизоды
     });
   }
 
+  // Добавление нового эпизода
   Future<void> _addEpisode() async {
     setState(() {
       _episodes.add(
         Episode(
-          id: _episodes.length + 1,
-          title: 'Эпизод ${_episodes.length + 1}',
-          scenes: [],
+          id: _episodes.length + 1, // Id нового эпизода
+          title: 'Эпизод ${_episodes.length + 1}', // Название
+          scenes: [], // Сцены
         ),
       );
     });
-    await StorageService.saveEpisodes(_episodes);
+    await StorageService.saveEpisodes(_episodes); // Сохраняю
   }
 
+  // Удаление эпизода
   Future<void> _deleteEpisode(int index) async {
+    // Показываю диалог подтверждения
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -49,11 +57,11 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
           content: Text('Вы точно уверены, что хотите удалить "${_episodes[index].title}"?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(context, false), // Отмена
               child: const Text('Отмена'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(context, true), // Подтверждение
               child: const Text('Удалить'),
             ),
           ],
@@ -61,11 +69,12 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       },
     );
 
+    // Если пользователь подтвердил, удаляю эпизод
     if (confirmed == true) {
       setState(() {
         _episodes.removeAt(index);
       });
-      await StorageService.saveEpisodes(_episodes);
+      await StorageService.saveEpisodes(_episodes); // Сохраняю
     }
   }
 
@@ -73,10 +82,11 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Режим разработчика'),
+        title: const Text('Режим разработчика'), // Заголовок экрана
       ),
       body: Column(
         children: [
+          // Кнопка создания эпизода
           Padding(
             padding: const EdgeInsets.all(16),
             child: ElevatedButton(
@@ -84,21 +94,23 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
               child: const Text('Создать эпизод'),
             ),
           ),
+          // Список эпизодов
           Expanded(
             child: _episodes.isEmpty
                 ? const Center(
-                    child: Text('Нет эпизодов'),
+                    child: Text('Нет эпизодов'), // Если эпизодов нет
                   )
                 : ListView.builder(
                     itemCount: _episodes.length,
                     itemBuilder: (context, index) {
                       final episode = _episodes[index];
                       return ListTile(
-                        title: Text(episode.title),
-                        subtitle: Text('Сцен: ${episode.scenes.length}'),
+                        title: Text(episode.title), // Название эпизода
+                        subtitle: Text('Сцен: ${episode.scenes.length}'), // Количество сцен
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // Кнопка редактирования эпизода
                             IconButton(
                               icon: const Icon(Icons.edit),
                               onPressed: () {
@@ -109,15 +121,16 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                                       episode: episode,
                                       onSave: (newEpisode) async {
                                         setState(() {
-                                          _episodes[index] = newEpisode;
+                                          _episodes[index] = newEpisode; // Обновляю эпизод в списке
                                         });
-                                        await StorageService.saveEpisodes(_episodes);
+                                        await StorageService.saveEpisodes(_episodes); // Сохраняю
                                       },
                                     ),
                                   ),
                                 );
                               },
                             ),
+                            // Кнопка удаления эпизода
                             IconButton(
                               icon: const Icon(Icons.delete),
                               onPressed: () {
@@ -127,6 +140,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                           ],
                         ),
                         onTap: () {
+                          // Открытие эпизода на редактирование при нажатии
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -134,9 +148,9 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                                 episode: episode,
                                 onSave: (newEpisode) async {
                                   setState(() {
-                                    _episodes[index] = newEpisode;
+                                    _episodes[index] = newEpisode; // Обновляю эпизод в списке
                                   });
-                                  await StorageService.saveEpisodes(_episodes);
+                                  await StorageService.saveEpisodes(_episodes); // Сохраняю
                                 },
                               ),
                             ),

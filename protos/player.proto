@@ -1,0 +1,11 @@
+syntax = "proto3"; // Версия синтаксиса Protobuf
+
+package romance_club; // Пространство имён
+
+// Игрок (аккаунт)
+message Player {
+    int32 id = 1; // Id игрока
+    string login = 2; // Логин
+    string email = 3; // Email
+    string created_at = 4; // Дата регистрации
+}

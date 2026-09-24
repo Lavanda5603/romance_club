@@ -14,3 +14,19 @@
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
+
+@$core.Deprecated('Use playerDescriptor instead')
+const Player$json = {
+  '1': 'Player',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 5, '10': 'id'},
+    {'1': 'login', '3': 2, '4': 1, '5': 9, '10': 'login'},
+    {'1': 'email', '3': 3, '4': 1, '5': 9, '10': 'email'},
+    {'1': 'created_at', '3': 4, '4': 1, '5': 9, '10': 'createdAt'},
+  ],
+};
+
+/// Descriptor for `Player`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List playerDescriptor = $convert.base64Decode(
+    'CgZQbGF5ZXISDgoCaWQYASABKAVSAmlkEhQKBWxvZ2luGAIgASgJUgVsb2dpbhIUCgVlbWFpbB'
+    'gDIAEoCVIFZW1haWwSHQoKY3JlYXRlZF9hdBgEIAEoCVIJY3JlYXRlZEF0');

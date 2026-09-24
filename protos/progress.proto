@@ -1,0 +1,14 @@
+syntax = "proto3"; // Версия синтаксиса Protobuf
+
+package romance_club; // Пространство имён
+
+// Прогресс игрока (текущее состояние)
+message Progress {
+    int32 id = 1; // Id прогресса
+    int32 player_id = 2; // Id игрока
+    int32 episode_id = 3; // Id эпизода
+    int32 scene_id = 4; // Id сцены
+    map<string, bool> flags = 5; // Флаги игрока
+    map<string, int32> counters = 6; // Счётчики игрока
+    string updated_at = 7; // Дата обновления
+}

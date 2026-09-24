@@ -1,6 +1,6 @@
 syntax = "proto3"; // Версия синтаксиса Protobuf
 
-package romance_club; package romance_club; // Пространство имён
+package romance_club; // Пространство имён
 
 import "action.proto"; // Подключаю action.proto
 

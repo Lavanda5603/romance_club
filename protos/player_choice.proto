@@ -1,0 +1,11 @@
+syntax = "proto3"; // Версия синтаксиса Protobuf
+
+package romance_club; // Пространство имён
+
+// Выбор, который сделал игрок
+message PlayerChoice {
+    int32 id = 1; // Id записи
+    int32 player_id = 2; // Id игрока
+    int32 choice_id = 3; // Id выбора
+    string made_at = 4; // Когда сделал
+}

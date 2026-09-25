@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
-import '../generated/scene.pb.dart'; // Импорт Protobuf-модели
+import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
+import '../generated/choice.pb.dart'; // Импорт Protobuf-модели Choice
+import 'choice_editor_screen.dart'; // Импорт экрана редактора выбора
 
 // Экран редактирования сцены
 class SceneEditorScreen extends StatefulWidget {
@@ -65,6 +67,77 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
+  // Добавление нового выбора
+  void _addChoice() {
+    // Открываю экран редактора выбора с null (создание нового)
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChoiceEditorScreen(
+          choice: null, // Новый выбор
+          onSave: (newChoice) {
+            setState(() {
+              // Добавляю выбор в список (repeated)
+              widget.scene.choices.add(newChoice);
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  // Редактирование существующего выбора
+  void _editChoice(int index) {
+    // Открываю экран редактора выбора с существующим выбором
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChoiceEditorScreen(
+          choice: widget.scene.choices[index], // Выбор
+          onSave: (newChoice) {
+            setState(() {
+              // Заменяю выбор в списке
+              widget.scene.choices[index] = newChoice;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  // Удаление выбора
+  Future<void> _deleteChoice(int index) async {
+    // Показываю диалог подтверждения
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Удалить выбор?'),
+          content: Text(
+            'Вы точно уверены, что хотите удалить "${widget.scene.choices[index].text}"?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false), // Отмена
+              child: const Text('Отмена'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true), // Подтверждение
+              child: const Text('Удалить'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Если пользователь подтвердил, удаляю выбор
+    if (confirmed == true) {
+      setState(() {
+        widget.scene.choices.removeAt(index);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -123,7 +196,58 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              // Блок выборов
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Выборы:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  ElevatedButton(
+                    onPressed: _addChoice,
+                    child: const Text('+ Добавить выбор'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Список выборов
+              if (widget.scene.choices.isEmpty)
+                const Text('Нет выборов')
+              else
+                ListView.builder(
+                  shrinkWrap: true, // Чтобы ListView не занимал весь экран
+                  physics: const NeverScrollableScrollPhysics(), // Отключаю скролл у ListView
+                  itemCount: widget.scene.choices.length,
+                  itemBuilder: (context, index) {
+                    final choice = widget.scene.choices[index];
+                    return ListTile(
+                      title: Text(choice.text), // Текст выбора
+                      subtitle: Text('Действий: ${choice.actions.length}'), // Количество действий
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Кнопка редактирования выбора
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () {
+                              _editChoice(index);
+                            },
+                          ),
+                          // Кнопка удаления выбора
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () {
+                              _deleteChoice(index);
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              const SizedBox(height: 24),
               // Кнопка сохранения
               ElevatedButton(
                 onPressed: _saveScene,

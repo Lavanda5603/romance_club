@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
-import '../generated/episode.pb.dart'; // Импорт Protobuf-модели
-import '../generated/scene.pb.dart'; // Импорт Protobuf-модели
+import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
+import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
 import 'scene_editor_screen.dart'; // Импорт экрана редактора сцены
 
 // Экран редактирования эпизода

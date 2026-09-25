@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
-import '../generated/episode.pb.dart'; // Импорт Protobuf-модели
-import 'episode_editor_screen.dart'; // ЭИмпорт экрана редактора
+import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
+import 'episode_editor_screen.dart'; // Импорт экрана редактора
 import '../services/storage_service.dart'; // Испорт сервиса хранения
 
 // Экран режима разработчика

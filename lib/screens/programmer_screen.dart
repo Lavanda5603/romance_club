@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
-import '../models/episode.dart'; // Импорт класса Episode
-import 'episode_editor_screen.dart'; // Импорт экрана редактирования эпизода
-import '../services/storage_service.dart'; // Импорт сервиса сохранения/загрузки
+import '../generated/episode.pb.dart'; // Импорт Protobuf-модели
+import 'episode_editor_screen.dart'; // ЭИмпорт экрана редактора
+import '../services/storage_service.dart'; // Испорт сервиса хранения
 
 // Экран режима разработчика
 class ProgrammerScreen extends StatefulWidget {
@@ -14,7 +14,7 @@ class ProgrammerScreen extends StatefulWidget {
 }
 
 class _ProgrammerScreenState extends State<ProgrammerScreen> {
-  final List<Episode> _episodes = []; // Список эпизодов
+  final List<Episode> _episodes = []; // Список эпизодов (Protobuf-модели)
 
   @override
   void initState() {
@@ -23,7 +23,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     _loadEpisodes();
   }
 
-  // Загрузка эпизодов из хранилища
+  // Загрузка эпизодов из файла
   Future<void> _loadEpisodes() async {
     final episodes = await StorageService.loadEpisodes();
     setState(() {
@@ -34,15 +34,17 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
 
   // Добавление нового эпизода
   Future<void> _addEpisode() async {
+    // Protobuf-модель создаётся так
+    final newEpisode = Episode(
+      id: _episodes.length + 1, // Id нового эпизода
+      title: 'Эпизод ${_episodes.length + 1}', // Название
+      version: 1, // Версия
+    );
+    
     setState(() {
-      _episodes.add(
-        Episode(
-          id: _episodes.length + 1, // Id нового эпизода
-          title: 'Эпизод ${_episodes.length + 1}', // Название
-          scenes: [], // Сцены
-        ),
-      );
+      _episodes.add(newEpisode);
     });
+    
     await StorageService.saveEpisodes(_episodes); // Сохраняю
   }
 
@@ -54,7 +56,9 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Удалить эпизод?'),
-          content: Text('Вы точно уверены, что хотите удалить "${_episodes[index].title}"?'),
+          content: Text(
+            'Вы точно уверены, что хотите удалить "${_episodes[index].title}"?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false), // Отмена
@@ -74,7 +78,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       setState(() {
         _episodes.removeAt(index);
       });
-      await StorageService.saveEpisodes(_episodes); // Сохраняю
+      await StorageService.saveEpisodes(_episodes);
     }
   }
 
@@ -97,9 +101,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
           // Список эпизодов
           Expanded(
             child: _episodes.isEmpty
-                ? const Center(
-                    child: Text('Нет эпизодов'), // Если эпизодов нет
-                  )
+                ? const Center(child: Text('Нет эпизодов')) // Если эпизодов нет
                 : ListView.builder(
                     itemCount: _episodes.length,
                     itemBuilder: (context, index) {
@@ -139,23 +141,6 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                             ),
                           ],
                         ),
-                        onTap: () {
-                          // Открытие эпизода на редактирование при нажатии
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EpisodeEditorScreen(
-                                episode: episode,
-                                onSave: (newEpisode) async {
-                                  setState(() {
-                                    _episodes[index] = newEpisode; // Обновляю эпизод в списке
-                                  });
-                                  await StorageService.saveEpisodes(_episodes); // Сохраняю
-                                },
-                              ),
-                            ),
-                          );
-                        },
                       );
                     },
                   ),

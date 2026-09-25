@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
-import '../models/episode.dart'; // Импорт класса Episode
-import '../models/scene.dart'; // Импорт класса Scene
-import 'scene_editor_screen.dart'; // Импорт экрана редактирования сцены
+import '../generated/episode.pb.dart'; // Импорт Protobuf-модели
+import '../generated/scene.pb.dart'; // Импорт Protobuf-модели
+import 'scene_editor_screen.dart'; // Импорт экрана редактора сцены
 
 // Экран редактирования эпизода
 class EpisodeEditorScreen extends StatefulWidget {
@@ -21,12 +21,12 @@ class EpisodeEditorScreen extends StatefulWidget {
 }
 
 class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
-  late TextEditingController _titleController; // Контроллер для поля ввода названия эпизода
+  late TextEditingController _titleController;
 
   @override
   void initState() {
     super.initState();
-    // Создание контроллера и заполнение его текущим названием эпизода
+     // Создание контроллера и заполнение его текущим названием эпизода
     _titleController = TextEditingController(text: widget.episode.title);
   }
 
@@ -40,15 +40,16 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
   // Добавление новой сцены в эпизод
   void _addScene() {
     setState(() {
-      widget.episode.scenes.add(
-        Scene(
-          id: widget.episode.scenes.length + 1, // Id новой сцены
-          background: '', // Фон 
-          character: '', // Персонаж
-          texts: [], // Тексты
-          choices: [], // Выборы
-        ),
+      // Создаю Protobuf-модель Scene
+      final newScene = Scene(
+        id: widget.episode.scenes.length + 1,  // Id новой сцены
+        background: '', // Фон
+        character: '', // Персонаж
+        condition: '', // Условие
       );
+      
+      // Добавляю в список (repeated)
+      widget.episode.scenes.add(newScene);
     });
   }
 
@@ -87,19 +88,15 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
 
   // Сохранение эпизода
   void _saveEpisode() {
-    // Создаю новый объект Episode с обновлёнными данными
-    final newEpisode = Episode(
-      id: widget.episode.id,
-      title: _titleController.text, // Беру название из поля ввода
-      scenes: widget.episode.scenes, // Сцены беру из текущего эпизода
-    );
-
+    // Обновляю название
+    widget.episode.title = _titleController.text;
+    
     // Вызываю функцию onSave
-    widget.onSave(newEpisode);
+    widget.onSave(widget.episode);
 
     // Показываю уведомление о сохранении
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Эпизод сохранен')),
+      const SnackBar(content: Text('Эпизод сохранён')),
     );
   }
 
@@ -133,9 +130,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
           // Список сцен
           Expanded(
             child: widget.episode.scenes.isEmpty
-                ? const Center(
-                    child: Text('Нет сцен'), // Если сцен нет
-                  )
+                ? const Center(child: Text('Нет сцен')) // Если сцен нет
                 : ListView.builder(
                     itemCount: widget.episode.scenes.length,
                     itemBuilder: (context, index) {
@@ -154,7 +149,6 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => SceneEditorScreen(
-                                      episode: widget.episode,
                                       scene: scene,
                                     ),
                                   ),

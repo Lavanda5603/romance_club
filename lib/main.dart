@@ -2,8 +2,11 @@ import 'package:flutter/material.dart'; // Импорт Material UI
 import 'screens/programmer_screen.dart'; // Импорт экрана режима разработчика
 import 'screens/profile_screen.dart'; // Импорт экрана профиля
 import 'screens/settings_screen.dart'; // Импорт экрана настроек
+import 'services/surreal_service.dart'; // Импорт сервиса SurrealDB
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Инициализация Flutter (нужно для await в main)
+  await SurrealService.connect(); // Подключение к SurrealDB
   runApp(const RomanceClubApp()); // Запуск приложения
 }
 

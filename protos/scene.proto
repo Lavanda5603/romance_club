@@ -12,4 +12,6 @@ message Scene {
   repeated string texts = 4; // Тексты сцены
   repeated Choice choices = 5; // Выборы
   string condition = 6; // Условие показа
+  string text_position = 7; // Позиция текста
+  string character_position = 8; // Позиция персонажа
 }

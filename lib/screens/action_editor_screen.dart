@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' hide Action; // Импорт Material UI
+import 'package:flutter/material.dart' hide Action; // Импорт Material UI (скрываю Action из Flutter)
 import '../generated/action.pb.dart'; // Импорт Protobuf-модели Action
 
 // Экран редактирования действия
@@ -23,14 +23,9 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   String _selectedType = 'nextScene';
 
   late TextEditingController _sceneIdController; // Контроллер для поля сцены
-  late TextEditingController _flagNameController; // Контроллер для поля имени флага
   late TextEditingController _counterNameController; // Контроллер для поля имени счётчика
   late TextEditingController _counterValueController; // Контроллер для поля значения счётчика
-  late TextEditingController _soundPathController; // Контроллер для поля пути к звуку
-  late TextEditingController _imagePathController; // Контроллер для поля пути к картинке
-
-  // Состояние флага
-  bool _flagValue = false;
+  late TextEditingController _flagNameController; // Контроллер для поля имени флага
 
   @override
   void initState() {
@@ -38,15 +33,11 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     // Если редактирую существующее действие, то беру его тип
     if (widget.action != null) {
       _selectedType = widget.action!.type;
-      _flagValue = widget.action!.flagValue;
     }
 
     // Создание контроллеров и заполнение их текущими данными действия
     _sceneIdController = TextEditingController(
       text: widget.action?.sceneId.toString() ?? '',
-    );
-    _flagNameController = TextEditingController(
-      text: widget.action?.flagName ?? '',
     );
     _counterNameController = TextEditingController(
       text: widget.action?.counterName ?? '',
@@ -54,11 +45,8 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     _counterValueController = TextEditingController(
       text: widget.action?.counterValue.toString() ?? '',
     );
-    _soundPathController = TextEditingController(
-      text: widget.action?.soundPath ?? '',
-    );
-    _imagePathController = TextEditingController(
-      text: widget.action?.imagePath ?? '',
+    _flagNameController = TextEditingController(
+      text: widget.action?.flagName ?? '',
     );
   }
 
@@ -66,11 +54,9 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   void dispose() {
     // Освобождение ресурсов всех контроллеров при закрытии экрана
     _sceneIdController.dispose();
-    _flagNameController.dispose();
     _counterNameController.dispose();
     _counterValueController.dispose();
-    _soundPathController.dispose();
-    _imagePathController.dispose();
+    _flagNameController.dispose();
     super.dispose();
   }
 
@@ -84,16 +70,11 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     // В зависимости от типа заполняю нужные поля
     if (_selectedType == 'nextScene') {
       newAction.sceneId = int.tryParse(_sceneIdController.text) ?? 0;
-    } else if (_selectedType == 'changeFlag') {
-      newAction.flagName = _flagNameController.text;
-      newAction.flagValue = _flagValue;
     } else if (_selectedType == 'changeCounter') {
       newAction.counterName = _counterNameController.text;
       newAction.counterValue = int.tryParse(_counterValueController.text) ?? 0;
-    } else if (_selectedType == 'playSound') {
-      newAction.soundPath = _soundPathController.text;
-    } else if (_selectedType == 'showImage') {
-      newAction.imagePath = _imagePathController.text;
+    } else if (_selectedType == 'changeFlag') {
+      newAction.flagName = _flagNameController.text;
     }
 
     // Вызываю функцию onSave
@@ -103,30 +84,104 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     Navigator.pop(context);
   }
 
+  // Виджет поля ввода с рамкой (вспомогательный метод)
+  Widget _buildField(TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType}) {
+    return TextField( // Поле ввода
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white, fontSize: 16), // Белый текст
+      decoration: InputDecoration( // Оформление поля
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12), // Круглые углы
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white), // Белая рамка
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFD30010)), // Красная рамка при фокусе
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.action == null ? 'Новое действие' : 'Редактирование действия'),
+    return Scaffold( // Каркас экрана
+      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
+      appBar: AppBar( // Верхняя панель
+        backgroundColor: Colors.transparent, // Прозрачный фон
+        elevation: 0, // Без тени
+        leading: IconButton( // Кнопка с иконкой
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
+          onPressed: () {
+            Navigator.pop(context); // Закрыть экран
+          },
+        ),
+        title: const Text( // Текст (маленький, в AppBar)
+          'Клуб романтики',
+          style: TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        centerTitle: true, // По центру
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
+      body: SingleChildScrollView( // Прокрутка
+        child: Padding( // Отступы
+          padding: const EdgeInsets.all(16),
+          child: Column( // Вертикальный список
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Center( // По центру
+                child: Text( // Большой заголовок
+                  'РЕДАКТИРОВАНИЕ ДЕЙСТВИЯ',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Поле ввода названия действия (розовое)
+              TextField( // Поле ввода
+                style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18), // Розовый текст
+                decoration: const InputDecoration( // Оформление поля
+                  border: InputBorder.none, // Без рамки
+                  isDense: true, // Компактнее
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Подпись (белая)
+              const Text(
+                'тип действия',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
               // Выпадающий список типа действия
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField<String>( // Выпадающий список
                 value: _selectedType,
-                decoration: const InputDecoration(
-                  labelText: 'Тип действия',
-                  border: OutlineInputBorder(),
+                dropdownColor: const Color(0xFF1A1A1A),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                decoration: InputDecoration( // Оформление
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.white),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFD30010)),
+                  ),
+                  suffixIcon: const Icon(Icons.radio_button_unchecked, color: Colors.white), // Кругляшок справа
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'nextScene', child: Text('Переход к сцене')),
-                  DropdownMenuItem(value: 'changeFlag', child: Text('Установка флага')),
-                  DropdownMenuItem(value: 'changeCounter', child: Text('Изменение счётчика (баллы)')),
-                  DropdownMenuItem(value: 'playSound', child: Text('Проигрывание звука')),
-                  DropdownMenuItem(value: 'showImage', child: Text('Показ картинки')),
+                  DropdownMenuItem(value: 'nextScene', child: Text('перейти к сцене')),
+                  DropdownMenuItem(value: 'changeCounter', child: Text('баллы')),
+                  DropdownMenuItem(value: 'changeFlag', child: Text('флаг')),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -136,81 +191,71 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                   }
                 },
               ),
+              const SizedBox(height: 24),
+              // Надпись (белая)
+              const Text(
+                'параметры',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
               const SizedBox(height: 16),
               // Поля в зависимости от типа действия
               if (_selectedType == 'nextScene') ...[
-                TextField(
-                  controller: _sceneIdController,
-                  keyboardType: TextInputType.number, // Только цифры
-                  decoration: const InputDecoration(
-                    labelText: 'ID сцены (куда перейти)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ] else if (_selectedType == 'changeFlag') ...[
-                TextField(
-                  controller: _flagNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Имя флага (например, helpedGrandpa)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Переключатель значения флага
-                Row(
+                Row( // Горизонтальный список
                   children: [
-                    const Text('Значение флага:'),
-                    const SizedBox(width: 16),
-                    Switch(
-                      value: _flagValue,
-                      onChanged: (value) {
-                        setState(() {
-                          _flagValue = value;
-                        });
-                      },
+                    const Expanded(
+                      child: Text(
+                        'перейти к сцене',
+                        style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                      ),
                     ),
-                    Text(_flagValue ? 'true' : 'false'),
+                    Expanded(child: _buildField(_sceneIdController, keyboardType: TextInputType.number)),
                   ],
                 ),
               ] else if (_selectedType == 'changeCounter') ...[
-                TextField(
-                  controller: _counterNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Имя счётчика (например, adrianPoints)',
-                    border: OutlineInputBorder(),
-                  ),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'баллы (кол-во, счётчик',
+                        style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                      ),
+                    ),
+                    Expanded(child: _buildField(_counterNameController)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildField(_counterValueController, keyboardType: TextInputType.number)),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _counterValueController,
-                  keyboardType: TextInputType.number, // Только цифры
-                  decoration: const InputDecoration(
-                    labelText: 'Значение (например, 1 или -1)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ] else if (_selectedType == 'playSound') ...[
-                TextField(
-                  controller: _soundPathController,
-                  decoration: const InputDecoration(
-                    labelText: 'Путь к звуку (например, click.mp3)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ] else if (_selectedType == 'showImage') ...[
-                TextField(
-                  controller: _imagePathController,
-                  decoration: const InputDecoration(
-                    labelText: 'Путь к картинке (например, heart.png)',
-                    border: OutlineInputBorder(),
-                  ),
+              ] else if (_selectedType == 'changeFlag') ...[
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'флаг',
+                        style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                      ),
+                    ),
+                    Expanded(child: _buildField(_flagNameController)),
+                  ],
                 ),
               ],
               const SizedBox(height: 24),
               // Кнопка сохранения
-              ElevatedButton(
-                onPressed: _saveAction,
-                child: const Text('Сохранить действие'),
+              SizedBox( // Контейнер
+                width: double.infinity, // На всю ширину
+                child: ElevatedButton( // Кнопка с фоном
+                  onPressed: _saveAction,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD30010),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'сохранить',
+                    style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
             ],
           ),

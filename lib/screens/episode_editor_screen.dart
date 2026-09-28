@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
-import 'scene_editor_screen.dart'; // Импорт экрана редактора сцены
+import 'scene_editor_screen.dart'; // Импорт экрана редактирования сцены
 
 // Экран редактирования эпизода
 class EpisodeEditorScreen extends StatefulWidget {
@@ -26,7 +26,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
   @override
   void initState() {
     super.initState();
-     // Создание контроллера и заполнение его текущим названием эпизода
+    // Создание контроллера и заполнение его текущим названием эпизода
     _titleController = TextEditingController(text: widget.episode.title);
   }
 
@@ -42,12 +42,12 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
     setState(() {
       // Создаю Protobuf-модель Scene
       final newScene = Scene(
-        id: widget.episode.scenes.length + 1,  // Id новой сцены
+        id: widget.episode.scenes.length + 1, // Id новой сцены
         background: '', // Фон
         character: '', // Персонаж
         condition: '', // Условие
       );
-      
+
       // Добавляю в список (repeated)
       widget.episode.scenes.add(newScene);
     });
@@ -59,17 +59,17 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return AlertDialog( // Всплывающее окно
           title: const Text('Удалить сцену?'),
           content: Text(
             'Вы точно уверены, что хотите удалить "Сцена ${widget.episode.scenes[index].id}"?',
           ),
           actions: [
-            TextButton(
+            TextButton( // Кнопка без фона
               onPressed: () => Navigator.pop(context, false), // Отмена
               child: const Text('Отмена'),
             ),
-            TextButton(
+            TextButton( // Кнопка без фона
               onPressed: () => Navigator.pop(context, true), // Подтверждение
               child: const Text('Удалить'),
             ),
@@ -90,7 +90,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
   void _saveEpisode() {
     // Обновляю название
     widget.episode.title = _titleController.text;
-    
+
     // Вызываю функцию onSave
     widget.onSave(widget.episode);
 
@@ -102,81 +102,146 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.episode.title), // Заголовок (название эпизода)
+    return Scaffold( // Каркас экрана
+      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
+      appBar: AppBar( // Верхняя панель
+        backgroundColor: Colors.transparent, // Прозрачный фон
+        elevation: 0, // Без тени
+        leading: IconButton( // Кнопка с иконкой
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
+          onPressed: () {
+            Navigator.pop(context); // Закрыть экран
+          },
+        ),
+        title: const Text( // Текст (маленький, в AppBar)
+          'Клуб романтики',
+          style: TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        centerTitle: true, // По центру
       ),
-      body: Column(
-        children: [
-          // Поле ввода названия эпизода
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Название эпизода',
-                border: OutlineInputBorder(),
+      body: Padding( // Отступы
+        padding: const EdgeInsets.all(16),
+        child: Column( // Вертикальный список
+          children: [
+            const Text( // Большой заголовок
+              'РЕДАКТИРОВАНИЕ ЭПИЗОДА',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
               ),
             ),
-          ),
-          // Кнопка создания сцены
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton(
-              onPressed: _addScene,
-              child: const Text('Создать сцену'),
+            const SizedBox(height: 16),
+            // Подпись (серая)
+            const Align( // Выравнивание
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'название эпизода',
+                style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 16),
+              ),
             ),
-          ),
-          // Список сцен
-          Expanded(
-            child: widget.episode.scenes.isEmpty
-                ? const Center(child: Text('Нет сцен')) // Если сцен нет
-                : ListView.builder(
-                    itemCount: widget.episode.scenes.length,
-                    itemBuilder: (context, index) {
-                      final scene = widget.episode.scenes[index];
-                      return ListTile(
-                        title: Text('Сцена ${scene.id}'), // Название сцены
-                        subtitle: Text('Текстов: ${scene.texts.length}'), // Количество текстов
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Кнопка редоктирования сцены
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => SceneEditorScreen(
-                                      scene: scene,
+            const SizedBox(height: 4),
+            // Поле ввода названия эпизода (розовая)
+            TextField( // Поле ввода
+              controller: _titleController, // Контроллер
+              style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18), // Розовый текст
+              decoration: const InputDecoration( // Оформление поля
+                border: InputBorder.none, // Без рамки
+                isDense: true, // Компактнее
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Надпись (розовая)
+            const Align( // Выравнивание
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'список сцен:',
+                style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Список сцен
+            Expanded( // Растягивание
+              child: widget.episode.scenes.isEmpty
+                  ? const Center(child: Text('нет сцен', style: TextStyle(color: Colors.white))) // Если сцен нет
+                  : ListView.builder( // Список
+                      itemCount: widget.episode.scenes.length,
+                      itemBuilder: (context, index) {
+                        final scene = widget.episode.scenes[index];
+                        return ListTile( // Строка списка
+                          title: Text('сцена ${scene.id} "..."', style: const TextStyle(color: Colors.white)), // Название сцены
+                          subtitle: Text('текстов: ${scene.texts.length}', style: const TextStyle(color: Color(0xFFFFA0A0))), // Количество текстов
+                          trailing: Row( // Горизонтальный список (справа)
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Кнопка редактирования сцены
+                              IconButton( // Кнопка с иконкой
+                                icon: const Icon(Icons.edit, color: Colors.white),
+                                onPressed: () {
+                                  Navigator.push( // Открыть экран
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => SceneEditorScreen(
+                                        scene: scene,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
-                            // Кнопка удаления сцены
-                            IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () {
-                                _deleteScene(index);
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          // Кнопка сохранения
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: ElevatedButton(
-              onPressed: _saveEpisode,
-              child: const Text('Сохранить'),
+                                  );
+                                },
+                              ),
+                              // Кнопка удаления сцены
+                              IconButton( // Кнопка с иконкой
+                                icon: const Icon(Icons.delete, color: Colors.white),
+                                onPressed: () {
+                                  _deleteScene(index);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            // Кнопка создания сцены
+            SizedBox( // Контейнер
+              width: double.infinity, // На всю ширину
+              child: ElevatedButton( // Кнопка с фоном
+                onPressed: _addScene,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD30010),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'создать сцену',
+                  style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Кнопка сохранения
+            SizedBox( // Контейнер
+              width: double.infinity, // На всю ширину
+              child: ElevatedButton( // Кнопка с фоном
+                onPressed: _saveEpisode,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF333333),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'сохранить',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

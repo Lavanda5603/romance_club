@@ -1,99 +1,140 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'screens/programmer_screen.dart'; // Импорт экрана режима разработчика
+import 'screens/profile_screen.dart'; // Импорт экрана профиля
+import 'screens/settings_screen.dart'; // Импорт экрана настроек
 
 void main() {
-  // Точка входа в приложение
-  runApp(const RomanceClubApp());
+  runApp(const RomanceClubApp()); // Запуск приложения
 }
 
 // Корневой виджет приложения
 class RomanceClubApp extends StatelessWidget {
-  // Конструктор класса RomanceClubApp
-  const RomanceClubApp({super.key});
+  const RomanceClubApp({super.key}); // Виджет без состояния
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Клуб Романтики', // Название приложения
+      title: 'Клуб Романтики',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.red), // Тема (красная)
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFD30010)), // Тема
       ),
-      home: const MainMenu(), // Главный экран (меню)
+      home: const MainMenu(), // Главный экран
     );
   }
 }
 
 // Главное меню приложения
 class MainMenu extends StatelessWidget {
-  // Конструктор класса MainMenu
   const MainMenu({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black, // Чёрный фон
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, // Выравнивание по центру
+    return Scaffold( // Каркас экрана
+      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
+      appBar: AppBar( // Верхняя панель
+        backgroundColor: Colors.transparent, // Прозрачный фон
+        elevation: 0, // Без тени
+        leading: Row( // Горизонтальный список (слева)
+          mainAxisSize: MainAxisSize.min, // Минимальная ширина
           children: [
-            // Название игры
-            const Text(
-              'Клуб Романтики',
-              style: TextStyle(
-                fontSize: 42, // Размер шрифта
-                fontWeight: FontWeight.bold, // Жирный
-                color: Colors.red, // Красный цвет
-              ),
-            ),
-            // Подзаголовок
-            const Text(
-              'Леди Баг и Супер-Кот',
-              style: TextStyle(
-                fontSize: 32,
-                color: Colors.red,
-              ),
-            ),
-            const SizedBox(height: 67), // Отступ
-            
-            // Кнопка играть
-            ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 50, // Отступ по горизонтали
-                  vertical: 20, // Отступ по вертикали
-                ),
-              ),
-              child: const Text(
-                'Играть',
-                style: TextStyle(fontSize: 20),
-              ),
-            ),
-            const SizedBox(height: 20), // Отступ
-            
-            // Кнопка режима разработчика
-            OutlinedButton(
+            IconButton( // Кнопка с иконкой
+              icon: const Icon(Icons.settings, color: Color(0xFFD30010)), // Настройки
               onPressed: () {
-                // Переход на экран режима разработчика
-                Navigator.push(
+                Navigator.push( // Открыть экран
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProgrammerScreen(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
                 );
               },
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 50,
-                  vertical: 20,
-                ),
-              ),
-              child: const Text(
-                'Режим разработчика',
-                style: TextStyle(fontSize: 18),
-              ),
+            ),
+            IconButton( // Кнопка с иконкой
+              icon: const Icon(Icons.delete, color: Color(0xFFD30010)), // Корзина
+              onPressed: () {
+                // Очистка прогресса
+              },
             ),
           ],
+        ),
+        title: const Text( // Текст (маленький, в AppBar)
+          'Клуб романтики',
+          style: TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        centerTitle: true, // По центру
+        actions: [
+          IconButton( // Кнопка с иконкой (справа)
+            icon: const Icon(Icons.person, color: Color(0xFFD30010)), // Профиль
+            onPressed: () {
+              Navigator.push( // Открыть экран профиля
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+      body: SingleChildScrollView( // Прокрутка
+        child: Padding( // Отступы
+          padding: const EdgeInsets.all(16),
+          child: Column( // Вертикальный список
+            children: [
+              const SizedBox(height: 80), // Отступ сверху
+              const Text( // Большой логотип
+                'КЛУБ РОМАНТИКИ',
+                style: TextStyle(
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold, // Жирность шрифта
+                  color: Color(0xFFD30010),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text( // Подзаголовок
+                'Леди Баг и Супер-Кот',
+                style: TextStyle(fontSize: 24, color: Color(0xFFD30010)),
+              ),
+              const SizedBox(height: 80),
+              SizedBox( // Контейнер на всю ширину
+                width: double.infinity,
+                child: ElevatedButton( // Кнопка с фоном
+                  onPressed: () {
+                    // Переход в выбор эпизода
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD30010),
+                    padding: const EdgeInsets.symmetric(vertical: 20), // Внутренние отступы
+                    shape: RoundedRectangleBorder( // Форма кнопки (прямоугольник со скруглёнными углами)
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'ИГРАТЬ',
+                    style: TextStyle(fontSize: 20, color: Color(0xFF3F0404), fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity, // На всю ширину (бесконечность)
+                child: ElevatedButton( // Кнопка разработчика
+                  onPressed: () {
+                    Navigator.push( // Открыть режим разработчика
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProgrammerScreen()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD30010),
+                    padding: const EdgeInsets.symmetric(vertical: 20), // Внутренние отступы
+                    shape: RoundedRectangleBorder( // Форма кнопки (прямоугольник со скруглёнными углами)
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'разработчик',
+                    style: TextStyle(fontSize: 18, color: Color(0xFF3F0404), fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

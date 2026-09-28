@@ -32,6 +32,14 @@ const Scene$json = {
       '10': 'choices'
     },
     {'1': 'condition', '3': 6, '4': 1, '5': 9, '10': 'condition'},
+    {'1': 'text_position', '3': 7, '4': 1, '5': 9, '10': 'textPosition'},
+    {
+      '1': 'character_position',
+      '3': 8,
+      '4': 1,
+      '5': 9,
+      '10': 'characterPosition'
+    },
   ],
 };
 
@@ -40,4 +48,5 @@ final $typed_data.Uint8List sceneDescriptor = $convert.base64Decode(
     'CgVTY2VuZRIOCgJpZBgBIAEoBVICaWQSHgoKYmFja2dyb3VuZBgCIAEoCVIKYmFja2dyb3VuZB'
     'IcCgljaGFyYWN0ZXIYAyABKAlSCWNoYXJhY3RlchIUCgV0ZXh0cxgEIAMoCVIFdGV4dHMSLgoH'
     'Y2hvaWNlcxgFIAMoCzIULnJvbWFuY2VfY2x1Yi5DaG9pY2VSB2Nob2ljZXMSHAoJY29uZGl0aW'
-    '9uGAYgASgJUgljb25kaXRpb24=');
+    '9uGAYgASgJUgljb25kaXRpb24SIwoNdGV4dF9wb3NpdGlvbhgHIAEoCVIMdGV4dFBvc2l0aW9u'
+    'Ei0KEmNoYXJhY3Rlcl9wb3NpdGlvbhgIIAEoCVIRY2hhcmFjdGVyUG9zaXRpb24=');

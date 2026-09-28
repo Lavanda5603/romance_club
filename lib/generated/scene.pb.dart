@@ -27,6 +27,8 @@ class Scene extends $pb.GeneratedMessage {
     $core.Iterable<$core.String>? texts,
     $core.Iterable<$0.Choice>? choices,
     $core.String? condition,
+    $core.String? textPosition,
+    $core.String? characterPosition,
   }) {
     final result = Scene._();
     if (id != null) result.id = id;
@@ -35,6 +37,8 @@ class Scene extends $pb.GeneratedMessage {
     if (texts != null) result.texts.addAll(texts);
     if (choices != null) result.choices.addAll(choices);
     if (condition != null) result.condition = condition;
+    if (textPosition != null) result.textPosition = textPosition;
+    if (characterPosition != null) result.characterPosition = characterPosition;
     return result;
   }
 
@@ -58,6 +62,8 @@ class Scene extends $pb.GeneratedMessage {
     ..pPM<$0.Choice>(5, _omitFieldNames ? '' : 'choices',
         subBuilder: $0.Choice.$_createMessage)
     ..aOS(6, _omitFieldNames ? '' : 'condition')
+    ..aOS(7, _omitFieldNames ? '' : 'textPosition')
+    ..aOS(8, _omitFieldNames ? '' : 'characterPosition')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -121,6 +127,24 @@ class Scene extends $pb.GeneratedMessage {
   $core.bool hasCondition() => $_has(5);
   @$pb.TagNumber(6)
   void clearCondition() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get textPosition => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set textPosition($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasTextPosition() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearTextPosition() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get characterPosition => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set characterPosition($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasCharacterPosition() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearCharacterPosition() => $_clearField(8);
 }
 
 const $core.bool _omitFieldNames =

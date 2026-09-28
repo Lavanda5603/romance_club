@@ -24,6 +24,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   late TextEditingController _characterController; // Контроллер для поля ввода персонажа
   late TextEditingController _textController; // Контроллер для поля ввода текста
   late TextEditingController _conditionController; // Контроллер для поля ввода условия сцены
+  late TextEditingController _musicController; // Контроллер для поля ввода музыки
 
   @override
   void initState() {
@@ -36,6 +37,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       text: widget.scene.texts.join('\n'), // Тексты (объединяю через перенос строки)
     );
     _conditionController = TextEditingController(text: widget.scene.condition);
+    _musicController = TextEditingController(); // Пустой
   }
 
   @override
@@ -46,6 +48,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     _characterController.dispose();
     _textController.dispose();
     _conditionController.dispose();
+    _musicController.dispose();
     super.dispose();
   }
 
@@ -56,7 +59,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     widget.scene.background = _backgroundController.text;
     widget.scene.character = _characterController.text;
     widget.scene.condition = _conditionController.text;
-    
+
     // texts, repeated string (очищаю и заполняю заново)
     widget.scene.texts.clear();
     widget.scene.texts.addAll(_textController.text.split('\n'));
@@ -77,8 +80,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
           choice: null, // Новый выбор
           onSave: (newChoice) {
             setState(() {
-              // Добавляю выбор в список (repeated)
-              widget.scene.choices.add(newChoice);
+              widget.scene.choices.add(newChoice); // Добавляю выбор в список
             });
           },
         ),
@@ -96,8 +98,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
           choice: widget.scene.choices[index], // Выбор
           onSave: (newChoice) {
             setState(() {
-              // Заменяю выбор в списке
-              widget.scene.choices[index] = newChoice;
+              widget.scene.choices[index] = newChoice; // Заменяю выбор в списке
             });
           },
         ),
@@ -111,17 +112,17 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return AlertDialog( // Всплывающее окно
           title: const Text('Удалить выбор?'),
           content: Text(
             'Вы точно уверены, что хотите удалить "${widget.scene.choices[index].text}"?',
           ),
           actions: [
-            TextButton(
+            TextButton( // Кнопка без фона
               onPressed: () => Navigator.pop(context, false), // Отмена
               child: const Text('Отмена'),
             ),
-            TextButton(
+            TextButton( // Кнопка без фона
               onPressed: () => Navigator.pop(context, true), // Подтверждение
               child: const Text('Удалить'),
             ),
@@ -138,120 +139,206 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
+  // Виджет поля ввода с рамкой (вспомогательный метод)
+  Widget _buildField(String label, TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType}) {
+    return Column( // Column - вертикальный список
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Подпись (розовая)
+        Text(
+          label,
+          style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+        ),
+        const SizedBox(height: 4), // Отступ
+        // Поле ввода с белой рамкой
+        TextField( // Поле ввода
+          controller: controller,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          style: const TextStyle(color: Colors.white, fontSize: 16), // Белый текст
+          decoration: InputDecoration( // Оформление поля
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12), // Круглые углы
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.white), // Белая рамка
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFD30010)), // Красная рамка при фокусе
+            ),
+          ),
+        ),
+        const SizedBox(height: 16), // Отступ
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Сцена ${widget.scene.id}'), // Заголовок (Id сцены)
+    return Scaffold( // Каркас экрана
+      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
+      appBar: AppBar( // Верхняя панель
+        backgroundColor: Colors.transparent, // Прозрачный фон
+        elevation: 0, // Без тени
+        leading: IconButton( // Кнопка с иконкой
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
+          onPressed: () {
+            Navigator.pop(context); // Закрыть экран
+          },
+        ),
+        title: const Text( // Текст (маленький, в AppBar)
+          'Клуб романтики',
+          style: TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        centerTitle: true, // По центру
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
+      body: SingleChildScrollView( // Прокрутка
+        child: Padding( // Отступы
+          padding: const EdgeInsets.all(16),
+          child: Column( // Вертикальный список
             children: [
-              // Поле ввода Id сцены
-              TextField(
-                controller: _idController,
-                keyboardType: TextInputType.number, // Только цифры
-                decoration: const InputDecoration(
-                  labelText: 'ID',
-                  border: OutlineInputBorder(),
+              const Text( // Большой заголовок
+                'РЕДАКТИРОВАНИЕ СЦЕНЫ',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
                 ),
               ),
               const SizedBox(height: 16),
-              // Поле ввода фона
-              TextField(
-                controller: _backgroundController,
-                decoration: const InputDecoration(
-                  labelText: 'Фон',
-                  border: OutlineInputBorder(),
+              // Поле ввода названия сцены (розовая)
+              TextField( // Поле ввода
+                controller: _idController, // Контроллер
+                style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18), // Розовый текст
+                decoration: const InputDecoration( // Оформление поля
+                  border: InputBorder.none, // Без рамки
+                  isDense: true, // Компактнее
                 ),
               ),
               const SizedBox(height: 16),
-              // Поле ввода персонажа
-              TextField(
-                controller: _characterController,
-                decoration: const InputDecoration(
-                  labelText: 'Персонаж',
-                  border: OutlineInputBorder(),
+              // Поля с рамкой (ID, фон, персонаж, текст, условие)
+              _buildField('ID', _idController, keyboardType: TextInputType.number),
+              _buildField('фон', _backgroundController),
+              _buildField('персонаж', _characterController),
+              _buildField('текст', _textController, maxLines: 5),
+              // Иконка плюсика (под полем текст)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton( // Кнопка с иконкой
+                  icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)), // Розовый плюсик
+                  onPressed: () {
+                    // Tекст
+                  },
                 ),
               ),
-              const SizedBox(height: 16),
-              // Поле ввода текста
-              TextField(
-                controller: _textController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  labelText: 'Текст (каждая строка — отдельный текст)',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
+              _buildField('условие', _conditionController),
+              const SizedBox(height: 8),
+              // Надпись выбор (розовая)
+              const Align( // Выравнивание
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'выбор',
+                  style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
                 ),
-              ),
-              const SizedBox(height: 16),
-              // Поле ввода условия
-              TextField(
-                controller: _conditionController,
-                decoration: const InputDecoration(
-                  labelText: 'Условие (опционально)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Блок выборов
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Выборы:',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  ElevatedButton(
-                    onPressed: _addChoice,
-                    child: const Text('+ Добавить выбор'),
-                  ),
-                ],
               ),
               const SizedBox(height: 8),
               // Список выборов
               if (widget.scene.choices.isEmpty)
-                const Text('Нет выборов')
+                const Text('нет выборов', style: TextStyle(color: Colors.white))
               else
-                ListView.builder(
+                ListView.builder( // Список
                   shrinkWrap: true, // Чтобы ListView не занимал весь экран
                   physics: const NeverScrollableScrollPhysics(), // Отключаю скролл у ListView
                   itemCount: widget.scene.choices.length,
                   itemBuilder: (context, index) {
                     final choice = widget.scene.choices[index];
-                    return ListTile(
-                      title: Text(choice.text), // Текст выбора
-                      subtitle: Text('Действий: ${choice.actions.length}'), // Количество действий
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    return Container( // Контейнер (блок выбора)
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration( // Оформление
+                        border: Border.all(color: Colors.white), // Белая рамка
+                        borderRadius: BorderRadius.circular(12), // Круглые углы
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Кнопка редактирования выбора
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              _editChoice(index);
-                            },
+                          // Название выбора (белое)
+                          Text(
+                            choice.text.isEmpty ? 'выбор ${index + 1} "..."' : choice.text,
+                            style: const TextStyle(color: Colors.white, fontSize: 16),
                           ),
-                          // Кнопка удаления выбора
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () {
-                              _deleteChoice(index);
-                            },
+                          const SizedBox(height: 8),
+                          // Подпись действия (серая)
+                          const Text(
+                            'действия:',
+                            style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                          ),
+                          const SizedBox(height: 4),
+                          // Список действий (белые)
+                          ...choice.actions.map((action) {
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 8, bottom: 4),
+                              child: Text(
+                                'действие "..."',
+                                style: const TextStyle(color: Colors.white, fontSize: 14),
+                              ),
+                            );
+                          }).toList(),
+                          const SizedBox(height: 8),
+                          // Кнопки редактирования и удаления (справа)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Row( // Горизонтальный список
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton( // Кнопка редактирования
+                                  icon: const Icon(Icons.edit, color: Colors.white),
+                                  onPressed: () => _editChoice(index),
+                                ),
+                                IconButton( // Кнопка удаления
+                                  icon: const Icon(Icons.delete, color: Colors.white),
+                                  onPressed: () => _deleteChoice(index),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     );
                   },
                 ),
-              const SizedBox(height: 24),
+              // Иконка плюсика (под выборами)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton( // Кнопка с иконкой
+                  icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)), // Розовый плюсик
+                  onPressed: _addChoice,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Поле ввода музыки
+              _buildField('музыка', _musicController),
+              const SizedBox(height: 8),
               // Кнопка сохранения
-              ElevatedButton(
-                onPressed: _saveScene,
-                child: const Text('Сохранить'),
+              SizedBox( // Контейнер
+                width: double.infinity, // На всю ширину
+                child: ElevatedButton( // Кнопка с фоном
+                  onPressed: _saveScene,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD30010),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'сохранить',
+                    style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
             ],
           ),

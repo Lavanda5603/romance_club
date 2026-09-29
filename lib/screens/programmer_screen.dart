@@ -187,26 +187,6 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 8), // Отступ
-            SizedBox( // Контейнер
-              width: double.infinity, // На всю ширину
-              child: ElevatedButton( // Кнопка с фоном
-                onPressed: () {
-                  // Сохранение эпизодов
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF333333),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'сохранить',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-            ),
           ],
         ),
       ),

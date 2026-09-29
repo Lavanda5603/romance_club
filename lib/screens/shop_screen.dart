@@ -11,8 +11,8 @@ class ShopScreen extends StatefulWidget {
 }
 
 class _ShopScreenState extends State<ShopScreen> {
-  int _currency = 0; // Валюта игрока
-  String _episodeName = ''; // Название эпизода
+  final int _currency = 0; // Валюта игрока
+  final String _episodeName = ''; // Название эпизода
 
   @override
   Widget build(BuildContext context) {

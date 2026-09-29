@@ -12,9 +12,9 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _nameController; // Контроллер для имени
-  String _registrationDate = ''; // Дата регистрации
-  int _completedEpisodes = 0; // Прогресс
-  int _totalEpisodes = 0; // Всего эпизодов
+  final String _registrationDate = ''; // Дата регистрации
+  final int _completedEpisodes = 0; // Прогресс
+  final int _totalEpisodes = 0; // Всего эпизодов
   double get _progress => _totalEpisodes == 0 ? 0 : _completedEpisodes / _totalEpisodes; // Прогресс в процентах
 
   @override

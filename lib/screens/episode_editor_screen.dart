@@ -183,7 +183,12 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => SceneEditorScreen(
-                                        scene: scene,
+                                        scene: scene, // Сцена
+                                        onSave: (newScene) {
+                                          setState(() {
+                                            widget.episode.scenes[index] = newScene; // Обновляю сцену в списке
+                                          });
+                                        },
                                       ),
                                     ),
                                   );

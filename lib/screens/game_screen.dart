@@ -11,12 +11,12 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  String _sceneText = ''; // Текст сцены
+  final String _sceneText = ''; // Текст сцены
   final List<String> _choices = []; // Выборы
-  int _points = 0; // Баллы
-  String _characterPosition = 'center'; // Позиция персонажа
-  String _textPosition = 'bottom'; // Позиция текста
-  bool _hasCharacter = false; // Есть ли персонаж
+  final int _points = 0; // Баллы
+  final String _characterPosition = 'center'; // Позиция персонажа
+  final String _textPosition = 'bottom'; // Позиция текста
+  final bool _hasCharacter = false; // Есть ли персонаж
 
   // Обработка выбора
   void _onChoiceSelected(int index) {
@@ -132,7 +132,7 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),

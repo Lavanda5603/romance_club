@@ -2,6 +2,8 @@ import 'package:flutter/material.dart'; // Импорт Material UI
 import 'screens/programmer_screen.dart'; // Импорт экрана режима разработчика
 import 'screens/profile_screen.dart'; // Импорт экрана профиля
 import 'screens/settings_screen.dart'; // Импорт экрана настроек
+import 'screens/episode_select_screen.dart'; // Импорт экрана выбора эпизода
+import 'screens/shop_screen.dart'; // Импорт экрана магазина
 import 'services/surreal_service.dart'; // Импорт сервиса SurrealDB
 
 void main() async {
@@ -37,22 +39,26 @@ class MainMenu extends StatelessWidget {
       appBar: AppBar( // Верхняя панель
         backgroundColor: Colors.transparent, // Прозрачный фон
         elevation: 0, // Без тени
+        leadingWidth: 100, // Ширина области (чтобы влезли иконки)
         leading: Row( // Горизонтальный список (слева)
           mainAxisSize: MainAxisSize.min, // Минимальная ширина
           children: [
             IconButton( // Кнопка с иконкой
               icon: const Icon(Icons.settings, color: Color(0xFFD30010)), // Настройки
               onPressed: () {
-                Navigator.push( // Открыть экран
+                Navigator.push( // Открыть экран настроек
                   context,
                   MaterialPageRoute(builder: (context) => const SettingsScreen()),
                 );
               },
             ),
             IconButton( // Кнопка с иконкой
-              icon: const Icon(Icons.delete, color: Color(0xFFD30010)), // Корзина
+              icon: const Icon(Icons.shopping_cart, color: Color(0xFFD30010)), // Магазин
               onPressed: () {
-                // Очистка прогресса
+                Navigator.push( // Открыть экран магазина
+                  context,
+                  MaterialPageRoute(builder: (context) => const ShopScreen()),
+                );
               },
             ),
           ],
@@ -96,9 +102,14 @@ class MainMenu extends StatelessWidget {
               const SizedBox(height: 80),
               SizedBox( // Контейнер на всю ширину
                 width: double.infinity,
-                child: ElevatedButton( // Кнопка с фоном
+                child: ElevatedButton( // Кнопка играть
                   onPressed: () {
-                    // Переход в выбор эпизода
+                    Navigator.push( // Открыть экран выбора эпизода
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EpisodeSelectScreen(),
+                      )
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD30010),
@@ -118,7 +129,7 @@ class MainMenu extends StatelessWidget {
                 width: double.infinity, // На всю ширину (бесконечность)
                 child: ElevatedButton( // Кнопка разработчика
                   onPressed: () {
-                    Navigator.push( // Открыть режим разработчика
+                    Navigator.push( // Открыть экран режима разработчикаа
                       context,
                       MaterialPageRoute(builder: (context) => const ProgrammerScreen()),
                     );

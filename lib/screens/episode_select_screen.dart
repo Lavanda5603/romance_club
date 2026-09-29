@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
+import 'game_screen.dart'; // Импорт игрового экрана
 
 // Экран выбора эпизода
 class EpisodeSelectScreen extends StatefulWidget {
@@ -88,7 +89,12 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
               width: double.infinity, // На всю ширину
               child: ElevatedButton( // Кнопка с фоном
                 onPressed: () {
-                  // Переход на игровой экран
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const GameScreen(), // Игровой экран
+                    )
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFD30010),

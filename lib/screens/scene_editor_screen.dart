@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
-import '../generated/choice.pb.dart'; // Импорт Protobuf-модели Choice
 import 'choice_editor_screen.dart'; // Импорт экрана редактора выбора
 
 // Экран редактирования сцены
 class SceneEditorScreen extends StatefulWidget {
   final Scene scene; // Сцена
+  final Function(Scene) onSave; // Функция, вызывается при сохранении
 
   // Конструктор класса SceneEditorScreen
   const SceneEditorScreen({
     super.key,
     required this.scene,
+    required this.onSave,
   });
 
   // Метод createState (создание объекта состояния)
@@ -54,20 +55,30 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
   // Сохранение сцены
   void _saveScene() {
-    // Protobuf-модели мутабельные (можно менять поля напрямую)
-    widget.scene.id = int.parse(_idController.text);
-    widget.scene.background = _backgroundController.text;
-    widget.scene.character = _characterController.text;
-    widget.scene.condition = _conditionController.text;
+    // Создаю новую сцену с данными из полей
+    final newScene = Scene( // Scene - Protobuf-модель
+      id: int.tryParse(_idController.text) ?? widget.scene.id, // Id из поля
+      background: _backgroundController.text, // Фон
+      character: _characterController.text, // Персонаж
+      condition: _conditionController.text, // Условие
+    );
 
-    // texts, repeated string (очищаю и заполняю заново)
-    widget.scene.texts.clear();
-    widget.scene.texts.addAll(_textController.text.split('\n'));
+    // Добавляю тексты (repeated string)
+    newScene.texts.addAll(_textController.text.split('\n'));
 
-    // Показываю уведомление о сохранении
+    // Копирую выборы из старой сцены
+    newScene.choices.addAll(widget.scene.choices);
+
+    // Вызываю колбэк onSave (сообщаю эпизоду о сохранении)
+    widget.onSave(newScene);
+
+    // Показываю уведомление
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Сцена сохранена')),
     );
+
+    // Закрываю экран
+    Navigator.pop(context);
   }
 
   // Добавление нового выбора
@@ -286,7 +297,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                                 style: const TextStyle(color: Colors.white, fontSize: 14),
                               ),
                             );
-                          }).toList(),
+                          }),
                           const SizedBox(height: 8),
                           // Кнопки редактирования и удаления (справа)
                           Align(

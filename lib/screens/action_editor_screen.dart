@@ -161,7 +161,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
               const SizedBox(height: 8),
               // Выпадающий список типа действия
               DropdownButtonFormField<String>( // Выпадающий список
-                value: _selectedType,
+                initialValue: _selectedType,
                 dropdownColor: const Color(0xFF1A1A1A),
                 style: const TextStyle(color: Colors.white, fontSize: 16),
                 decoration: InputDecoration( // Оформление

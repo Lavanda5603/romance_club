@@ -8,4 +8,5 @@ import "action.proto"; // Подключаю action.proto
 message Choice {
   string text = 1; // Текст выбора
   repeated Action actions = 2; // Действия после выбора
+  string title = 3; // Название выбора
 }

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/choice.pb.dart'; // Импорт Protobuf-модели Choice
+import 'action_editor_screen.dart'; // Импорт экрана редактора действия
 
 // Экран редактирования выбора
 class ChoiceEditorScreen extends StatefulWidget {
   final Choice? choice; // Выбор (null, если новый)
+  final String defaultText; // Текст по умолчанию
   final Function(Choice) onSave; // Функция, вызывается при сохранении
 
   // Конструктор класса ChoiceEditorScreen
   const ChoiceEditorScreen({
     super.key,
     this.choice,
+    this.defaultText = '',
     required this.onSave,
   });
 
@@ -19,41 +22,122 @@ class ChoiceEditorScreen extends StatefulWidget {
 }
 
 class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
+  late TextEditingController _titleController; // Контроллер для поля ввода названия
   late TextEditingController _textController; // Контроллер для поля ввода текста
+  late Choice _choice; // Локальный выбор (создаётся, если widget.choice == null)
 
   @override
   void initState() {
     super.initState();
-    // Создание контроллера и заполнение его текущим текстом выбора (или пустой строкой)
-    _textController = TextEditingController(
-      text: widget.choice?.text ?? '',
-    );
+    // Создаю локальный выбор (или беру существующий)
+    _choice = widget.choice ?? Choice(); // Choice - Protobuf-модель
+
+    // Если выбор новый - задаю текст по умолчанию
+    if (_choice.text.isEmpty) {
+      _choice.text = widget.defaultText;
+    }
+
+    // Если название пустое - задаю название по умолчанию
+    if (_choice.title.isEmpty) {
+      _choice.title = widget.defaultText;
+    }
+
+    // Создание контроллера названия
+    _titleController = TextEditingController(text: _choice.title);
+
+    // Создание контроллера текста выбора
+    _textController = TextEditingController(text: _choice.text);
   }
 
   @override
   void dispose() {
     // Освобождение ресурса контроллера при закрытии экрана
     _textController.dispose();
+    _titleController.dispose();
     super.dispose();
   }
 
   // Сохранение выбора
   void _saveChoice() {
-    // Создаю Protobuf-модель Choice
-    final newChoice = Choice(
-      text: _textController.text, // Текст выбора
-    );
+    // Обновляю название и текст выбора
+    _choice.title = _titleController.text;
+    _choice.text = _textController.text;
 
-    // Если редактирую существующий, то копирую действия
-    if (widget.choice != null) {
-      newChoice.actions.addAll(widget.choice!.actions);
-    }
-
-    // Вызываю функцию onSave
-    widget.onSave(newChoice);
+    // Вызываю функцию onSave (передаю выбор родителю)
+    widget.onSave(_choice);
 
     // Закрываю экран
     Navigator.pop(context);
+  }
+
+  // Добавление нового действия
+  void _addAction() {
+    // Открываю экран редактора действия с null (создание нового)
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ActionEditorScreen(
+          action: null, // Новое действие
+          defaultTitle: 'действие ${_choice.actions.length + 1}',
+          onSave: (newAction) {
+            setState(() {
+              _choice.actions.add(newAction); // Добавляю действие в список
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  // Редактирование существующего действия
+  void _editAction(int index) {
+    // Открываю экран редактора действия с существующим действием
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ActionEditorScreen(
+          action: _choice.actions[index], // Действие
+          onSave: (newAction) {
+            setState(() {
+              _choice.actions[index] = newAction; // Заменяю действие в списке
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  // Удаление действия
+  Future<void> _deleteAction(int index) async {
+    // Показываю диалог подтверждения
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog( // Всплывающее окно
+          title: const Text('Удалить действие?'),
+          content: const Text(
+            'Вы точно уверены, что хотите удалить это действие?',
+          ),
+          actions: [
+            TextButton( // Кнопка без фона
+              onPressed: () => Navigator.pop(context, false), // Отмена
+              child: const Text('Отмена'),
+            ),
+            TextButton( // Кнопка без фона
+              onPressed: () => Navigator.pop(context, true), // Подтверждение
+              child: const Text('Удалить'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Если пользователь подтвердил, удаляю действие
+    if (confirmed == true) {
+      setState(() {
+        _choice.actions.removeAt(index);
+      });
+    }
   }
 
   @override
@@ -92,7 +176,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
               const SizedBox(height: 16),
               // Поле ввода названия выбора (розовое)
               TextField( // Поле ввода
-                controller: _textController, // Контроллер
+                controller: _titleController, // Название
                 style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18), // Розовый текст
                 decoration: const InputDecoration( // Оформление поля
                   border: InputBorder.none, // Без рамки
@@ -138,14 +222,15 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
               ),
               const SizedBox(height: 8),
               // Список действий
-              if (widget.choice == null || widget.choice!.actions.isEmpty)
+              if (_choice.actions.isEmpty)
                 const Text('нет действий', style: TextStyle(color: Colors.white))
               else
                 ListView.builder( // Список
                   shrinkWrap: true, // Чтобы ListView не занимал весь экран
                   physics: const NeverScrollableScrollPhysics(), // Отключаю скролл у ListView
-                  itemCount: widget.choice!.actions.length,
+                  itemCount: _choice.actions.length,
                   itemBuilder: (context, index) {
+                    final action = _choice.actions[index]; // Действие
                     return Container( // Контейнер (блок действия)
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -158,23 +243,19 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                           // Текст действия (белое)
                           Expanded(
                             child: Text(
-                              'действие "..."',
+                              action.title.isNotEmpty ? action.title : 'действие',
                               style: const TextStyle(color: Colors.white, fontSize: 14),
                             ),
                           ),
                           // Кнопка редактирования
                           IconButton( // Кнопка с иконкой
                             icon: const Icon(Icons.edit, color: Colors.white),
-                            onPressed: () {
-                              // Редактировать действие
-                            },
+                            onPressed: () => _editAction(index), // Редактировать действие
                           ),
                           // Кнопка удаления
                           IconButton( // Кнопка с иконкой
                             icon: const Icon(Icons.delete, color: Colors.white),
-                            onPressed: () {
-                              // Удалить действие
-                            },
+                            onPressed: () => _deleteAction(index), // Удалить действие
                           ),
                         ],
                       ),
@@ -186,9 +267,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                 alignment: Alignment.centerLeft,
                 child: IconButton( // Кнопка с иконкой
                   icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)), // Розовый плюсик
-                  onPressed: () {
-                    // Добавить действие
-                  },
+                  onPressed: _addAction, // Добавить действие
                 ),
               ),
               const SizedBox(height: 16),

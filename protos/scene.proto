@@ -7,11 +7,12 @@ import "choice.proto"; // Подключаю choice.proto
 // Сцена (текст и возможные выборы)
 message Scene {
   int32 id = 1; // Id сцены
-  string background = 2; // Фон
-  string character = 3; // Персонаж
-  repeated string texts = 4; // Тексты сцены
-  repeated Choice choices = 5; // Выборы
-  string condition = 6; // Условие показа
-  string text_position = 7; // Позиция текста
-  string character_position = 8; // Позиция персонажа
+  string title = 2; // Название сцены
+  string background = 3; // Фон
+  string character = 4; // Персонаж
+  repeated string texts = 5; // Тексты сцены
+  repeated Choice choices = 6; // Выборы
+  string condition = 7; // Условие показа
+  string text_position = 8; // Позиция текста
+  string character_position = 9; // Позиция персонажа
 }

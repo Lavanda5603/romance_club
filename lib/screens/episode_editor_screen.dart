@@ -43,6 +43,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
       // Создаю Protobuf-модель Scene
       final newScene = Scene(
         id: widget.episode.scenes.length + 1, // Id новой сцены
+        title: 'сцена ${widget.episode.scenes.length + 1}', // Название по умолчанию
         background: '', // Фон
         character: '', // Персонаж
         condition: '', // Условие
@@ -170,7 +171,13 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                       itemBuilder: (context, index) {
                         final scene = widget.episode.scenes[index];
                         return ListTile( // Строка списка
-                          title: Text('сцена ${scene.id} "..."', style: const TextStyle(color: Colors.white)), // Название сцены
+                          // Показываю название сцены
+                          title: Text(
+                            scene.title.isNotEmpty
+                                ? scene.title
+                                : 'сцена ${scene.id}',
+                            style: const TextStyle(color: Colors.white),
+                          ),
                           subtitle: Text('текстов: ${scene.texts.length}', style: const TextStyle(color: Color(0xFFFFA0A0))), // Количество текстов
                           trailing: Row( // Горизонтальный список (справа)
                             mainAxisSize: MainAxisSize.min,
@@ -233,7 +240,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
               child: ElevatedButton( // Кнопка с фоном
                 onPressed: _saveEpisode,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF333333),
+                  backgroundColor: const Color(0xFFD30010),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -241,7 +248,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                 ),
                 child: const Text(
                   'сохранить',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),

@@ -21,6 +21,7 @@ class SceneEditorScreen extends StatefulWidget {
 
 class _SceneEditorScreenState extends State<SceneEditorScreen> {
   late TextEditingController _idController; // Контроллер для поля ввода Id
+  late TextEditingController _titleController; // Контроллер для поля ввода названия
   late TextEditingController _backgroundController; // Контроллер для поля ввода фона
   late TextEditingController _characterController; // Контроллер для поля ввода персонажа
   late TextEditingController _textController; // Контроллер для поля ввода текста
@@ -32,6 +33,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     super.initState();
     // Создание контроллеров и заполнение их текущими данными сцены
     _idController = TextEditingController(text: widget.scene.id.toString());
+    _titleController = TextEditingController(text: widget.scene.title);
     _backgroundController = TextEditingController(text: widget.scene.background);
     _characterController = TextEditingController(text: widget.scene.character);
     _textController = TextEditingController(
@@ -45,6 +47,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   void dispose() {
     // Освобождение ресурсов всех контроллеров при закрытии экрана
     _idController.dispose();
+    _titleController.dispose();
     _backgroundController.dispose();
     _characterController.dispose();
     _textController.dispose();
@@ -58,6 +61,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     // Создаю новую сцену с данными из полей
     final newScene = Scene( // Scene - Protobuf-модель
       id: int.tryParse(_idController.text) ?? widget.scene.id, // Id из поля
+      title: _titleController.text, // Название
       background: _backgroundController.text, // Фон
       character: _characterController.text, // Персонаж
       condition: _conditionController.text, // Условие
@@ -82,13 +86,14 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   }
 
   // Добавление нового выбора
-  void _addChoice() {
+    void _addChoice() {
     // Открываю экран редактора выбора с null (создание нового)
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChoiceEditorScreen(
           choice: null, // Новый выбор
+          defaultText: 'выбор ${widget.scene.choices.length + 1}',
           onSave: (newChoice) {
             setState(() {
               widget.scene.choices.add(newChoice); // Добавляю выбор в список
@@ -220,9 +225,18 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              // Подпись (серая)
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'название сцены',
+                  style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 4),
               // Поле ввода названия сцены (розовая)
               TextField( // Поле ввода
-                controller: _idController, // Контроллер
+                controller: _titleController, // Контроллер
                 style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18), // Розовый текст
                 decoration: const InputDecoration( // Оформление поля
                   border: InputBorder.none, // Без рамки
@@ -278,7 +292,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         children: [
                           // Название выбора (белое)
                           Text(
-                            choice.text.isEmpty ? 'выбор ${index + 1} "..."' : choice.text,
+                            choice.title.isNotEmpty ? choice.title : 'выбор ${index + 1}',
                             style: const TextStyle(color: Colors.white, fontSize: 16),
                           ),
                           const SizedBox(height: 8),
@@ -293,7 +307,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                             return Padding(
                               padding: const EdgeInsets.only(left: 8, bottom: 4),
                               child: Text(
-                                'действие "..."',
+                                action.title.isNotEmpty ? action.title : 'действие',
                                 style: const TextStyle(color: Colors.white, fontSize: 14),
                               ),
                             );

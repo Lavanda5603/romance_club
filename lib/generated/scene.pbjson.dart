@@ -20,22 +20,23 @@ const Scene$json = {
   '1': 'Scene',
   '2': [
     {'1': 'id', '3': 1, '4': 1, '5': 5, '10': 'id'},
-    {'1': 'background', '3': 2, '4': 1, '5': 9, '10': 'background'},
-    {'1': 'character', '3': 3, '4': 1, '5': 9, '10': 'character'},
-    {'1': 'texts', '3': 4, '4': 3, '5': 9, '10': 'texts'},
+    {'1': 'title', '3': 2, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'background', '3': 3, '4': 1, '5': 9, '10': 'background'},
+    {'1': 'character', '3': 4, '4': 1, '5': 9, '10': 'character'},
+    {'1': 'texts', '3': 5, '4': 3, '5': 9, '10': 'texts'},
     {
       '1': 'choices',
-      '3': 5,
+      '3': 6,
       '4': 3,
       '5': 11,
       '6': '.romance_club.Choice',
       '10': 'choices'
     },
-    {'1': 'condition', '3': 6, '4': 1, '5': 9, '10': 'condition'},
-    {'1': 'text_position', '3': 7, '4': 1, '5': 9, '10': 'textPosition'},
+    {'1': 'condition', '3': 7, '4': 1, '5': 9, '10': 'condition'},
+    {'1': 'text_position', '3': 8, '4': 1, '5': 9, '10': 'textPosition'},
     {
       '1': 'character_position',
-      '3': 8,
+      '3': 9,
       '4': 1,
       '5': 9,
       '10': 'characterPosition'
@@ -45,8 +46,9 @@ const Scene$json = {
 
 /// Descriptor for `Scene`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List sceneDescriptor = $convert.base64Decode(
-    'CgVTY2VuZRIOCgJpZBgBIAEoBVICaWQSHgoKYmFja2dyb3VuZBgCIAEoCVIKYmFja2dyb3VuZB'
-    'IcCgljaGFyYWN0ZXIYAyABKAlSCWNoYXJhY3RlchIUCgV0ZXh0cxgEIAMoCVIFdGV4dHMSLgoH'
-    'Y2hvaWNlcxgFIAMoCzIULnJvbWFuY2VfY2x1Yi5DaG9pY2VSB2Nob2ljZXMSHAoJY29uZGl0aW'
-    '9uGAYgASgJUgljb25kaXRpb24SIwoNdGV4dF9wb3NpdGlvbhgHIAEoCVIMdGV4dFBvc2l0aW9u'
-    'Ei0KEmNoYXJhY3Rlcl9wb3NpdGlvbhgIIAEoCVIRY2hhcmFjdGVyUG9zaXRpb24=');
+    'CgVTY2VuZRIOCgJpZBgBIAEoBVICaWQSFAoFdGl0bGUYAiABKAlSBXRpdGxlEh4KCmJhY2tncm'
+    '91bmQYAyABKAlSCmJhY2tncm91bmQSHAoJY2hhcmFjdGVyGAQgASgJUgljaGFyYWN0ZXISFAoF'
+    'dGV4dHMYBSADKAlSBXRleHRzEi4KB2Nob2ljZXMYBiADKAsyFC5yb21hbmNlX2NsdWIuQ2hvaW'
+    'NlUgdjaG9pY2VzEhwKCWNvbmRpdGlvbhgHIAEoCVIJY29uZGl0aW9uEiMKDXRleHRfcG9zaXRp'
+    'b24YCCABKAlSDHRleHRQb3NpdGlvbhItChJjaGFyYWN0ZXJfcG9zaXRpb24YCSABKAlSEWNoYX'
+    'JhY3RlclBvc2l0aW9u');

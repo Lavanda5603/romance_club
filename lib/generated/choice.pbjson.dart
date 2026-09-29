@@ -28,10 +28,11 @@ const Choice$json = {
       '6': '.romance_club.Action',
       '10': 'actions'
     },
+    {'1': 'title', '3': 3, '4': 1, '5': 9, '10': 'title'},
   ],
 };
 
 /// Descriptor for `Choice`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List choiceDescriptor = $convert.base64Decode(
     'CgZDaG9pY2USEgoEdGV4dBgBIAEoCVIEdGV4dBIuCgdhY3Rpb25zGAIgAygLMhQucm9tYW5jZV'
-    '9jbHViLkFjdGlvblIHYWN0aW9ucw==');
+    '9jbHViLkFjdGlvblIHYWN0aW9ucxIUCgV0aXRsZRgDIAEoCVIFdGl0bGU=');

@@ -4,12 +4,14 @@ import '../generated/action.pb.dart'; // Импорт Protobuf-модели Acti
 // Экран редактирования действия
 class ActionEditorScreen extends StatefulWidget {
   final Action? action; // Действие (null, если новое)
+  final String defaultTitle; // Название по умолчанию
   final Function(Action) onSave; // Функция, вызывается при сохранении
 
   // Конструктор класса ActionEditorScreen
   const ActionEditorScreen({
     super.key,
     this.action,
+    this.defaultTitle = '',
     required this.onSave,
   });
 
@@ -23,6 +25,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   String _selectedType = 'nextScene';
 
   late TextEditingController _sceneIdController; // Контроллер для поля сцены
+  late TextEditingController _titleController; // Контроллер для поля названия
   late TextEditingController _counterNameController; // Контроллер для поля имени счётчика
   late TextEditingController _counterValueController; // Контроллер для поля значения счётчика
   late TextEditingController _flagNameController; // Контроллер для поля имени флага
@@ -35,7 +38,10 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
       _selectedType = widget.action!.type;
     }
 
-    // Создание контроллеров и заполнение их текущими данными действия
+    // Создание контроллеров
+    _titleController = TextEditingController(
+      text: widget.action?.title ?? widget.defaultTitle,
+    );
     _sceneIdController = TextEditingController(
       text: widget.action?.sceneId.toString() ?? '',
     );
@@ -54,6 +60,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   void dispose() {
     // Освобождение ресурсов всех контроллеров при закрытии экрана
     _sceneIdController.dispose();
+    _titleController.dispose();
     _counterNameController.dispose();
     _counterValueController.dispose();
     _flagNameController.dispose();
@@ -65,6 +72,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     // Создаю Protobuf-модель Action
     final newAction = Action(
       type: _selectedType,
+      title: _titleController.text,
     );
 
     // В зависимости от типа заполняю нужные поля
@@ -146,6 +154,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
               const SizedBox(height: 16),
               // Поле ввода названия действия (розовое)
               TextField( // Поле ввода
+                controller: _titleController,
                 style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18), // Розовый текст
                 decoration: const InputDecoration( // Оформление поля
                   border: InputBorder.none, // Без рамки

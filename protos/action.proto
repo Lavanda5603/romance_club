@@ -12,4 +12,5 @@ message Action {
     int32 counter_value = 6; // Значение счётчика
     string sound_path = 7; // Путь к звуку
     string image_path = 8; // Путь к картинке
+    string title = 9; // Название действия
 }

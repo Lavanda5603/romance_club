@@ -23,10 +23,12 @@ class Choice extends $pb.GeneratedMessage {
   factory Choice({
     $core.String? text,
     $core.Iterable<$0.Action>? actions,
+    $core.String? title,
   }) {
     final result = Choice._();
     if (text != null) result.text = text;
     if (actions != null) result.actions.addAll(actions);
+    if (title != null) result.title = title;
     return result;
   }
 
@@ -46,6 +48,7 @@ class Choice extends $pb.GeneratedMessage {
     ..aOS(1, _omitFieldNames ? '' : 'text')
     ..pPM<$0.Action>(2, _omitFieldNames ? '' : 'actions',
         subBuilder: $0.Action.$_createMessage)
+    ..aOS(3, _omitFieldNames ? '' : 'title')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -79,6 +82,15 @@ class Choice extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(2)
   $pb.PbList<$0.Action> get actions => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.String get title => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set title($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTitle() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTitle() => $_clearField(3);
 }
 
 const $core.bool _omitFieldNames =

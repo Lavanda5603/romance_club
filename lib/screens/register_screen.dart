@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
+import 'login_screen.dart'; // Импорт экрана авторизации
 
 // Экран регистрации
 class RegisterScreen extends StatefulWidget {
@@ -38,7 +39,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // Регистрация
   void _register() {
-    // Отправить данные на сервер
+    // Отправка данных на сервер
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Регистрация')),
+    );
   }
 
   // Поле ввода (вспомогательный метод)
@@ -55,7 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           obscureText: isPassword && _obscurePassword, // Скрытие пароля
           style: const TextStyle(color: Colors.white, fontSize: 16), // Белый текст
           decoration: InputDecoration( // Оформление поля
-            suffixIcon: isPassword // Если пароль — иконка показать/скрыть
+            suffixIcon: isPassword // Если пароль - иконка показать/скрыть
                 ? IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -150,7 +155,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Center( // По центру
                 child: ElevatedButton( // Кнопка с фоном
                   onPressed: () {
-                    // Переход на экран авторизации
+                    Navigator.push( // Открыть экран
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(), // Экран авторизации
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD30010), // Красная

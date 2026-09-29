@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
+import '../generated/settings.pb.dart'; // Импорт Protobuf-модели Settings
+import '../services/storage_service.dart'; // Импорт сервиса хранения
 
 // Экран настроек
 class SettingsScreen extends StatefulWidget {
@@ -13,6 +15,22 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   double _musicVolume = 0.6; // Громкость музыки (0.0 - 1.0)
   double _soundVolume = 0.3; // Громкость звуков (0.0 - 1.0)
+
+  @override
+  void initState() {
+    super.initState();
+    // Загружаю сохранённые настройки
+    _loadSettings();
+  }
+
+  // Загрузка настроек из файла
+  Future<void> _loadSettings() async {
+    final settings = await StorageService.loadSettings(); // Загружаю
+    setState(() {
+      _musicVolume = settings.musicVolume; // Громкость музыки
+      _soundVolume = settings.soundVolume; // Громкость звуков
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,8 +126,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SizedBox( // Контейнер
               width: double.infinity, // На всю ширину
               child: ElevatedButton( // Кнопка с фоном
-                onPressed: () {
-                  // Сохранить настройки
+                onPressed: () async {
+                  // Создаю объект настроек
+                  final settings = Settings(
+                    musicVolume: _musicVolume, // Громкость музыки
+                    soundVolume: _soundVolume, // Громкость звуков
+                  );
+
+                  // Сохраняю в файл
+                  await StorageService.saveSettings(settings);
+
+                  // Показываю уведомление
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Настройки сохранены')),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFD30010), // Красная

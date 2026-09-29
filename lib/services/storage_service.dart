@@ -2,6 +2,7 @@ import 'dart:io'; // Иморт для работы с файлами
 import 'dart:typed_data'; // Имопрт для работы с байтами
 import 'package:path_provider/path_provider.dart'; // Импорт для пути к папке
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
+import '../generated/settings.pb.dart'; // Импорт Protobuf-модели Settings
 
 // Сервис для сохранения и загрузки эпизодов (локально)
 class StorageService {
@@ -68,5 +69,36 @@ class StorageService {
     }
     
     return episodes;
+  }
+
+  // Получение файла настроек
+  static Future<File> _getSettingsFile() async {
+    final directory = await getApplicationDocumentsDirectory(); // Папка приложения
+    return File('${directory.path}/settings.pb'); /// Файл settings.pb
+  }
+
+  // Сохранение настроек в файл (настройки в байты)
+  static Future<void> saveSettings(Settings settings) async {
+    final file = await _getSettingsFile(); // Получаю файл
+    await file.writeAsBytes(settings.writeToBuffer()); // Записываю байты
+  }
+
+  // Загрузка настроек из файла
+  static Future<Settings> loadSettings() async {
+    final file = await _getSettingsFile(); // Получаю файл
+
+    if (!await file.exists()) {
+      // Если файла нет, возвращаю настройки по умолчанию
+      return Settings(
+        musicVolume: 0.6, // Громкость музыки по умолчанию
+        soundVolume: 0.3, // Громкость звуков по умолчанию
+      );
+    }
+
+    // Читаю байты из файла
+    final bytes = await file.readAsBytes();
+
+    // Превращаю байты в объект Settings
+    return Settings.fromBuffer(bytes);
   }
 }

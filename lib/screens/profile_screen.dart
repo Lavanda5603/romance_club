@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
+import 'login_screen.dart'; // Импорт экрана авторизации
 
 // Экран профиля игрока
 class ProfileScreen extends StatefulWidget {
@@ -29,6 +30,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Освобождение ресурса контроллера при закрытии экрана
     _nameController.dispose();
     super.dispose();
+  }
+
+  // Выход из аккаунта
+  Future<void> _logout() async {
+    // Показываю диалог подтверждения
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog( // Всплывающее окно
+          title: const Text('Выйти из аккаунта?'),
+          content: const Text(
+            'Вы точно уверены, что хотите выйти из аккаунта?',
+          ),
+          actions: [
+            TextButton( // Кнопка без фона
+              onPressed: () => Navigator.pop(context, false), // Отмена
+              child: const Text('Отмена'),
+            ),
+            TextButton( // Кнопка без фона
+              onPressed: () => Navigator.pop(context, true), // Подтверждение
+              child: const Text('Выйти'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Если пользователь подтвердил - выхожу
+    if (confirmed == true) {
+      if (!mounted) return; // Проверяю, что экран ещё на месте
+
+      // Перехожу на экран авторизации (очищаю стек экранов)
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(), // Экран авторизации
+        ),
+        (route) => false, // Очищаю все экраны
+      );
+    }
   }
 
   @override
@@ -189,9 +230,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SizedBox( // Контейнер
                 width: double.infinity, // На всю ширину
                 child: ElevatedButton( // Кнопка с фоном
-                  onPressed: () {
-                    // Выход из аккаунта
-                  },
+                  onPressed: _logout, // Выход из аккаунта
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF333333), // Тёмно-серый
                     padding: const EdgeInsets.symmetric(vertical: 16),

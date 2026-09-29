@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
+import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
+import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
 
 // Игровой экран
 class GameScreen extends StatefulWidget {
+  final Episode episode; // Эпизод
+
   // Конструктор класса GameScreen
-  const GameScreen({super.key});
+  const GameScreen({
+    super.key,
+    required this.episode,
+  });
 
   // Метод createState (создание объекта состояния)
   @override
@@ -11,19 +18,55 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  final String _sceneText = ''; // Текст сцены
-  final List<String> _choices = []; // Выборы
-  final int _points = 0; // Баллы
-  final String _characterPosition = 'center'; // Позиция персонажа
-  final String _textPosition = 'bottom'; // Позиция текста
-  final bool _hasCharacter = false; // Есть ли персонаж
+  int _currentSceneIndex = 0; // Индекс текущей сцены
+  Scene? _currentScene; // Текущая сцена
+  int _points = 0; // Баллы
+
+  @override
+  void initState() {
+    super.initState();
+    // Загружаю первую сцену при открытии экрана
+    if (widget.episode.scenes.isNotEmpty) {
+      _currentScene = widget.episode.scenes[0];
+    }
+  }
+
+  // Переход к сцене по ID
+  void _goToScene(int sceneId) {
+    setState(() {
+      // Ищу сцену с таким ID
+      for (int i = 0; i < widget.episode.scenes.length; i++) {
+        if (widget.episode.scenes[i].id == sceneId) {
+          _currentSceneIndex = i; // Меняю индекс
+          _currentScene = widget.episode.scenes[i]; // Меняю сцену
+          return;
+        }
+      }
+    });
+  }
 
   // Обработка выбора
   void _onChoiceSelected(int index) {
-    setState(() {
-      // Логика выбора
-      _choices.clear(); // Убираю выборы
-    });
+    // Если сцены нет - выхожу
+    if (_currentScene == null) return;
+
+    // Беру выбор
+    final choice = _currentScene!.choices[index];
+
+    // Прохожу по всем действиям выбора
+    for (final action in choice.actions) {
+      if (action.type == 'nextScene') {
+        // Переход к сцене
+        _goToScene(action.sceneId);
+      } else if (action.type == 'changeCounter') {
+        // Изменение баллов
+        setState(() {
+          _points += action.counterValue;
+        });
+      } else if (action.type == 'changeFlag') {
+        // Установка флага (потом)
+      }
+    }
   }
 
   // Получаю Alignment для позиции
@@ -66,9 +109,13 @@ class _GameScreenState extends State<GameScreen> {
             decoration: const BoxDecoration(color: Color(0xFF333333)),
           ),
           // Персонаж (если есть)
-          if (_hasCharacter)
+          if (_currentScene != null && _currentScene!.character.isNotEmpty)
             Align( // Выравнивание
-              alignment: _getAlignment(_characterPosition), // Позиция персонажа
+              alignment: _getAlignment(
+                _currentScene!.characterPosition.isNotEmpty
+                    ? _currentScene!.characterPosition
+                    : 'center',
+              ), // Позиция персонажа
               child: FractionallySizedBox( // Размер в долях
                 widthFactor: 0.65, // 65% ширины
                 heightFactor: 0.65, // 65% высоты
@@ -78,7 +125,11 @@ class _GameScreenState extends State<GameScreen> {
             ),
           // Текст и выборы
           Align( // Выравнивание
-            alignment: _getAlignment(_textPosition), // Позиция текста
+            alignment: _getAlignment(
+              _currentScene?.textPosition.isNotEmpty == true
+                  ? _currentScene!.textPosition
+                  : 'bottom',
+            ), // Позиция текста
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -93,46 +144,52 @@ class _GameScreenState extends State<GameScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      _sceneText,
+                      _currentScene?.texts.isNotEmpty == true
+                          ? _currentScene!.texts.first // Первый текст сцены
+                          : 'нет текста',
                       style: const TextStyle(color: Color(0xFF7E7E7E), fontSize: 16), // Серый текст
                     ),
                   ),
                   const SizedBox(height: 16),
                   // Выборы (динамические)
-                  ..._choices.asMap().entries.map((entry) {
-                    final index = entry.key; // Индекс выбора
-                    final choice = entry.value; // Текст выбора
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFA0A0), // Розовый
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            // Текст выбора
-                            Expanded(
-                              child: Text(
-                                choice,
-                                style: const TextStyle(color: Color(0xFF7E7E7E), fontSize: 14), // Серый текст
-                              ),
+                  if (_currentScene != null)
+                    ..._currentScene!.choices.asMap().entries.map((entry) {
+                      final index = entry.key; // Индекс выбора
+                      final choice = entry.value; // Выбор
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: GestureDetector( // Обработка нажатия
+                          onTap: () => _onChoiceSelected(index), // Нажатие на выбор
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFA0A0), // Розовый
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            // Кругляшок (серый)
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: const BoxDecoration(
-                                color: Colors.grey, // Серый
-                                shape: BoxShape.circle, // Круг
-                              ),
+                            child: Row(
+                              children: [
+                                // Текст выбора
+                                Expanded(
+                                  child: Text(
+                                    choice.text, // Текст выбора
+                                    style: const TextStyle(color: Color(0xFF7E7E7E), fontSize: 14), // Серый текст
+                                  ),
+                                ),
+                                // Кругляшок (серый)
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.grey, // Серый
+                                    shape: BoxShape.circle, // Круг
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
                 ],
               ),
             ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
+import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
+import '../services/storage_service.dart'; // Импорт сервиса хранения
 import 'game_screen.dart'; // Импорт игрового экрана
 
 // Экран выбора эпизода
@@ -12,11 +14,62 @@ class EpisodeSelectScreen extends StatefulWidget {
 }
 
 class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
-  // Список эпизодов
-  final List<String> _episodes = [];
+  // Список эпизодов (Protobuf-модели)
+  final List<Episode> _episodes = [];
 
   // Выбранный эпизод
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Загружаю эпизоды при открытии экрана
+    _loadEpisodes();
+  }
+
+  // Загрузка эпизодов из файла
+  Future<void> _loadEpisodes() async {
+    final episodes = await StorageService.loadEpisodes();
+    setState(() {
+      _episodes.clear(); // Очищаю текущий список
+      _episodes.addAll(episodes); // Добавляю загруженные эпизоды
+    });
+  }
+
+  // Сброс прогресса
+  Future<void> _resetProgress() async {
+    // Показываю диалог подтверждения
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog( // Всплывающее окно
+          title: const Text('Сбросить прогресс?'),
+          content: const Text(
+            'Вы точно уверены, что хотите сбросить весь прогресс? Это действие нельзя отменить.',
+          ),
+          actions: [
+            TextButton( // Кнопка без фона
+              onPressed: () => Navigator.pop(context, false), // Отмена
+              child: const Text('Отмена'),
+            ),
+            TextButton( // Кнопка без фона
+              onPressed: () => Navigator.pop(context, true), // Подтверждение
+              child: const Text('Сбросить'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Если пользователь подтвердил - сбрасываю прогресс
+    if (confirmed == true) {
+      // Сброс прогресса
+      if (!mounted) return; // Проверяю, что экран ещё на месте
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Прогресс сброшен')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +128,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                               ),
                             ),
                             child: Text(
-                              _episodes[index], // Название эпизода
+                              _episodes[index].title, // Название эпизода
                               style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                           ),
@@ -89,10 +142,15 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
               width: double.infinity, // На всю ширину
               child: ElevatedButton( // Кнопка с фоном
                 onPressed: () {
+                  // Если эпизодов нет - не перехожу
+                  if (_episodes.isEmpty) return;
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const GameScreen(), // Игровой экран
+                      builder: (context) => GameScreen(
+                        episode: _episodes[_selectedIndex], // Передаю выбранный эпизод
+                      ),
                     )
                   );
                 },
@@ -104,7 +162,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                   ),
                 ),
                 child: const Text(
-                  'ПРОДОЛЖИТЬ',
+                  'продолжить',
                   style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -114,9 +172,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
             SizedBox( // Контейнер
               width: double.infinity, // На всю ширину
               child: ElevatedButton( // Кнопка с фоном
-                onPressed: () {
-                  // Сброс прогресса
-                },
+                onPressed: _resetProgress, // Сброс прогресса
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF333333),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -125,7 +181,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                   ),
                 ),
                 child: const Text(
-                  'СБРОСИТЬ ПРОГРЕСС',
+                  'сбросить прогресс',
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),

@@ -14,6 +14,14 @@ class _ShopScreenState extends State<ShopScreen> {
   final int _currency = 0; // Валюта игрока
   final String _episodeName = ''; // Название эпизода
 
+  // Покупка (заглушка)
+  void _buy(String item) {
+    // Показываю уведомление о покупке
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Покупка: $item')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
@@ -84,9 +92,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       children: [
                         const Text('199 р.', style: TextStyle(color: Colors.white, fontSize: 16)), // Цена
                         TextButton( // Кнопка без фона
-                          onPressed: () {
-                            // Купить эпизод
-                          },
+                          onPressed: () => _buy('эпизод'), // Купить эпизод
                           child: const Text('купить', style: TextStyle(color: Color(0xFFD30010), fontSize: 14, fontWeight: FontWeight.bold)),
                         ),
                       ],
@@ -132,9 +138,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       children: [
                         const Text('499 р. мес', style: TextStyle(color: Colors.white, fontSize: 16)),
                         TextButton( // Кнопка без фона
-                          onPressed: () {
-                            // Купить подписку
-                          },
+                          onPressed: () => _buy('подписку'), // Купить подписку
                           child: const Text('купить', style: TextStyle(color: Color(0xFFD30010), fontSize: 14, fontWeight: FontWeight.bold)),
                         ),
                       ],
@@ -169,9 +173,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {
-                          // Купить валюту
-                        },
+                        onPressed: () => _buy('валюту'), // Купить валюту
                         child: const Text('купить', style: TextStyle(color: Color(0xFFD30010), fontSize: 14, fontWeight: FontWeight.bold)),
                       ),
                     ),
@@ -187,26 +189,29 @@ class _ShopScreenState extends State<ShopScreen> {
 
   // Виджет пакета валюты (вспомогательный метод)
   Widget _buildCurrencyPackage(int amount, int price) {
-    return Container( // Контейнер
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.white), // Белая рамка
-        borderRadius: BorderRadius.circular(12), // Круглые углы
-      ),
-      child: Column(
-        children: [
-          // Иконка и количество
-          Row(
-            children: [
-              Icon(Icons.diamond, color: Colors.white, size: 20), // Белый алмаз
-              const SizedBox(width: 4),
-              Text('$amount', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Цена
-          Text('$price р.', style: const TextStyle(color: Colors.white, fontSize: 14)),
-        ],
+    return GestureDetector( // Обработка нажатия
+      onTap: () => _buy('$amount алмазов за $price р.'), // Покупка пакета
+      child: Container( // Контейнер
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.white), // Белая рамка
+          borderRadius: BorderRadius.circular(12), // Круглые углы
+        ),
+        child: Column(
+          children: [
+            // Иконка и количество
+            Row(
+              children: [
+                Icon(Icons.diamond, color: Colors.white, size: 20), // Белый алмаз
+                const SizedBox(width: 4),
+                Text('$amount', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Цена
+            Text('$price р.', style: const TextStyle(color: Colors.white, fontSize: 14)),
+          ],
+        ),
       ),
     );
   }

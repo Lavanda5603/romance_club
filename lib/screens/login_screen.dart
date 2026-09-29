@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
+import 'register_screen.dart'; // Импорт экрана регистрации
 
 // Экран авторизации
 class LoginScreen extends StatefulWidget {
@@ -32,7 +33,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Авторизация
   void _login() {
-    // Отправить данные на сервер
+    // Отправка данных на сервер
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Авторизация')),
+    );
   }
 
   @override
@@ -149,7 +154,12 @@ class _LoginScreenState extends State<LoginScreen> {
               Center( // По центру
                 child: ElevatedButton( // Кнопка с фоном
                   onPressed: () {
-                    // Переход на экран регистрации
+                    Navigator.push( // Открыть экран
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterScreen(), // Экран регистрации
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD30010), // Красная

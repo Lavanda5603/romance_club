@@ -20,7 +20,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
     final episode = await _service.getEpisode(id);
 
     // Преобразую Protobuf-модель в доменную
-    return _toDomain(episode);
+    return toDomain(episode);
   }
 
   // Получить все эпизоды
@@ -30,14 +30,14 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
     final episodes = await _service.getAllEpisodes();
 
     // Преобразую каждую Protobuf-модель в доменную
-    return episodes.map(_toDomain).toList();
+    return episodes.map(toDomain).toList();
   }
 
   // Сохранить эпизод
   @override
   Future<bool> saveEpisode(EpisodeModel episode) async {
     // Преобразую доменную модель в Protobuf
-    final protoEpisode = _toProto(episode);
+    final protoEpisode = toProto(episode);
 
     // Отправляю на сервер
     final response = await _service.saveEpisode(protoEpisode);
@@ -47,7 +47,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
   }
 
   // Преобразование Protobuf-модели в доменную
-  EpisodeModel _toDomain(Episode episode) {
+  EpisodeModel toDomain(Episode episode) {
     return EpisodeModel(
       id: episode.id,
       title: episode.title,
@@ -87,7 +87,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
   }
 
   // Преобразование доменной модели в Protobuf
-  Episode _toProto(EpisodeModel episode) {
+  Episode toProto(EpisodeModel episode) {
     final protoEpisode = Episode(
       id: episode.id,
       title: episode.title,

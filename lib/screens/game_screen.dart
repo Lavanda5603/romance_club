@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
-import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
+import '../src/data/repositories/episode_repository_remote.dart'; // Импорт репозитория
+import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса
+import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
 
 // Игровой экран
 class GameScreen extends StatefulWidget {
-  final Episode episode; // Эпизод
+  final Episode episode; // Эпизод (Protobuf)
 
   // Конструктор класса GameScreen
   const GameScreen({
@@ -18,55 +20,30 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  int _currentSceneIndex = 0; // Индекс текущей сцены
-  Scene? _currentScene; // Текущая сцена
-  int _points = 0; // Баллы
+  late GameViewModel _viewModel; // ViewModel
+  late EpisodeGrpcService _service; // gRPC-сервис
+  late EpisodeRepositoryRemote _repository; // Репозиторий
 
   @override
   void initState() {
     super.initState();
-    // Загружаю первую сцену при открытии экрана
-    if (widget.episode.scenes.isNotEmpty) {
-      _currentScene = widget.episode.scenes[0];
-    }
+    // Создаю gRPC-сервис (пока не используется для локального режима)
+    _service = EpisodeGrpcService();
+    // Создаю репозиторий
+    _repository = EpisodeRepositoryRemote(_service);
+    // Создаю ViewModel
+    _viewModel = GameViewModel(_repository);
+    // Загружаю эпизод из Protobuf (локальный режим)
+    final domainEpisode = _repository.toDomain(widget.episode);
+    _viewModel.loadEpisodeFromProto(domainEpisode);
   }
 
-  // Переход к сцене по ID
-  void _goToScene(int sceneId) {
-    setState(() {
-      // Ищу сцену с таким ID
-      for (int i = 0; i < widget.episode.scenes.length; i++) {
-        if (widget.episode.scenes[i].id == sceneId) {
-          _currentSceneIndex = i; // Меняю индекс
-          _currentScene = widget.episode.scenes[i]; // Меняю сцену
-          return;
-        }
-      }
-    });
-  }
-
-  // Обработка выбора
-  void _onChoiceSelected(int index) {
-    // Если сцены нет - выхожу
-    if (_currentScene == null) return;
-
-    // Беру выбор
-    final choice = _currentScene!.choices[index];
-
-    // Прохожу по всем действиям выбора
-    for (final action in choice.actions) {
-      if (action.type == 'nextScene') {
-        // Переход к сцене
-        _goToScene(action.sceneId);
-      } else if (action.type == 'changeCounter') {
-        // Изменение баллов
-        setState(() {
-          _points += action.counterValue;
-        });
-      } else if (action.type == 'changeFlag') {
-        // Установка флага (потом)
-      }
-    }
+  @override
+  void dispose() {
+    // Закрываю соединение и освобождаю ресурсы
+    _service.close();
+    _viewModel.dispose();
+    super.dispose();
   }
 
   // Получаю Alignment для позиции
@@ -102,99 +79,160 @@ class _GameScreenState extends State<GameScreen> {
         ),
         centerTitle: true,
       ),
-      body: Stack( // Стопка виджетов
-        children: [
-          // Фон сцены
-          Container(
-            decoration: const BoxDecoration(color: Color(0xFF333333)),
-          ),
-          // Персонаж (если есть)
-          if (_currentScene != null && _currentScene!.character.isNotEmpty)
-            Align( // Выравнивание
-              alignment: _getAlignment(
-                _currentScene!.characterPosition.isNotEmpty
-                    ? _currentScene!.characterPosition
-                    : 'center',
-              ), // Позиция персонажа
-              child: FractionallySizedBox( // Размер в долях
-                widthFactor: 0.65, // 65% ширины
-                heightFactor: 0.65, // 65% высоты
-                // Image.asset('assets/images/персонаж.png')
-                child: Icon(Icons.person, size: 300, color: Colors.red[300]), // Иконка
+      body: ListenableBuilder(
+        listenable: _viewModel, // Слушаю ViewModel
+        builder: (context, _) {
+          final state = _viewModel.state; // Текущее состояние
+
+          // Если загрузка
+          if (state.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // Если ошибка
+          if (state.error != null) {
+            return Center(
+              child: Text(
+                'Ошибка: ${state.error}',
+                style: const TextStyle(color: Colors.red),
               ),
-            ),
-          // Текст и выборы
-          Align( // Выравнивание
-            alignment: _getAlignment(
-              _currentScene?.textPosition.isNotEmpty == true
-                  ? _currentScene!.textPosition
-                  : 'bottom',
-            ), // Позиция текста
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min, // Минимальная высота
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Текст сцены (розовое облачко)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFA0A0), // Розовый
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      _currentScene?.texts.isNotEmpty == true
-                          ? _currentScene!.texts.first // Первый текст сцены
-                          : 'нет текста',
-                      style: const TextStyle(color: Color(0xFF7E7E7E), fontSize: 16), // Серый текст
-                    ),
+            );
+          }
+
+          // Если эпизод загружен
+          final scene = _viewModel.currentScene;
+
+          // Если сцены нет
+          if (scene == null) {
+            return const Center(
+              child: Text(
+                'Нет сцены',
+                style: TextStyle(color: Colors.white),
+              ),
+            );
+          }
+
+          // Основной интерфейс
+          return Stack( // Стопка виджетов
+            children: [
+              // Фон сцены
+              Container(
+                decoration: const BoxDecoration(color: Color(0xFF333333)),
+              ),
+              // Персонаж (если есть)
+              if (scene.character.isNotEmpty)
+                Align( // Выравнивание
+                  alignment: _getAlignment(
+                    scene.characterPosition.isNotEmpty
+                        ? scene.characterPosition
+                        : 'center',
                   ),
-                  const SizedBox(height: 16),
-                  // Выборы (динамические)
-                  if (_currentScene != null)
-                    ..._currentScene!.choices.asMap().entries.map((entry) {
-                      final index = entry.key; // Индекс выбора
-                      final choice = entry.value; // Выбор
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: GestureDetector( // Обработка нажатия
-                          onTap: () => _onChoiceSelected(index), // Нажатие на выбор
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFA0A0), // Розовый
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              children: [
-                                // Текст выбора
-                                Expanded(
-                                  child: Text(
-                                    choice.text, // Текст выбора
-                                    style: const TextStyle(color: Color(0xFF7E7E7E), fontSize: 14), // Серый текст
-                                  ),
-                                ),
-                                // Кругляшок (серый)
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.grey, // Серый
-                                    shape: BoxShape.circle, // Круг
-                                  ),
-                                ),
-                              ],
-                            ),
+                  child: FractionallySizedBox( // Размер в долях
+                    widthFactor: 0.65,
+                    heightFactor: 0.65,
+                    child: Icon(Icons.person, size: 300, color: Colors.red[300]),
+                  ),
+                ),
+              // Текст и выборы
+              Align( // Выравнивание
+                alignment: _getAlignment(
+                  scene.textPosition.isNotEmpty
+                      ? scene.textPosition
+                      : 'bottom',
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Текст сцены (розовое облачко)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFA0A0),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          scene.texts.isNotEmpty
+                              ? scene.texts.first
+                              : 'нет текста',
+                          style: const TextStyle(
+                            color: Color(0xFF7E7E7E),
+                            fontSize: 16,
                           ),
                         ),
-                      );
-                    }),
-                ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Выборы (динамические)
+                      ...scene.choices.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final choice = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: GestureDetector(
+                            onTap: () => _viewModel.onChoiceSelected(index),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFA0A0),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      choice.text,
+                                      style: const TextStyle(
+                                        color: Color(0xFF7E7E7E),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.grey,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+              // Баллы (вверху справа)
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3F0404),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Баллы: ${_viewModel.points}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

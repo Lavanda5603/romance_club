@@ -21,6 +21,7 @@ struct EpisodeRecord {
     title: String, // Название
     version: i32, // Версия
 }
+
 // Сервис для работы с эпизодами
 pub struct EpisodeApiService {
     db: Surreal<Client>, // Подключение к SurrealDB
@@ -42,18 +43,33 @@ impl EpisodeApi for EpisodeApiService {
     ) -> Result<Response<Episode>, Status> {
         let id = request.into_inner().id;
 
+        // Отладка: получили запрос
+        println!("[GET_EPISODE] Получен запрос на эпизод с ID: {}", id);
+
         // Запрашиваю эпизод через query
         let mut response = self
             .db
             .query("SELECT * FROM type::thing('episode', $id)")
             .bind(("id", id))
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| {
+                println!("[GET_EPISODE] Ошибка запроса к SurrealDB: {}", e);
+                Status::internal(e.to_string())
+            })?;
+
+        // Отладка: запрос выполнен
+        println!("[GET_EPISODE] Запрос к SurrealDB выполнен");
 
         // Парсю ответ
         let result: Option<EpisodeRecord> = response
             .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| {
+                println!("[GET_EPISODE] Ошибка парсинга: {}", e);
+                Status::internal(e.to_string())
+            })?;
+
+        // Отладка: результат
+        println!("[GET_EPISODE] Результат: {:?}", result);
 
         // Разворачиваю Option
         match result {
@@ -64,9 +80,13 @@ impl EpisodeApi for EpisodeApiService {
                     version: record.version,
                     scenes: vec![],
                 };
+                println!("[GET_EPISODE] Возвращаю эпизод: {}", episode.title);
                 Ok(Response::new(episode))
             }
-            None => Err(Status::not_found("Эпизод не найден")),
+            None => {
+                println!("[GET_EPISODE] Эпизод не найден");
+                Err(Status::not_found("Эпизод не найден"))
+            }
         }
     }
 
@@ -134,6 +154,45 @@ impl EpisodeApi for EpisodeApiService {
     }
 }
 
+// Применение миграций из папки migrations/
+async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error::Error>> {
+    // Читаю все файлы из папки migrations/
+    let migrations_dir = std::path::Path::new("migrations");
+
+    // Если папки нет - выхожу
+    if !migrations_dir.exists() {
+        println!("Папка migrations/ не найдена, пропускаю");
+        return Ok(());
+    }
+
+    // Читаю все файлы
+    let mut entries: Vec<_> = std::fs::read_dir(migrations_dir)?
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            // Только .surql-файлы
+            e.path().extension().map(|ext| ext == "surql").unwrap_or(false)
+        })
+        .collect();
+
+    // Сортирую по имени (чтобы 001 шёл раньше 002)
+    entries.sort_by_key(|e| e.path());
+
+    // Применяю каждый файл
+    for entry in entries {
+        let path = entry.path();
+        let sql = std::fs::read_to_string(&path)?;
+
+        println!("Применяю миграцию: {:?}", path);
+
+        // Выполняю SQL
+        db.query(&sql).await?;
+    }
+
+    println!("Все миграции применены");
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Подключаюсь к SurrealDB по WebSocket
@@ -150,6 +209,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     db.use_ns("romance_club").use_db("main").await?;
 
     println!("Подключение к SurrealDB установлено");
+
+    // Применяю миграции
+    apply_migrations(&db).await?;
 
     // Создаю сервис
     let service = EpisodeApiService::new(db);

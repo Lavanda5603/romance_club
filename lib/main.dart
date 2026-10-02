@@ -5,10 +5,10 @@ import 'screens/profile_screen.dart'; // Импорт экрана профил�
 import 'screens/settings_screen.dart'; // Импорт экрана настроек
 import 'screens/episode_select_screen.dart'; // Импорт экрана выбора эпизода
 import 'screens/shop_screen.dart'; // Импорт экрана магазина
-import 'services/surreal_service.dart'; // Импорт сервиса SurrealDB
+// import 'services/surreal_service.dart'; // Импорт сервиса SurrealDB
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Инициализация Flutter (нужно для await в main)
-  await SurrealService.connect(); // Подключение к SurrealDB
+  // await SurrealService.connect(); // Подключение к SurrealDB
   runApp(const RomanceClubApp()); // Запуск приложения
 }
 
@@ -23,7 +23,7 @@ class RomanceClubApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFD30010)), // Тема
       ),
-      home: const MainMenu(), // Главное меню
+      home: const TestScreen(), // Главное меню
     );
   }
 }

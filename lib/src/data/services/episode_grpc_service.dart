@@ -8,7 +8,7 @@ class EpisodeGrpcService {
   late final EpisodeApiClient _client; // gRPC-клиент
 
   // Конструктор класса EpisodeGrpcService
-  EpisodeGrpcService({String host = '127.0.0.1', int port = 50051}) {
+  EpisodeGrpcService({String host = '10.0.2.2', int port = 50051}) {
     // Создаю канал связи с сервером
     _channel = ClientChannel(
       host,

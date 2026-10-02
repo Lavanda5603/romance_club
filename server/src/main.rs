@@ -44,25 +44,65 @@ impl EpisodeApi for EpisodeApiService {
         let id = request.into_inner().id;
 
         // Отладка: получили запрос
-        println!("[GET_EPISODE] Получен запрос на эпизод с ID: {}", id);
+        println!("[GET_EPISODE] Получен запрос на эпизод с ID: {:?}", id);
 
-        // Запрашиваю эпизод через query
-        let mut response = self
+        let response = self
             .db
-            .query("SELECT * FROM type::thing('episode', $id)")
+            .query(r#"
+                return $id;
+                return type::of($id);
+                return type::record('episode', $id);
+                return record::exists(type::record('episode', $id));
+                return {
+                    ns: session::ns(),
+                    db: session::db(),
+                };
+                select id from episode;
+                select * from type::record('episode', $id);
+                info for table episode;
+                select * from episode;
+                select * from episode:1;
+                return record::exists(episode:1);
+            "#)
             .bind(("id", id))
             .await
             .map_err(|e| {
                 println!("[GET_EPISODE] Ошибка запроса к SurrealDB: {}", e);
                 Status::internal(e.to_string())
             })?;
+        
+        println!("Test response: {response:#?}");
+        println!("DB version {:?}", self.db.version().await.map_err(|e| {
+                println!("[GET_EPISODE] Ошибка запроса к SurrealDB: {}", e);
+                Status::internal(e.to_string())
+            })?);
+
+        // Запрашиваю эпизод через query
+        // let mut response = self
+        //     .db
+        //     .query("SELECT * FROM type::record('episode', $id)")
+        //     .bind(("id", id))
+        //     .await
+        //     .map_err(|e| {
+        //         println!("[GET_EPISODE] Ошибка запроса к SurrealDB: {}", e);
+        //         Status::internal(e.to_string())
+        //     })?;
 
         // Отладка: запрос выполнен
-        println!("[GET_EPISODE] Запрос к SurrealDB выполнен");
+        // println!("[GET_EPISODE] Запрос к SurrealDB выполнен {:?}", response);
 
         // Парсю ответ
-        let result: Option<EpisodeRecord> = response
-            .take(0)
+        // let result: Option<EpisodeRecord> = response
+        //     .take(0)
+        //     .map_err(|e| {
+        //         println!("[GET_EPISODE] Ошибка парсинга: {}", e);
+        //         Status::internal(e.to_string())
+        //     })?;
+
+        let result: Option<EpisodeRecord> = self
+            .db
+            .select(("episode", i64::from(id)))
+            .await
             .map_err(|e| {
                 println!("[GET_EPISODE] Ошибка парсинга: {}", e);
                 Status::internal(e.to_string())
@@ -140,7 +180,7 @@ impl EpisodeApi for EpisodeApiService {
         // Сохраняю через query
         let _ = self
             .db
-            .query("UPSERT type::thing('episode', $id) CONTENT { title: $title, version: $version }")
+            .query("UPSERT type::record('episode', $id) CONTENT { title: $title, version: $version }")
             .bind(("id", id))
             .bind(("title", title))
             .bind(("version", version))
@@ -196,7 +236,7 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Подключаюсь к SurrealDB по WebSocket
-    let db = Surreal::new::<Ws>("127.0.0.1:8000").await?;
+    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
 
     // Авторизуюсь
     db.signin(Root {

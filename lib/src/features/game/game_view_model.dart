@@ -37,6 +37,12 @@ class GameViewModel extends ChangeNotifier {
   // Геттер для флагов
   Map<String, bool> get flags => _flags;
 
+  // Геттер: последняя ли сцена
+  bool get isLastScene {
+    if (_state.data == null) return false;
+    return _currentSceneIndex >= _state.data!.scenes.length - 1;
+  }
+
   // Конструктор класса GameViewModel
   GameViewModel(this._repository);
 
@@ -94,6 +100,19 @@ class GameViewModel extends ChangeNotifier {
         return;
       }
     }
+  }
+
+  // Переход к следующей сцене (по порядку)
+  void nextScene() {
+    // Если эпизода нет - выхожу
+    if (_state.data == null) return;
+    // Если сцена последняя - выхожу
+    if (isLastScene) return;
+
+    // Перехожу к следующей сцене
+    _currentSceneIndex += 1;
+    // Уведомляю слушателей
+    notifyListeners();
   }
 
   // Обработка выбора (индекс выбора в текущей сцене)

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
-import '../services/storage_service.dart'; // Импорт сервиса хранения
+import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса
 import 'game_screen.dart'; // Импорт игрового экрана
 
 // Экран выбора эпизода
@@ -20,20 +20,48 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
   // Выбранный эпизод
   int _selectedIndex = 0;
 
+  // Флаг загрузки
+  bool _isLoading = true;
+
+  // Ошибка загрузки
+  String? _error;
+
+  // gRPC-сервис
+  late EpisodeGrpcService _service;
+
   @override
   void initState() {
     super.initState();
+    // Создаю gRPC-сервис
+    _service = EpisodeGrpcService();
     // Загружаю эпизоды при открытии экрана
     _loadEpisodes();
   }
 
-  // Загрузка эпизодов из файла
+  @override
+  void dispose() {
+    // Закрываю соединение
+    _service.close();
+    super.dispose();
+  }
+
+  // Загрузка эпизодов с сервера
   Future<void> _loadEpisodes() async {
-    final episodes = await StorageService.loadEpisodes();
-    setState(() {
-      _episodes.clear(); // Очищаю текущий список
-      _episodes.addAll(episodes); // Добавляю загруженные эпизоды
-    });
+    try {
+      // Запрашиваю эпизоды с сервера
+      final episodes = await _service.getAllEpisodes();
+
+      setState(() {
+        _episodes.clear(); // Очищаю текущий список
+        _episodes.addAll(episodes); // Добавляю загруженные эпизоды
+        _isLoading = false; // Загрузка завершена
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString(); // Сохраняю ошибку
+        _isLoading = false; // Загрузка завершена
+      });
+    }
   }
 
   // Сброс прогресса
@@ -63,8 +91,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
 
     // Если пользователь подтвердил - сбрасываю прогресс
     if (confirmed == true) {
-      // Сброс прогресса
-      if (!mounted) return; // Проверяю, что экран ещё на месте
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Прогресс сброшен')),
       );
@@ -106,35 +133,53 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
             const SizedBox(height: 24),
             // Список эпизодов
             Expanded( // Растягивание
-              child: _episodes.isEmpty
-                  ? const Center(child: Text('нет эпизодов', style: TextStyle(color: Colors.white))) // Если эпизодов нет
-                  : ListView.builder( // Список
-                      itemCount: _episodes.length,
-                      itemBuilder: (context, index) {
-                        final isSelected = index == _selectedIndex; // Выбран ли эпизод
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: ElevatedButton( // Кнопка с фоном
-                            onPressed: () {
-                              setState(() {
-                                _selectedIndex = index; // Выбираю эпизод
-                              });
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isSelected ? const Color(0xFFD30010) : const Color(0xFF333333),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              _episodes[index].title, // Название эпизода
-                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
+              child: _isLoading
+                  // Если идёт загрузка
+                  ? const Center(child: CircularProgressIndicator())
+                  // Если ошибка
+                  : _error != null
+                      ? Center(
+                          child: Text(
+                            'Ошибка: $_error',
+                            style: const TextStyle(color: Colors.red),
                           ),
-                        );
-                      },
-                    ),
+                        )
+                      // Если эпизодов нет
+                      : _episodes.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'нет эпизодов',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            )
+                          // Список эпизодов
+                          : ListView.builder(
+                              itemCount: _episodes.length,
+                              itemBuilder: (context, index) {
+                                final isSelected = index == _selectedIndex;
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: ElevatedButton( // Кнопка с фоном
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedIndex = index; // Выбираю эпизод
+                                      });
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isSelected ? const Color(0xFFD30010) : const Color(0xFF333333),
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _episodes[index].title, // Название эпизода
+                                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
             ),
             const SizedBox(height: 16),
             // Кнопка продолжить

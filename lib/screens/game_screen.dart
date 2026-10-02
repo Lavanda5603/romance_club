@@ -27,15 +27,14 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    // Создаю gRPC-сервис (пока не используется для локального режима)
+    // Создаю gRPC-сервис
     _service = EpisodeGrpcService();
     // Создаю репозиторий
     _repository = EpisodeRepositoryRemote(_service);
     // Создаю ViewModel
     _viewModel = GameViewModel(_repository);
-    // Загружаю эпизод из Protobuf (локальный режим)
-    final domainEpisode = _repository.toDomain(widget.episode);
-    _viewModel.loadEpisodeFromProto(domainEpisode);
+    // Загружаю эпизод с сервера по ID
+    _viewModel.loadEpisode(widget.episode.id);
   }
 
   @override
@@ -164,45 +163,78 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Выборы (динамические)
-                      ...scene.choices.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final choice = entry.value;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: GestureDetector(
-                            onTap: () => _viewModel.onChoiceSelected(index),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFA0A0),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      choice.text,
-                                      style: const TextStyle(
-                                        color: Color(0xFF7E7E7E),
-                                        fontSize: 14,
+                      // Если есть выборы - показываю их
+                      if (scene.choices.isNotEmpty)
+                        ...scene.choices.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final choice = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: GestureDetector(
+                              onTap: () => _viewModel.onChoiceSelected(index),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFA0A0),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        choice.text,
+                                        style: const TextStyle(
+                                          color: Color(0xFF7E7E7E),
+                                          fontSize: 14,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.grey,
-                                      shape: BoxShape.circle,
+                                    Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.grey,
+                                        shape: BoxShape.circle,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        })
+                      // Если выборов нет - показываю кнопку Дальше
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              // Если сцена последняя - выхожу
+                              if (_viewModel.isLastScene) {
+                                Navigator.pop(context); // Закрываю экран
+                                return;
+                              }
+                              // Переход к следующей сцене
+                              _viewModel.nextScene();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD30010),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              // Если сцена последняя - Конец эпизода
+                              _viewModel.isLastScene ? 'конец эпизода' : 'дальше',
+                              style: const TextStyle(
+                                color: Color(0xFF3F0404),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                        );
-                      }),
+                        ),
                     ],
                   ),
                 ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
-import 'package:romance_club/src/features/test/test_screen.dart'; // Импорт тестового экрана
 import 'screens/programmer_screen.dart'; // Импорт экрана режима разработчика
 import 'screens/profile_screen.dart'; // Импорт экрана профиля
 import 'screens/settings_screen.dart'; // Импорт экрана настроек
@@ -23,7 +22,7 @@ class RomanceClubApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFD30010)), // Тема
       ),
-      home: const TestScreen(), // Главное меню
+      home: const MainMenu(), // Главное меню
     );
   }
 }

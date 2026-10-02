@@ -137,7 +137,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   await StorageService.saveSettings(settings);
 
                   // Показываю уведомление
-                  if (!mounted) return;
+                  if (!mounted) return; // Проверяю, что State ещё на месте
+                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Настройки сохранены')),
                   );

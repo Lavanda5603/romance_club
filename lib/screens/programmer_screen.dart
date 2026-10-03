@@ -180,107 +180,223 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        title: const Text(
-          'Клуб романтики',
-          style: TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Text(
-              'РЕЖИМ РАЗРАБОТЧИКА',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
+      
+      // Использую Stack, чтобы наложить контент на фон
+      body: Stack(
+        children: [
+          // Слой для фона
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
+              // Картинка фона
+              child: Image.asset(
+                'assets/images/main_background.png',
+                fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(height: 24),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'список эпизодов:',
-                style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(
-                          child: Text(
-                            'Ошибка: $_error',
-                            style: const TextStyle(color: Colors.red),
-                          ),
-                        )
-                      : _episodes.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'нет эпизодов',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: _episodes.length,
-                              itemBuilder: (context, index) {
-                                final episode = _episodes[index];
-                                return ListTile(
-                                  title: Text(episode.title, style: const TextStyle(color: Colors.white)),
-                                  subtitle: Text('ID: ${episode.id}', style: const TextStyle(color: Color(0xFFFFA0A0))),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      // Кнопка редактирования
-                                      IconButton(
-                                        icon: const Icon(Icons.edit, color: Colors.white),
-                                        onPressed: () => _openEditor(index),
-                                      ),
-                                      // Кнопка удаления
-                                      IconButton(
-                                        icon: const Icon(Icons.delete, color: Colors.white),
-                                        onPressed: () => _deleteEpisode(index),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _addEpisode,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD30010),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+          ),
+
+          // Основной контент
+          SafeArea(
+            child: Column(
+              children: [
+                // Верхняя панель
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Кнопка назад
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      
+                      // Заголовок
+                      const Text(
+                        'Клуб романтики',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                      
+                      // Пустой контейнер для симметрии (чтобы заголовок был по центру)
+                      const SizedBox(width: 48),
+                    ],
                   ),
                 ),
-                child: const Text(
-                  'создать эпизод',
-                  style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
+
+                // Основной блок
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20), // Отступы по бокам
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start, // Прижимаю всё влево
+                      children: [
+                        // Заголовок
+                        const Center( // Центрирую только заголовок
+                          child: Text(
+                            'РЕЖИМ\nРАЗРАБОТЧИКА',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300, // Тонкий шрифт
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Подзаголовок
+                        const Text(
+                          'список эпизодов:',
+                          style: TextStyle(
+                            color: Color(0xFFFFA0A0), 
+                            fontSize: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Список эпизодов
+                        Expanded(
+                          child: _isLoading
+                              ? const Center(child: CircularProgressIndicator(color: Color(0xFFD30010)))
+                              : _error != null
+                                  ? Center(
+                                      child: Text(
+                                        'Ошибка: $_error',
+                                        style: const TextStyle(color: Colors.red),
+                                      ),
+                                    )
+                                  : _episodes.isEmpty
+                                      ? const Center(
+                                          child: Text(
+                                            'нет эпизодов',
+                                            style: TextStyle(color: Colors.white),
+                                          ),
+                                        )
+                                      : ListView.builder(
+                                          itemCount: _episodes.length,
+                                          itemBuilder: (context, index) {
+                                            final episode = _episodes[index];
+                                            // Кастомный виджет для строки эпизода
+                                            return Padding(
+                                              padding: const EdgeInsets.symmetric(vertical: 8),
+                                              child: Row(
+                                                children: [
+                                                  // Название и ID
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(
+                                                          episode.title,
+                                                          style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 18,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(height: 4),
+                                                        // ID с отступом слева
+                                                        Padding(
+                                                          padding: const EdgeInsets.only(left: 8),
+                                                          child: Text(
+                                                            'ID: ${episode.id}',
+                                                            style: const TextStyle(
+                                                              color: Color(0xFFFFA0A0),
+                                                              fontSize: 14,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  // Кнопка редактирования
+                                                  IconButton(
+                                                    icon: const Icon(Icons.edit, color: Colors.white, size: 24),
+                                                    onPressed: () => _openEditor(index),
+                                                  ),
+                                                  // Кнопка удаления
+                                                  IconButton(
+                                                    icon: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
+                                                    onPressed: () => _deleteEpisode(index),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                        ),
+                        
+                        const SizedBox(height: 4),
+
+                        // Кнопка создать эпизод
+                        SizedBox(
+                          width: 260,
+                          height: 55,
+                          child: ElevatedButton(
+                            onPressed: _addEpisode,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD30010),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'создать эпизод',
+                              style: TextStyle(
+                                color: Color(0xFF3F0404),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 8),
+
+                        // Кнопка сохранить
+                        SizedBox(
+                          width: 200,
+                          height: 55,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              // Логика сохранения
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Сохранено!')),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD30010),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'сохранить',
+                              style: TextStyle(
+                                color: Color(0xFF3F0404),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Пустое пространство снизу, чтобы поднять кнопки выше
+                        const SizedBox(height: 100), 
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

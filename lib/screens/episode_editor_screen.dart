@@ -105,155 +105,226 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      appBar: AppBar( // Верхняя панель
-        backgroundColor: Colors.transparent, // Прозрачный фон
-        elevation: 0, // Без тени
-        leading: IconButton( // Кнопка с иконкой
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
-          onPressed: () {
-            Navigator.pop(context); // Закрыть экран
-          },
-        ),
-        title: const Text( // Текст (маленький, в AppBar)
-          'Клуб романтики',
-          style: TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        centerTitle: true, // По центру
-      ),
-      body: Padding( // Отступы
-        padding: const EdgeInsets.all(16),
-        child: Column( // Вертикальный список
-          children: [
-            const Text( // Большой заголовок
-              'РЕДАКТИРОВАНИЕ ЭПИЗОДА',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+      
+      // Использую Stack, чтобы наложить контент на фон
+      body: Stack(
+        children: [
+          // Слой для фона
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
+              // Картинка фона
+              child: Image.asset(
+                'assets/images/main_background.png',
+                fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(height: 16),
-            // Подпись (серая)
-            const Align( // Выравнивание
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'название эпизода',
-                style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 4),
-            // Поле ввода названия эпизода (розовая)
-            TextField( // Поле ввода
-              controller: _titleController, // Контроллер
-              style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18), // Розовый текст
-              decoration: const InputDecoration( // Оформление поля
-                border: InputBorder.none, // Без рамки
-                isDense: true, // Компактнее
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Надпись (розовая)
-            const Align( // Выравнивание
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'список сцен:',
-                style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Список сцен
-            Expanded( // Растягивание
-              child: widget.episode.scenes.isEmpty
-                  ? const Center(child: Text('нет сцен', style: TextStyle(color: Colors.white))) // Если сцен нет
-                  : ListView.builder( // Список
-                      itemCount: widget.episode.scenes.length,
-                      itemBuilder: (context, index) {
-                        final scene = widget.episode.scenes[index];
-                        return ListTile( // Строка списка
-                          // Показываю название сцены
-                          title: Text(
-                            scene.title.isNotEmpty
-                                ? scene.title
-                                : 'сцена ${scene.id}',
-                            style: const TextStyle(color: Colors.white),
+          ),
+
+          // Основной контент
+          SafeArea(
+            child: Column(
+              children: [
+                // Верхняя панель
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Кнопка назад
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      
+                      // Заголовок
+                      const Text(
+                        'Клуб романтики',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                      
+                      // Пустой контейнер для симметрии
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                ),
+
+                // Основноц блок
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20), // Отступы по бокам
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start, // Прижимаю всё влево
+                      children: [
+                        // Заголовок
+                        const Center(
+                          child: Text(
+                            'РЕДАКТИРОВАНИЕ\nЭПИЗОДА',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300, // Тонкий шрифт
+                              height: 1.1,
+                            ),
                           ),
-                          subtitle: Text('текстов: ${scene.texts.length}', style: const TextStyle(color: Color(0xFFFFA0A0))), // Количество текстов
-                          trailing: Row( // Горизонтальный список (справа)
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Кнопка редактирования сцены
-                              IconButton( // Кнопка с иконкой
-                                icon: const Icon(Icons.edit, color: Colors.white),
-                                onPressed: () {
-                                  Navigator.push( // Открыть экран
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => SceneEditorScreen(
-                                        scene: scene, // Сцена
-                                        onSave: (newScene) {
-                                          setState(() {
-                                            widget.episode.scenes[index] = newScene; // Обновляю сцену в списке
-                                          });
-                                        },
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Подпись
+                        const Text(
+                          'название эпизода',
+                          style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 16),
+                        ),
+                        const SizedBox(height: 4),
+                        
+                        // Поле ввода названия эпизода (розовый текст)
+                        TextField(
+                          controller: _titleController,
+                          style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Подзаголовок
+                        const Text(
+                          'список сцен:',
+                          style: TextStyle(
+                            color: Color(0xFFFFA0A0), 
+                            fontSize: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Список сцен
+                        Expanded(
+                          child: widget.episode.scenes.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'нет сцен', 
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: widget.episode.scenes.length,
+                                  itemBuilder: (context, index) {
+                                    final scene = widget.episode.scenes[index];
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      child: Row(
+                                        children: [
+                                          // Название сцены
+                                          Expanded(
+                                            child: Text(
+                                              scene.title.isNotEmpty
+                                                  ? scene.title
+                                                  : 'сцена ${scene.id}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                          ),
+                                          // Кнопка редактирования
+                                          IconButton(
+                                            icon: const Icon(Icons.edit, color: Colors.white, size: 24),
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => SceneEditorScreen(
+                                                    scene: scene,
+                                                    onSave: (newScene) {
+                                                      setState(() {
+                                                        widget.episode.scenes[index] = newScene;
+                                                      });
+                                                    },
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          // Кнопка удаления
+                                          IconButton(
+                                            icon: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
+                                            onPressed: () {
+                                              _deleteScene(index);
+                                            },
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  );
-                                },
+                                    );
+                                  },
+                                ),
+                        ),
+                        
+                        const SizedBox(height: 4),
+
+                        // Кнопка создать сцену
+                        SizedBox(
+                          width: 260,
+                          height: 55,
+                          child: ElevatedButton(
+                            onPressed: _addScene,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD30010),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
                               ),
-                              // Кнопка удаления сцены
-                              IconButton( // Кнопка с иконкой
-                                icon: const Icon(Icons.delete, color: Colors.white),
-                                onPressed: () {
-                                  _deleteScene(index);
-                                },
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'создать сцену',
+                              style: TextStyle(
+                                color: Color(0xFF3F0404),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ],
+                            ),
                           ),
-                        );
-                      },
+                        ),
+                        
+                        const SizedBox(height: 8),
+
+                        // Кнопка сохранить
+                        SizedBox(
+                          width: 200,
+                          height: 55,
+                          child: ElevatedButton(
+                            onPressed: _saveEpisode,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD30010),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'сохранить',
+                              style: TextStyle(
+                                color: Color(0xFF3F0404),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Пустое пространство снизу, чтобы поднять кнопки выше
+                        const SizedBox(height: 100),
+                      ],
                     ),
-            ),
-            const SizedBox(height: 16),
-            // Кнопка создания сцены
-            SizedBox( // Контейнер
-              width: double.infinity, // На всю ширину
-              child: ElevatedButton( // Кнопка с фоном
-                onPressed: _addScene,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD30010),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'создать сцену',
-                  style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
+              ],
             ),
-            const SizedBox(height: 8),
-            // Кнопка сохранения
-            SizedBox( // Контейнер
-              width: double.infinity, // На всю ширину
-              child: ElevatedButton( // Кнопка с фоном
-                onPressed: _saveEpisode,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD30010),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'сохранить',
-                  style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

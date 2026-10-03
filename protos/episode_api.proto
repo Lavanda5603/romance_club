@@ -30,9 +30,21 @@ message SaveEpisodeResponse {
   string message = 2; // Сообщение
 }
 
+// Запрос на удаление эпизода
+message DeleteEpisodeRequest {
+  int32 id = 1; // ID эпизода
+}
+
+// Ответ после удаления
+message DeleteEpisodeResponse {
+  bool success = 1; // Успешно ли удаление
+  string message = 2; // Сообщение
+}
+
 // gRPC-сервис для работы с эпизодами
 service EpisodeApi {
   rpc GetEpisode(GetEpisodeRequest) returns (Episode); // Получить эпизод по ID
   rpc GetAllEpisodes(GetAllEpisodesRequest) returns (GetAllEpisodesResponse); // Получить все эпизоды
   rpc SaveEpisode(SaveEpisodeRequest) returns (SaveEpisodeResponse); // Сохранить эпизод
+  rpc DeleteEpisode(DeleteEpisodeRequest) returns (DeleteEpisodeResponse); // Удалить эпизод
 }

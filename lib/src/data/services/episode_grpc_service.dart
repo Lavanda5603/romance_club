@@ -52,6 +52,15 @@ class EpisodeGrpcService {
     return await _client.saveEpisode(request);
   }
 
+  // Удалить эпизод
+  Future<DeleteEpisodeResponse> deleteEpisode(int id) async {
+    // Создаю запрос
+    final request = DeleteEpisodeRequest(id: id);
+
+    // Вызываю метод сервера
+    return await _client.deleteEpisode(request);
+  }
+
   // Закрыть соединение
   Future<void> close() async {
     await _channel.shutdown(); // Закрываю канал

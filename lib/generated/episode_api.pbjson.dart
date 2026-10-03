@@ -90,3 +90,29 @@ const SaveEpisodeResponse$json = {
 final $typed_data.Uint8List saveEpisodeResponseDescriptor = $convert.base64Decode(
     'ChNTYXZlRXBpc29kZVJlc3BvbnNlEhgKB3N1Y2Nlc3MYASABKAhSB3N1Y2Nlc3MSGAoHbWVzc2'
     'FnZRgCIAEoCVIHbWVzc2FnZQ==');
+
+@$core.Deprecated('Use deleteEpisodeRequestDescriptor instead')
+const DeleteEpisodeRequest$json = {
+  '1': 'DeleteEpisodeRequest',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 5, '10': 'id'},
+  ],
+};
+
+/// Descriptor for `DeleteEpisodeRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List deleteEpisodeRequestDescriptor = $convert
+    .base64Decode('ChREZWxldGVFcGlzb2RlUmVxdWVzdBIOCgJpZBgBIAEoBVICaWQ=');
+
+@$core.Deprecated('Use deleteEpisodeResponseDescriptor instead')
+const DeleteEpisodeResponse$json = {
+  '1': 'DeleteEpisodeResponse',
+  '2': [
+    {'1': 'success', '3': 1, '4': 1, '5': 8, '10': 'success'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+  ],
+};
+
+/// Descriptor for `DeleteEpisodeResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List deleteEpisodeResponseDescriptor = $convert.base64Decode(
+    'ChVEZWxldGVFcGlzb2RlUmVzcG9uc2USGAoHc3VjY2VzcxgBIAEoCFIHc3VjY2VzcxIYCgdtZX'
+    'NzYWdlGAIgASgJUgdtZXNzYWdl');

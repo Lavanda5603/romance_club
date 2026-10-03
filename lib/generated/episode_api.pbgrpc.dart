@@ -55,6 +55,13 @@ class EpisodeApiClient extends $grpc.Client {
     return $createUnaryCall(_$saveEpisode, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.DeleteEpisodeResponse> deleteEpisode(
+    $0.DeleteEpisodeRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$deleteEpisode, request, options: options);
+  }
+
   // method descriptors
 
   static final _$getEpisode =
@@ -72,6 +79,11 @@ class EpisodeApiClient extends $grpc.Client {
           '/romance_club.EpisodeApi/SaveEpisode',
           ($0.SaveEpisodeRequest value) => value.writeToBuffer(),
           $0.SaveEpisodeResponse.fromBuffer);
+  static final _$deleteEpisode =
+      $grpc.ClientMethod<$0.DeleteEpisodeRequest, $0.DeleteEpisodeResponse>(
+          '/romance_club.EpisodeApi/DeleteEpisode',
+          ($0.DeleteEpisodeRequest value) => value.writeToBuffer(),
+          $0.DeleteEpisodeResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('romance_club.EpisodeApi')
@@ -104,6 +116,15 @@ abstract class EpisodeApiServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.SaveEpisodeRequest.fromBuffer(value),
             ($0.SaveEpisodeResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.DeleteEpisodeRequest, $0.DeleteEpisodeResponse>(
+            'DeleteEpisode',
+            deleteEpisode_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.DeleteEpisodeRequest.fromBuffer(value),
+            ($0.DeleteEpisodeResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$1.Episode> getEpisode_Pre($grpc.ServiceCall $call,
@@ -130,4 +151,13 @@ abstract class EpisodeApiServiceBase extends $grpc.Service {
 
   $async.Future<$0.SaveEpisodeResponse> saveEpisode(
       $grpc.ServiceCall call, $0.SaveEpisodeRequest request);
+
+  $async.Future<$0.DeleteEpisodeResponse> deleteEpisode_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.DeleteEpisodeRequest> $request) async {
+    return deleteEpisode($call, await $request);
+  }
+
+  $async.Future<$0.DeleteEpisodeResponse> deleteEpisode(
+      $grpc.ServiceCall call, $0.DeleteEpisodeRequest request);
 }

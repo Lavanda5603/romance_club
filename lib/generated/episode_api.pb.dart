@@ -307,6 +307,137 @@ class SaveEpisodeResponse extends $pb.GeneratedMessage {
   void clearMessage() => $_clearField(2);
 }
 
+/// Запрос на удаление эпизода
+class DeleteEpisodeRequest extends $pb.GeneratedMessage {
+  factory DeleteEpisodeRequest({
+    $core.int? id,
+  }) {
+    final result = DeleteEpisodeRequest._();
+    if (id != null) result.id = id;
+    return result;
+  }
+
+  DeleteEpisodeRequest._();
+
+  factory DeleteEpisodeRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeleteEpisodeRequest()..mergeFromBuffer(data, registry);
+  factory DeleteEpisodeRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeleteEpisodeRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DeleteEpisodeRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: DeleteEpisodeRequest.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'id')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteEpisodeRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteEpisodeRequest copyWith(void Function(DeleteEpisodeRequest) updates) =>
+      super.copyWith((message) => updates(message as DeleteEpisodeRequest))
+          as DeleteEpisodeRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use DeleteEpisodeRequest() / DeleteEpisodeRequest.new instead')
+  static DeleteEpisodeRequest create() => DeleteEpisodeRequest._();
+  static $pb.GeneratedMessage $_createMessage() => DeleteEpisodeRequest._();
+  @$core.override
+  DeleteEpisodeRequest createEmptyInstance() => DeleteEpisodeRequest._();
+  @$core.pragma('dart2js:noInline')
+  static DeleteEpisodeRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<DeleteEpisodeRequest>(
+          DeleteEpisodeRequest.$_createMessage);
+  static DeleteEpisodeRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get id => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set id($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+}
+
+/// Ответ после удаления
+class DeleteEpisodeResponse extends $pb.GeneratedMessage {
+  factory DeleteEpisodeResponse({
+    $core.bool? success,
+    $core.String? message,
+  }) {
+    final result = DeleteEpisodeResponse._();
+    if (success != null) result.success = success;
+    if (message != null) result.message = message;
+    return result;
+  }
+
+  DeleteEpisodeResponse._();
+
+  factory DeleteEpisodeResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeleteEpisodeResponse()..mergeFromBuffer(data, registry);
+  factory DeleteEpisodeResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeleteEpisodeResponse()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DeleteEpisodeResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: DeleteEpisodeResponse.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'success')
+    ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteEpisodeResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteEpisodeResponse copyWith(
+          void Function(DeleteEpisodeResponse) updates) =>
+      super.copyWith((message) => updates(message as DeleteEpisodeResponse))
+          as DeleteEpisodeResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use DeleteEpisodeResponse() / DeleteEpisodeResponse.new instead')
+  static DeleteEpisodeResponse create() => DeleteEpisodeResponse._();
+  static $pb.GeneratedMessage $_createMessage() => DeleteEpisodeResponse._();
+  @$core.override
+  DeleteEpisodeResponse createEmptyInstance() => DeleteEpisodeResponse._();
+  @$core.pragma('dart2js:noInline')
+  static DeleteEpisodeResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<DeleteEpisodeResponse>(
+          DeleteEpisodeResponse.$_createMessage);
+  static DeleteEpisodeResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get success => $_getBF(0);
+  @$pb.TagNumber(1)
+  set success($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSuccess() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSuccess() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get message => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set message($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMessage() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMessage() => $_clearField(2);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

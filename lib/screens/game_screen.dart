@@ -122,9 +122,7 @@ class _GameScreenState extends State<GameScreen> {
               if (scene.character.isNotEmpty)
                 Align( // Выравнивание
                   alignment: _getAlignment(
-                    scene.characterPosition.isNotEmpty
-                        ? scene.characterPosition
-                        : 'center',
+                   scene.characterPosition,
                   ),
                   child: FractionallySizedBox( // Размер в долях
                     widthFactor: 0.65,

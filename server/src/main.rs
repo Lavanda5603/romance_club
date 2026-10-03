@@ -1,9 +1,13 @@
+mod progress_service;
+
 use tonic::{transport::Server, Request, Response, Status};
 use surrealdb::engine::remote::ws::{Client, Ws};
 use surrealdb::opt::auth::Root;
 use surrealdb::Surreal;
 use surrealdb::types::SurrealValue;
 use serde_json::Value;
+use progress_service::ProgressApiService;
+use romance_club::progress_api_server::ProgressApiServer;
 
 // Подключаю сгенерированный код
 pub mod romance_club {
@@ -174,6 +178,7 @@ impl EpisodeApi for EpisodeApiService {
 
             scenes.push(Scene {
                 id: order_index + 1,
+                scene_key: scene_id_str.clone(),
                 title,
                 background,
                 character,
@@ -203,20 +208,36 @@ impl EpisodeApi for EpisodeApiService {
         &self,
         _request: Request<GetAllEpisodesRequest>,
     ) -> Result<Response<GetAllEpisodesResponse>, Status> {
-        let records: Vec<EpisodeRecord> = self
+        // Читаю эпизоды через query, чтобы получить настоящий id
+        let mut response = self
             .db
-            .select("episode")
+            .query("SELECT * FROM episode ORDER BY id")
             .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        let records: Vec<Value> = response
+            .take(0)
             .map_err(|e| Status::internal(e.to_string()))?;
 
         let episodes = records
             .into_iter()
-            .enumerate()
-            .map(|(index, record)| Episode {
-                id: (index + 1) as i32,
-                title: record.title,
-                version: record.version,
-                scenes: vec![],
+            .map(|v| {
+                let id = v
+                    .get("id")
+                    .and_then(|s| s.as_str())
+                    .and_then(|s| s.strip_prefix("episode:"))
+                    .and_then(|s| s.parse::<i32>().ok())
+                    .unwrap_or(0);
+
+                let title = v.get("title").and_then(|s| s.as_str()).unwrap_or("").to_string();
+                let version = v.get("version").and_then(|s| s.as_i64()).unwrap_or(1) as i32;
+
+                Episode {
+                    id,
+                    title,
+                    version,
+                    scenes: vec![],
+                }
             })
             .collect();
 
@@ -437,13 +458,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Применяю миграции
     apply_migrations(&db).await?;
 
-    let service = EpisodeApiService::new(db);
+    let episode_service = EpisodeApiService::new(db.clone());
+    let progress_service = ProgressApiService::new(db);
     let addr = "0.0.0.0:50051".parse()?;
 
     println!("Сервер запущен на {}", addr);
 
     Server::builder()
-        .add_service(EpisodeApiServer::new(service))
+        .add_service(EpisodeApiServer::new(episode_service))
+        .add_service(ProgressApiServer::new(progress_service))
         .serve(addr)
         .await?;
 

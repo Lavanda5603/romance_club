@@ -8,9 +8,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "../protos/scene.proto",
                 "../protos/choice.proto",
                 "../protos/action.proto",
+                "../protos/progress.proto",
+                "../protos/player.proto",
+                "../protos/player_choice.proto",
+                "../protos/settings.proto",
                 "../protos/episode_api.proto",
+                "../protos/progress_api.proto",
             ],
             &["../protos"],
         )?;
+
     Ok(())
 }

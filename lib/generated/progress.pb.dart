@@ -22,7 +22,7 @@ class Progress extends $pb.GeneratedMessage {
     $core.int? id,
     $core.int? playerId,
     $core.int? episodeId,
-    $core.int? sceneId,
+    $core.String? sceneId,
     $core.Iterable<$core.MapEntry<$core.String, $core.bool>>? flags,
     $core.Iterable<$core.MapEntry<$core.String, $core.int>>? counters,
     $core.String? updatedAt,
@@ -54,7 +54,7 @@ class Progress extends $pb.GeneratedMessage {
     ..aI(1, _omitFieldNames ? '' : 'id')
     ..aI(2, _omitFieldNames ? '' : 'playerId')
     ..aI(3, _omitFieldNames ? '' : 'episodeId')
-    ..aI(4, _omitFieldNames ? '' : 'sceneId')
+    ..aOS(4, _omitFieldNames ? '' : 'sceneId')
     ..m<$core.String, $core.bool>(5, _omitFieldNames ? '' : 'flags',
         entryClassName: 'Progress.FlagsEntry',
         keyFieldType: $pb.PbFieldType.OS,
@@ -116,9 +116,9 @@ class Progress extends $pb.GeneratedMessage {
   void clearEpisodeId() => $_clearField(3);
 
   @$pb.TagNumber(4)
-  $core.int get sceneId => $_getIZ(3);
+  $core.String get sceneId => $_getSZ(3);
   @$pb.TagNumber(4)
-  set sceneId($core.int value) => $_setSignedInt32(3, value);
+  set sceneId($core.String value) => $_setString(3, value);
   @$pb.TagNumber(4)
   $core.bool hasSceneId() => $_has(3);
   @$pb.TagNumber(4)

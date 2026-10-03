@@ -1,0 +1,32 @@
+syntax = "proto3"; // Версия синтаксиса Protobuf
+
+package romance_club; // Пространство имён
+
+import "progress.proto"; // Подключаю progress.proto
+
+// Запрос на получение прогресса
+message GetProgressRequest {
+  int32 player_id = 1; // ID игрока
+  int32 episode_id = 2; // ID эпизода
+}
+
+// Запрос на сохранение прогресса
+message SaveProgressRequest {
+  int32 player_id = 1; // ID игрока
+  int32 episode_id = 2; // ID эпизода
+  string scene_id = 3; // ID сцены как строка
+  map<string, bool> flags = 4; // Флаги
+  map<string, int32> counters = 5; // Счётчики (баллы)
+}
+
+// Ответ после сохранения
+message SaveProgressResponse {
+  bool success = 1; // Успешно ли сохранение
+  string message = 2; // Сообщение
+}
+
+// gRPC-сервис для работы с прогрессом
+service ProgressApi {
+  rpc GetProgress(GetProgressRequest) returns (Progress); // Получить прогресс
+  rpc SaveProgress(SaveProgressRequest) returns (SaveProgressResponse); // Сохранить прогресс
+}

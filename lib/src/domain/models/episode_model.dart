@@ -16,7 +16,8 @@ class EpisodeModel {
 
 // Доменная модель сцены
 class SceneModel {
-  final int id; // ID сцены
+  final int id; // ID сцены (номер)
+  final String sceneKey; // Настоящий ID в SurrealDB
   final String title; // Название
   final String background; // Фон
   final String character; // Персонаж
@@ -29,6 +30,7 @@ class SceneModel {
   // Конструктор класса SceneModel
   const SceneModel({
     required this.id,
+    required this.sceneKey,
     required this.title,
     required this.background,
     required this.character,

@@ -44,36 +44,37 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   // Загрузка эпизодов с сервера
   Future<void> _loadEpisodes() async {
     try {
-      // Запрашиваю эпизоды с сервера
       final episodes = await _service.getAllEpisodes();
       setState(() {
-        _episodes.clear(); // Очищаю текущий список
-        _episodes.addAll(episodes); // Добавляю загруженные эпизоды
-        _isLoading = false; // Загрузка завершена
+        _episodes.clear();
+        _episodes.addAll(episodes);
+        _isLoading = false;
       });
     } catch (e) {
       setState(() {
-        _error = e.toString(); // Сохраняю ошибку
-        _isLoading = false; // Загрузка завершена
+        _error = e.toString();
+        _isLoading = false;
       });
     }
   }
 
   // Добавление нового эпизода
   Future<void> _addEpisode() async {
-    // Создаю Protobuf-модель Episode
+    // ID нового эпизода = максимальный + 1
+    final nextId = _episodes.isEmpty
+        ? 1
+        : _episodes.map((e) => e.id).reduce((a, b) => a > b ? a : b) + 1;
+
     final newEpisode = Episode(
-      id: _episodes.length + 1, // Id нового эпизода
-      title: 'эпизод ${_episodes.length + 1}', // Название
-      version: 1, // Версия
+      id: nextId,
+      title: 'эпизод $nextId',
+      version: 1,
     );
 
-    // Добавляю в список
     setState(() {
       _episodes.add(newEpisode);
     });
 
-    // Сохраняю на сервер
     try {
       await _service.saveEpisode(newEpisode);
       if (!mounted) return;
@@ -88,24 +89,66 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     }
   }
 
+  // Открыть редактор эпизода (с полной загрузкой)
+  Future<void> _openEditor(int index) async {
+    final episode = _episodes[index];
+
+    try {
+      // Загружаю полный эпизод со сценами
+      final fullEpisode = await _service.getEpisode(episode.id);
+
+      if (!mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EpisodeEditorScreen(
+            episode: fullEpisode,
+            onSave: (newEpisode) async {
+              setState(() {
+                _episodes[index] = newEpisode;
+              });
+              try {
+                await _service.saveEpisode(newEpisode);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar( // ignore: use_build_context_synchronously
+                  const SnackBar(content: Text('Эпизод сохранён на сервере')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar( // ignore: use_build_context_synchronously
+                  SnackBar(content: Text('Ошибка: $e')),
+                );
+              }
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка загрузки эпизода: $e')),
+      );
+    }
+  }
+
   // Удаление эпизода
   Future<void> _deleteEpisode(int index) async {
-    // Показываю диалог подтверждения
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog( // Всплывающее окно
+        return AlertDialog(
           title: const Text('Удалить эпизод?'),
           content: Text(
             'Вы точно уверены, что хотите удалить "${_episodes[index].title}"?',
           ),
           actions: [
-            TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, false), // Отмена
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Отмена'),
             ),
-            TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, true), // Подтверждение
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
               child: const Text('Удалить'),
             ),
           ],
@@ -113,19 +156,15 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       },
     );
 
-    // Если пользователь подтвердил, удаляю эпизод
     if (confirmed == true) {
-      final episodeId = _episodes[index].id; // ID эпизода
+      final episodeId = _episodes[index].id;
 
       try {
-        // Удаляю с сервера
         await _service.deleteEpisode(episodeId);
-
         if (!mounted) return;
         setState(() {
-          _episodes.removeAt(index); // Удаляю из локального списка
+          _episodes.removeAt(index);
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Эпизод удалён с сервера')),
         );
@@ -140,28 +179,28 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
-      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      appBar: AppBar( // Верхняя панель
-        backgroundColor: Colors.transparent, // Прозрачный фон
-        elevation: 0, // Без тени
-        leading: IconButton( // Кнопка с иконкой
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)),
           onPressed: () {
-            Navigator.pop(context); // Закрыть экран
+            Navigator.pop(context);
           },
         ),
-        title: const Text( // Текст (маленький, в AppBar)
+        title: const Text(
           'Клуб романтики',
           style: TextStyle(color: Colors.white, fontSize: 14),
         ),
-        centerTitle: true, // По центру
+        centerTitle: true,
       ),
-      body: Padding( // Отступы
+      body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column( // Вертикальный список
+        child: Column(
           children: [
-            const Text( // Большой заголовок
+            const Text(
               'РЕЖИМ РАЗРАБОТЧИКА',
               style: TextStyle(
                 color: Colors.white,
@@ -170,20 +209,18 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                 letterSpacing: 2,
               ),
             ),
-            const SizedBox(height: 24), // Отступ
-            const Align( // Выравнивание
-              alignment: Alignment.centerLeft, // По левому краю
-              child: Text( // Текст
+            const SizedBox(height: 24),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
                 'список эпизодов:',
                 style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
               ),
             ),
-            const SizedBox(height: 8), // Отступ
-            Expanded( // Растягивание
+            const SizedBox(height: 8),
+            Expanded(
               child: _isLoading
-                  // Загрузка
                   ? const Center(child: CircularProgressIndicator())
-                  // Ошибка
                   : _error != null
                       ? Center(
                           child: Text(
@@ -191,7 +228,6 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                             style: const TextStyle(color: Colors.red),
                           ),
                         )
-                      // Пустой список
                       : _episodes.isEmpty
                           ? const Center(
                               child: Text(
@@ -199,55 +235,25 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                                 style: TextStyle(color: Colors.white),
                               ),
                             )
-                          // Список эпизодов
                           : ListView.builder(
                               itemCount: _episodes.length,
                               itemBuilder: (context, index) {
                                 final episode = _episodes[index];
-                                return ListTile( // Строка списка
+                                return ListTile(
                                   title: Text(episode.title, style: const TextStyle(color: Colors.white)),
-                                  subtitle: Text('сцен: ${episode.scenes.length}', style: const TextStyle(color: Color(0xFFFFA0A0))),
-                                  trailing: Row( // Горизонтальный список (справа)
+                                  subtitle: Text('ID: ${episode.id}', style: const TextStyle(color: Color(0xFFFFA0A0))),
+                                  trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      // Кнопка редактирования эпизода
-                                      IconButton( // Кнопка с иконкой
+                                      // Кнопка редактирования
+                                      IconButton(
                                         icon: const Icon(Icons.edit, color: Colors.white),
-                                        onPressed: () {
-                                          Navigator.push( // Открыть экран
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => EpisodeEditorScreen(
-                                                episode: episode,
-                                                onSave: (newEpisode) async {
-                                                  setState(() {
-                                                    _episodes[index] = newEpisode; // Обновляю эпизод в списке
-                                                  });
-                                                  // Сохраняю на сервер
-                                                  try {
-                                                    await _service.saveEpisode(newEpisode);
-                                                    if (!context.mounted) return;
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      const SnackBar(content: Text('Эпизод сохранён на сервере')),
-                                                    );
-                                                  } catch (e) {
-                                                    if (!context.mounted) return;
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(content: Text('Ошибка: $e')),
-                                                    );
-                                                  }
-                                                },
-                                              ),
-                                            ),
-                                          );
-                                        },
+                                        onPressed: () => _openEditor(index),
                                       ),
-                                      // Кнопка удаления эпизода
-                                      IconButton( // Кнопка с иконкой
+                                      // Кнопка удаления
+                                      IconButton(
                                         icon: const Icon(Icons.delete, color: Colors.white),
-                                        onPressed: () {
-                                          _deleteEpisode(index);
-                                        },
+                                        onPressed: () => _deleteEpisode(index),
                                       ),
                                     ],
                                   ),
@@ -255,10 +261,10 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                               },
                             ),
             ),
-            const SizedBox(height: 16), // Отступ
-            SizedBox( // Контейнер
-              width: double.infinity, // На всю ширину
-              child: ElevatedButton( // Кнопка с фоном
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
                 onPressed: _addEpisode,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFD30010),

@@ -1,0 +1,10 @@
+import '../models/progress_model.dart'; // Импорт доменных моделей
+
+// Контракт репозитория прогресса
+abstract class ProgressRepository {
+  // Получить прогресс игрока по эпизоду
+  Future<ProgressModel> getProgress(int playerId, int episodeId);
+
+  // Сохранить прогресс
+  Future<bool> saveProgress(ProgressModel progress);
+}

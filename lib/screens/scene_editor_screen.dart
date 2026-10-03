@@ -20,60 +20,88 @@ class SceneEditorScreen extends StatefulWidget {
 }
 
 class _SceneEditorScreenState extends State<SceneEditorScreen> {
-  late TextEditingController _idController; // Контроллер для поля ввода Id
   late TextEditingController _titleController; // Контроллер для поля ввода названия
   late TextEditingController _backgroundController; // Контроллер для поля ввода фона
   late TextEditingController _characterController; // Контроллер для поля ввода персонажа
-  late TextEditingController _textController; // Контроллер для поля ввода текста
   late TextEditingController _conditionController; // Контроллер для поля ввода условия сцены
   late TextEditingController _musicController; // Контроллер для поля ввода музыки
+
+  // Список контроллеров для каждого текста
+  late List<TextEditingController> _textControllers;
 
   @override
   void initState() {
     super.initState();
-    // Создание контроллеров и заполнение их текущими данными сцены
-    _idController = TextEditingController(text: widget.scene.id.toString());
+    // Создание контроллеров
     _titleController = TextEditingController(text: widget.scene.title);
     _backgroundController = TextEditingController(text: widget.scene.background);
     _characterController = TextEditingController(text: widget.scene.character);
-    _textController = TextEditingController(
-      text: widget.scene.texts.join('\n'), // Тексты (объединяю через перенос строки)
-    );
     _conditionController = TextEditingController(text: widget.scene.condition);
-    _musicController = TextEditingController(); // Пустой
+    _musicController = TextEditingController();
+
+    // Создаю контроллеры для каждого существующего текста
+    _textControllers = widget.scene.texts
+        .map((t) => TextEditingController(text: t))
+        .toList();
+
+    // Если текстов нет — создаю один пустой
+    if (_textControllers.isEmpty) {
+      _textControllers.add(TextEditingController());
+    }
   }
 
   @override
   void dispose() {
-    // Освобождение ресурсов всех контроллеров при закрытии экрана
-    _idController.dispose();
+    // Освобождение ресурсов всех контроллеров
     _titleController.dispose();
     _backgroundController.dispose();
     _characterController.dispose();
-    _textController.dispose();
     _conditionController.dispose();
     _musicController.dispose();
+    for (final c in _textControllers) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  // Добавить новое поле текста
+  void _addTextField() {
+    setState(() {
+      _textControllers.add(TextEditingController());
+    });
+  }
+
+  // Удалить поле текста по индексу
+  void _removeTextField(int index) {
+    setState(() {
+      _textControllers[index].dispose();
+      _textControllers.removeAt(index);
+    });
   }
 
   // Сохранение сцены
   void _saveScene() {
     // Создаю новую сцену с данными из полей
-    final newScene = Scene( // Scene - Protobuf-модель
-      id: int.tryParse(_idController.text) ?? widget.scene.id, // Id из поля
-      title: _titleController.text, // Название
-      background: _backgroundController.text, // Фон
-      character: _characterController.text, // Персонаж
-      condition: _conditionController.text, // Условие
+    final newScene = Scene(
+      id: widget.scene.id, // ID оставляю прежним (SurrealDB генерирует)
+      title: _titleController.text,
+      background: _backgroundController.text,
+      character: _characterController.text,
+      condition: _conditionController.text,
+      sceneKey: widget.scene.sceneKey, // Настоящий ID
     );
 
-    // Добавляю тексты (repeated string)
-    newScene.texts.addAll(_textController.text.split('\n'));
+    // Добавляю тексты (только непустые)
+    for (final c in _textControllers) {
+      if (c.text.trim().isNotEmpty) {
+        newScene.texts.add(c.text.trim());
+      }
+    }
 
     // Копирую выборы из старой сцены
     newScene.choices.addAll(widget.scene.choices);
 
-    // Вызываю колбэк onSave (сообщаю эпизоду о сохранении)
+    // Вызываю колбэк onSave
     widget.onSave(newScene);
 
     // Показываю уведомление
@@ -86,17 +114,16 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   }
 
   // Добавление нового выбора
-    void _addChoice() {
-    // Открываю экран редактора выбора с null (создание нового)
+  void _addChoice() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChoiceEditorScreen(
-          choice: null, // Новый выбор
+          choice: null,
           defaultText: 'выбор ${widget.scene.choices.length + 1}',
           onSave: (newChoice) {
             setState(() {
-              widget.scene.choices.add(newChoice); // Добавляю выбор в список
+              widget.scene.choices.add(newChoice);
             });
           },
         ),
@@ -104,17 +131,16 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
-  // Редактирование существующего выбора
+  // Редактирование выбора
   void _editChoice(int index) {
-    // Открываю экран редактора выбора с существующим выбором
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChoiceEditorScreen(
-          choice: widget.scene.choices[index], // Выбор
+          choice: widget.scene.choices[index],
           onSave: (newChoice) {
             setState(() {
-              widget.scene.choices[index] = newChoice; // Заменяю выбор в списке
+              widget.scene.choices[index] = newChoice;
             });
           },
         ),
@@ -124,22 +150,21 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
   // Удаление выбора
   Future<void> _deleteChoice(int index) async {
-    // Показываю диалог подтверждения
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog( // Всплывающее окно
+        return AlertDialog(
           title: const Text('Удалить выбор?'),
           content: Text(
             'Вы точно уверены, что хотите удалить "${widget.scene.choices[index].text}"?',
           ),
           actions: [
-            TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, false), // Отмена
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Отмена'),
             ),
-            TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, true), // Подтверждение
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
               child: const Text('Удалить'),
             ),
           ],
@@ -147,7 +172,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       },
     );
 
-    // Если пользователь подтвердил, удаляю выбор
     if (confirmed == true) {
       setState(() {
         widget.scene.choices.removeAt(index);
@@ -155,67 +179,66 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
-  // Виджет поля ввода с рамкой (вспомогательный метод)
-  Widget _buildField(String label, TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType}) {
-    return Column( // Column - вертикальный список
+  // Виджет поля ввода с рамкой
+  Widget _buildField(String label, TextEditingController controller,
+      {int maxLines = 1, TextInputType? keyboardType}) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Подпись (розовая)
         Text(
           label,
           style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
         ),
-        const SizedBox(height: 4), // Отступ
-        // Поле ввода с белой рамкой
-        TextField( // Поле ввода
+        const SizedBox(height: 4),
+        TextField(
           controller: controller,
           maxLines: maxLines,
           keyboardType: keyboardType,
-          style: const TextStyle(color: Colors.white, fontSize: 16), // Белый текст
-          decoration: InputDecoration( // Оформление поля
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+          decoration: InputDecoration(
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12), // Круглые углы
+              borderRadius: BorderRadius.circular(12),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white), // Белая рамка
+              borderSide: const BorderSide(color: Colors.white),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFD30010)), // Красная рамка при фокусе
+              borderSide: const BorderSide(color: Color(0xFFD30010)),
             ),
           ),
         ),
-        const SizedBox(height: 16), // Отступ
+        const SizedBox(height: 16),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
-      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      appBar: AppBar( // Верхняя панель
-        backgroundColor: Colors.transparent, // Прозрачный фон
-        elevation: 0, // Без тени
-        leading: IconButton( // Кнопка с иконкой
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)),
           onPressed: () {
-            Navigator.pop(context); // Закрыть экран
+            Navigator.pop(context);
           },
         ),
-        title: const Text( // Текст (маленький, в AppBar)
+        title: const Text(
           'Клуб романтики',
           style: TextStyle(color: Colors.white, fontSize: 14),
         ),
-        centerTitle: true, // По центру
+        centerTitle: true,
       ),
-      body: SingleChildScrollView( // Прокрутка
-        child: Padding( // Отступы
+      body: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column( // Вертикальный список
+          child: Column(
             children: [
-              const Text( // Большой заголовок
+              const Text(
                 'РЕДАКТИРОВАНИЕ СЦЕНЫ',
                 style: TextStyle(
                   color: Colors.white,
@@ -225,7 +248,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Подпись (серая)
+              // Название сцены
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -234,35 +257,80 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              // Поле ввода названия сцены (розовая)
-              TextField( // Поле ввода
-                controller: _titleController, // Контроллер
-                style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18), // Розовый текст
-                decoration: const InputDecoration( // Оформление поля
-                  border: InputBorder.none, // Без рамки
-                  isDense: true, // Компактнее
+              TextField(
+                controller: _titleController,
+                style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
                 ),
               ),
               const SizedBox(height: 16),
-              // Поля с рамкой (ID, фон, персонаж, текст, условие)
-              _buildField('ID', _idController, keyboardType: TextInputType.number),
+              // Фон, персонаж
               _buildField('фон', _backgroundController),
               _buildField('персонаж', _characterController),
-              _buildField('текст', _textController, maxLines: 5),
-              // Иконка плюсика (под полем текст)
-              Align(
+
+              // Тексты (динамические поля)
+              const Align(
                 alignment: Alignment.centerLeft,
-                child: IconButton( // Кнопка с иконкой
-                  icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)), // Розовый плюсик
-                  onPressed: () {
-                    // Tекст
-                  },
+                child: Text(
+                  'тексты сцены:',
+                  style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
                 ),
               ),
+              const SizedBox(height: 8),
+              // Список текстов
+              ..._textControllers.asMap().entries.map((entry) {
+                final index = entry.key;
+                final controller = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      // Поле ввода
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          maxLines: 3,
+                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.white),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFFD30010)),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Кнопка удаления
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.white),
+                        onPressed: () => _removeTextField(index),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              // Кнопка + (добавить текст)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)),
+                  onPressed: _addTextField,
+                ),
+              ),
+
               _buildField('условие', _conditionController),
               const SizedBox(height: 8),
-              // Надпись выбор (розовая)
-              const Align( // Выравнивание
+
+              // Выборы
+              const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'выбор',
@@ -270,39 +338,35 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Список выборов
               if (widget.scene.choices.isEmpty)
                 const Text('нет выборов', style: TextStyle(color: Colors.white))
               else
-                ListView.builder( // Список
-                  shrinkWrap: true, // Чтобы ListView не занимал весь экран
-                  physics: const NeverScrollableScrollPhysics(), // Отключаю скролл у ListView
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: widget.scene.choices.length,
                   itemBuilder: (context, index) {
                     final choice = widget.scene.choices[index];
-                    return Container( // Контейнер (блок выбора)
+                    return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration( // Оформление
-                        border: Border.all(color: Colors.white), // Белая рамка
-                        borderRadius: BorderRadius.circular(12), // Круглые углы
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Название выбора (белое)
                           Text(
                             choice.title.isNotEmpty ? choice.title : 'выбор ${index + 1}',
                             style: const TextStyle(color: Colors.white, fontSize: 16),
                           ),
                           const SizedBox(height: 8),
-                          // Подпись действия (серая)
                           const Text(
                             'действия:',
                             style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
                           ),
                           const SizedBox(height: 4),
-                          // Список действий (белые)
                           ...choice.actions.map((action) {
                             return Padding(
                               padding: const EdgeInsets.only(left: 8, bottom: 4),
@@ -313,17 +377,16 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                             );
                           }),
                           const SizedBox(height: 8),
-                          // Кнопки редактирования и удаления (справа)
                           Align(
                             alignment: Alignment.centerRight,
-                            child: Row( // Горизонтальный список
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton( // Кнопка редактирования
+                                IconButton(
                                   icon: const Icon(Icons.edit, color: Colors.white),
                                   onPressed: () => _editChoice(index),
                                 ),
-                                IconButton( // Кнопка удаления
+                                IconButton(
                                   icon: const Icon(Icons.delete, color: Colors.white),
                                   onPressed: () => _deleteChoice(index),
                                 ),
@@ -335,22 +398,20 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                     );
                   },
                 ),
-              // Иконка плюсика (под выборами)
               Align(
                 alignment: Alignment.centerLeft,
-                child: IconButton( // Кнопка с иконкой
-                  icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)), // Розовый плюсик
+                child: IconButton(
+                  icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)),
                   onPressed: _addChoice,
                 ),
               ),
               const SizedBox(height: 8),
-              // Поле ввода музыки
               _buildField('музыка', _musicController),
               const SizedBox(height: 8),
-              // Кнопка сохранения
-              SizedBox( // Контейнер
-                width: double.infinity, // На всю ширину
-                child: ElevatedButton( // Кнопка с фоном
+              // Кнопка сохранить
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
                   onPressed: _saveScene,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD30010),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
-import '../src/data/repositories/episode_repository_remote.dart'; // Импорт репозитория
-import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса
+import '../src/data/repositories/episode_repository_remote.dart'; // Импорт репозитория эпизодов
+import '../src/data/repositories/progress_repository_remote.dart'; // Импорт репозитория прогресса
+import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
+import '../src/data/services/progress_grpc_service.dart'; // Импорт gRPC-сервиса прогресса
 import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
 
 // Игровой экран
@@ -21,26 +23,31 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   late GameViewModel _viewModel; // ViewModel
-  late EpisodeGrpcService _service; // gRPC-сервис
-  late EpisodeRepositoryRemote _repository; // Репозиторий
+  late EpisodeGrpcService _episodeService; // gRPC-сервис эпизодов
+  late ProgressGrpcService _progressService; // gRPC-сервис прогресса
+  late EpisodeRepositoryRemote _episodeRepository; // Репозиторий эпизодов
+  late ProgressRepositoryRemote _progressRepository; // Репозиторий прогресса
 
   @override
   void initState() {
     super.initState();
-    // Создаю gRPC-сервис
-    _service = EpisodeGrpcService();
-    // Создаю репозиторий
-    _repository = EpisodeRepositoryRemote(_service);
+    // Создаю gRPC-сервисы
+    _episodeService = EpisodeGrpcService();
+    _progressService = ProgressGrpcService();
+    // Создаю репозитории
+    _episodeRepository = EpisodeRepositoryRemote(_episodeService);
+    _progressRepository = ProgressRepositoryRemote(_progressService);
     // Создаю ViewModel
-    _viewModel = GameViewModel(_repository);
+    _viewModel = GameViewModel(_episodeRepository, _progressRepository);
     // Загружаю эпизод с сервера по ID
     _viewModel.loadEpisode(widget.episode.id);
   }
 
   @override
   void dispose() {
-    // Закрываю соединение и освобождаю ресурсы
-    _service.close();
+    // Закрываю соединения
+    _episodeService.close();
+    _progressService.close();
     _viewModel.dispose();
     super.dispose();
   }
@@ -122,7 +129,9 @@ class _GameScreenState extends State<GameScreen> {
               if (scene.character.isNotEmpty)
                 Align( // Выравнивание
                   alignment: _getAlignment(
-                   scene.characterPosition,
+                    scene.characterPosition.isNotEmpty
+                        ? scene.characterPosition
+                        : 'center',
                   ),
                   child: FractionallySizedBox( // Размер в долях
                     widthFactor: 0.65,
@@ -152,7 +161,7 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                         child: Text(
                           scene.texts.isNotEmpty
-                              ? scene.texts.first
+                              ? scene.texts.join('\n\n')
                               : 'нет текста',
                           style: const TextStyle(
                             color: Color(0xFF7E7E7E),
@@ -209,7 +218,7 @@ class _GameScreenState extends State<GameScreen> {
                             onPressed: () {
                               // Если сцена последняя - выхожу
                               if (_viewModel.isLastScene) {
-                                Navigator.pop(context); // Закрываю экран
+                                Navigator.pop(context);
                                 return;
                               }
                               // Переход к следующей сцене

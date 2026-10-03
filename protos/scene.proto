@@ -15,4 +15,5 @@ message Scene {
   string condition = 7; // Условие показа
   string text_position = 8; // Позиция текста
   string character_position = 9; // Позиция персонажа
+  string scene_key = 10; // Настоящий ID в SurrealDB
 }

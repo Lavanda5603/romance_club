@@ -55,6 +55,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
       scenes: episode.scenes.map((scene) {
         return SceneModel(
           id: scene.id,
+          sceneKey: scene.sceneKey,
           title: scene.title,
           background: scene.background,
           character: scene.character,
@@ -98,6 +99,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
     for (final scene in episode.scenes) {
       final protoScene = Scene(
         id: scene.id,
+        sceneKey: scene.sceneKey,
         title: scene.title,
         background: scene.background,
         character: scene.character,

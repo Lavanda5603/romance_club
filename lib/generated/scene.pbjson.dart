@@ -41,6 +41,7 @@ const Scene$json = {
       '5': 9,
       '10': 'characterPosition'
     },
+    {'1': 'scene_key', '3': 10, '4': 1, '5': 9, '10': 'sceneKey'},
   ],
 };
 
@@ -51,4 +52,4 @@ final $typed_data.Uint8List sceneDescriptor = $convert.base64Decode(
     'dGV4dHMYBSADKAlSBXRleHRzEi4KB2Nob2ljZXMYBiADKAsyFC5yb21hbmNlX2NsdWIuQ2hvaW'
     'NlUgdjaG9pY2VzEhwKCWNvbmRpdGlvbhgHIAEoCVIJY29uZGl0aW9uEiMKDXRleHRfcG9zaXRp'
     'b24YCCABKAlSDHRleHRQb3NpdGlvbhItChJjaGFyYWN0ZXJfcG9zaXRpb24YCSABKAlSEWNoYX'
-    'JhY3RlclBvc2l0aW9u');
+    'JhY3RlclBvc2l0aW9uEhsKCXNjZW5lX2tleRgKIAEoCVIIc2NlbmVLZXk=');

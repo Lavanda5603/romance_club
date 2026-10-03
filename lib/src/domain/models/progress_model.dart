@@ -1,8 +1,8 @@
 // Доменная модель прогресса
 class ProgressModel {
-  final int playerId; // ID игрока
+  final String playerId; // ID игрока
   final int episodeId; // ID эпизода
-  final String sceneId; // ID сцены (строка "scene:abc123")
+  final String sceneId; // ID сцены
   final Map<String, bool> flags; // Флаги
   final Map<String, int> counters; // Счётчики (баллы)
 
@@ -17,7 +17,7 @@ class ProgressModel {
 
   // Пустой прогресс (когда ничего нет)
   factory ProgressModel.empty() => const ProgressModel(
-        playerId: 0,
+        playerId: '',
         episodeId: 0,
         sceneId: '',
         flags: {},

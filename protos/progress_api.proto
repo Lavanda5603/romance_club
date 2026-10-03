@@ -6,13 +6,13 @@ import "progress.proto"; // Подключаю progress.proto
 
 // Запрос на получение прогресса
 message GetProgressRequest {
-  int32 player_id = 1; // ID игрока
+  string player_id = 1; // ID игрока
   int32 episode_id = 2; // ID эпизода
 }
 
 // Запрос на сохранение прогресса
 message SaveProgressRequest {
-  int32 player_id = 1; // ID игрока
+  string player_id = 1; // ID игрока
   int32 episode_id = 2; // ID эпизода
   string scene_id = 3; // ID сцены как строка
   map<string, bool> flags = 4; // Флаги

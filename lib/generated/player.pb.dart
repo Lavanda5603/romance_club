@@ -19,7 +19,7 @@ export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 /// Игрок (аккаунт)
 class Player extends $pb.GeneratedMessage {
   factory Player({
-    $core.int? id,
+    $core.String? id,
     $core.String? login,
     $core.String? email,
     $core.String? createdAt,
@@ -45,7 +45,7 @@ class Player extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'Player',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
       createEmptyInstance: Player.$_createMessage)
-    ..aI(1, _omitFieldNames ? '' : 'id')
+    ..aOS(1, _omitFieldNames ? '' : 'id')
     ..aOS(2, _omitFieldNames ? '' : 'login')
     ..aOS(3, _omitFieldNames ? '' : 'email')
     ..aOS(4, _omitFieldNames ? '' : 'createdAt')
@@ -72,9 +72,9 @@ class Player extends $pb.GeneratedMessage {
   static Player? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.int get id => $_getIZ(0);
+  $core.String get id => $_getSZ(0);
   @$pb.TagNumber(1)
-  set id($core.int value) => $_setSignedInt32(0, value);
+  set id($core.String value) => $_setString(0, value);
   @$pb.TagNumber(1)
   $core.bool hasId() => $_has(0);
   @$pb.TagNumber(1)

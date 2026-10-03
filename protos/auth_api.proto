@@ -1,0 +1,31 @@
+syntax = "proto3"; // Версия синтаксиса Protobuf
+
+package romance_club; // Пространство имён
+
+import "player.proto"; // Подключаю player.proto
+
+// Запрос на регистрацию
+message RegisterRequest {
+  string login = 1; // Логин
+  string email = 2; // Email
+  string password = 3; // Пароль
+}
+
+// Запрос на вход
+message LoginRequest {
+  string login = 1; // Логин
+  string password = 2; // Пароль
+}
+
+// Ответ с игроком (после регистрации или входа)
+message AuthResponse {
+  bool success = 1; // Успешно ли
+  string message = 2; // Сообщение
+  Player player = 3; // Игрок (если успешно)
+}
+
+// gRPC-сервис для авторизации
+service AuthApi {
+  rpc Register(RegisterRequest) returns (AuthResponse); // Регистрация
+  rpc Login(LoginRequest) returns (AuthResponse); // Вход
+}

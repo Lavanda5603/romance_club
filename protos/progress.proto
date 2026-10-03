@@ -5,7 +5,7 @@ package romance_club; // Пространство имён
 // Прогресс игрока (текущее состояние)
 message Progress {
   int32 id = 1; // Id прогресса
-  int32 player_id = 2; // Id игрока
+  string player_id = 2; // Id игрока
   int32 episode_id = 3; // Id эпизода
   string scene_id = 4; // ID сцены как строка
   map<string, bool> flags = 5; // Флаги игрока

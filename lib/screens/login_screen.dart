@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'register_screen.dart'; // Импорт экрана регистрации
+import 'main_menu_screen.dart'; // Импорт главного меню
+import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория
+import '../src/data/services/auth_grpc_service.dart'; // Импорт gRPC-сервиса
+import '../services/storage_service.dart'; // Импорт сервиса хранения
 
 // Экран авторизации
 class LoginScreen extends StatefulWidget {
@@ -15,12 +19,24 @@ class _LoginScreenState extends State<LoginScreen> {
   late TextEditingController _loginController; // Контроллер для логина
   late TextEditingController _passwordController; // Контроллер для пароля
   bool _obscurePassword = true; // Флаг видимости пароля
+  bool _isLoading = false; // Флаг загрузки
+
+  // gRPC-сервис
+  late AuthGrpcService _service;
+
+  // Репозиторий
+  late AuthRepositoryRemote _repository;
 
   @override
   void initState() {
     super.initState();
+    // Создание контроллеров
     _loginController = TextEditingController();
     _passwordController = TextEditingController();
+
+    // Создаю gRPC-сервис и репозиторий
+    _service = AuthGrpcService();
+    _repository = AuthRepositoryRemote(_service);
   }
 
   @override
@@ -28,16 +44,65 @@ class _LoginScreenState extends State<LoginScreen> {
     // Освобождение ресурсов контроллеров при закрытии экрана
     _loginController.dispose();
     _passwordController.dispose();
+    _service.close();
     super.dispose();
   }
 
   // Авторизация
-  void _login() {
-    // Отправка данных на сервер
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Авторизация')),
-    );
+  Future<void> _login() async {
+    // Проверяю, что поля не пустые
+    if (_loginController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Заполните все поля')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Отправляю запрос на сервер
+      final result = await _repository.login(
+        login: _loginController.text,
+        password: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      if (result.success) {
+        // Сохраняю player_id локально
+        await StorageService.savePlayerId(result.playerId);
+
+        if (!mounted) return;
+
+        // Успех — переход на главное меню
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Добро пожаловать, ${result.login}!')),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainMenu()),
+        );
+      } else {
+        // Ошибка
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.message)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: $e')),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -135,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox( // Контейнер
                 width: double.infinity, // На всю ширину
                 child: ElevatedButton( // Кнопка с фоном
-                  onPressed: _login,
+                  onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD30010), // Красная
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -143,10 +208,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'войти',
-                    style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'войти',
+                          style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
               const SizedBox(height: 16),

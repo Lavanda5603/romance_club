@@ -19,7 +19,7 @@ export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 /// Запрос на получение прогресса
 class GetProgressRequest extends $pb.GeneratedMessage {
   factory GetProgressRequest({
-    $core.int? playerId,
+    $core.String? playerId,
     $core.int? episodeId,
   }) {
     final result = GetProgressRequest._();
@@ -41,7 +41,7 @@ class GetProgressRequest extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'GetProgressRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
       createEmptyInstance: GetProgressRequest.$_createMessage)
-    ..aI(1, _omitFieldNames ? '' : 'playerId')
+    ..aOS(1, _omitFieldNames ? '' : 'playerId')
     ..aI(2, _omitFieldNames ? '' : 'episodeId')
     ..hasRequiredFields = false;
 
@@ -68,9 +68,9 @@ class GetProgressRequest extends $pb.GeneratedMessage {
   static GetProgressRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.int get playerId => $_getIZ(0);
+  $core.String get playerId => $_getSZ(0);
   @$pb.TagNumber(1)
-  set playerId($core.int value) => $_setSignedInt32(0, value);
+  set playerId($core.String value) => $_setString(0, value);
   @$pb.TagNumber(1)
   $core.bool hasPlayerId() => $_has(0);
   @$pb.TagNumber(1)
@@ -89,7 +89,7 @@ class GetProgressRequest extends $pb.GeneratedMessage {
 /// Запрос на сохранение прогресса
 class SaveProgressRequest extends $pb.GeneratedMessage {
   factory SaveProgressRequest({
-    $core.int? playerId,
+    $core.String? playerId,
     $core.int? episodeId,
     $core.String? sceneId,
     $core.Iterable<$core.MapEntry<$core.String, $core.bool>>? flags,
@@ -117,7 +117,7 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'SaveProgressRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
       createEmptyInstance: SaveProgressRequest.$_createMessage)
-    ..aI(1, _omitFieldNames ? '' : 'playerId')
+    ..aOS(1, _omitFieldNames ? '' : 'playerId')
     ..aI(2, _omitFieldNames ? '' : 'episodeId')
     ..aOS(3, _omitFieldNames ? '' : 'sceneId')
     ..m<$core.String, $core.bool>(4, _omitFieldNames ? '' : 'flags',
@@ -156,9 +156,9 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
   static SaveProgressRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $core.int get playerId => $_getIZ(0);
+  $core.String get playerId => $_getSZ(0);
   @$pb.TagNumber(1)
-  set playerId($core.int value) => $_setSignedInt32(0, value);
+  set playerId($core.String value) => $_setString(0, value);
   @$pb.TagNumber(1)
   $core.bool hasPlayerId() => $_has(0);
   @$pb.TagNumber(1)

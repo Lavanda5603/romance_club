@@ -20,7 +20,7 @@ const Progress$json = {
   '1': 'Progress',
   '2': [
     {'1': 'id', '3': 1, '4': 1, '5': 5, '10': 'id'},
-    {'1': 'player_id', '3': 2, '4': 1, '5': 5, '10': 'playerId'},
+    {'1': 'player_id', '3': 2, '4': 1, '5': 9, '10': 'playerId'},
     {'1': 'episode_id', '3': 3, '4': 1, '5': 5, '10': 'episodeId'},
     {'1': 'scene_id', '3': 4, '4': 1, '5': 9, '10': 'sceneId'},
     {
@@ -66,7 +66,7 @@ const Progress_CountersEntry$json = {
 
 /// Descriptor for `Progress`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List progressDescriptor = $convert.base64Decode(
-    'CghQcm9ncmVzcxIOCgJpZBgBIAEoBVICaWQSGwoJcGxheWVyX2lkGAIgASgFUghwbGF5ZXJJZB'
+    'CghQcm9ncmVzcxIOCgJpZBgBIAEoBVICaWQSGwoJcGxheWVyX2lkGAIgASgJUghwbGF5ZXJJZB'
     'IdCgplcGlzb2RlX2lkGAMgASgFUgllcGlzb2RlSWQSGQoIc2NlbmVfaWQYBCABKAlSB3NjZW5l'
     'SWQSNwoFZmxhZ3MYBSADKAsyIS5yb21hbmNlX2NsdWIuUHJvZ3Jlc3MuRmxhZ3NFbnRyeVIFZm'
     'xhZ3MSQAoIY291bnRlcnMYBiADKAsyJC5yb21hbmNlX2NsdWIuUHJvZ3Jlc3MuQ291bnRlcnNF'

@@ -19,21 +19,21 @@ import 'dart:typed_data' as $typed_data;
 const GetProgressRequest$json = {
   '1': 'GetProgressRequest',
   '2': [
-    {'1': 'player_id', '3': 1, '4': 1, '5': 5, '10': 'playerId'},
+    {'1': 'player_id', '3': 1, '4': 1, '5': 9, '10': 'playerId'},
     {'1': 'episode_id', '3': 2, '4': 1, '5': 5, '10': 'episodeId'},
   ],
 };
 
 /// Descriptor for `GetProgressRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getProgressRequestDescriptor = $convert.base64Decode(
-    'ChJHZXRQcm9ncmVzc1JlcXVlc3QSGwoJcGxheWVyX2lkGAEgASgFUghwbGF5ZXJJZBIdCgplcG'
+    'ChJHZXRQcm9ncmVzc1JlcXVlc3QSGwoJcGxheWVyX2lkGAEgASgJUghwbGF5ZXJJZBIdCgplcG'
     'lzb2RlX2lkGAIgASgFUgllcGlzb2RlSWQ=');
 
 @$core.Deprecated('Use saveProgressRequestDescriptor instead')
 const SaveProgressRequest$json = {
   '1': 'SaveProgressRequest',
   '2': [
-    {'1': 'player_id', '3': 1, '4': 1, '5': 5, '10': 'playerId'},
+    {'1': 'player_id', '3': 1, '4': 1, '5': 9, '10': 'playerId'},
     {'1': 'episode_id', '3': 2, '4': 1, '5': 5, '10': 'episodeId'},
     {'1': 'scene_id', '3': 3, '4': 1, '5': 9, '10': 'sceneId'},
     {
@@ -81,7 +81,7 @@ const SaveProgressRequest_CountersEntry$json = {
 
 /// Descriptor for `SaveProgressRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List saveProgressRequestDescriptor = $convert.base64Decode(
-    'ChNTYXZlUHJvZ3Jlc3NSZXF1ZXN0EhsKCXBsYXllcl9pZBgBIAEoBVIIcGxheWVySWQSHQoKZX'
+    'ChNTYXZlUHJvZ3Jlc3NSZXF1ZXN0EhsKCXBsYXllcl9pZBgBIAEoCVIIcGxheWVySWQSHQoKZX'
     'Bpc29kZV9pZBgCIAEoBVIJZXBpc29kZUlkEhkKCHNjZW5lX2lkGAMgASgJUgdzY2VuZUlkEkIK'
     'BWZsYWdzGAQgAygLMiwucm9tYW5jZV9jbHViLlNhdmVQcm9ncmVzc1JlcXVlc3QuRmxhZ3NFbn'
     'RyeVIFZmxhZ3MSSwoIY291bnRlcnMYBSADKAsyLy5yb21hbmNlX2NsdWIuU2F2ZVByb2dyZXNz'

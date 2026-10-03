@@ -4,6 +4,7 @@ import '../../domain/models/episode_model.dart'; // Импорт доменны�
 import '../../domain/models/progress_model.dart'; // Импорт прогресса
 import '../../domain/repositories/episode_repository.dart'; // Импорт контракта
 import '../../domain/repositories/progress_repository.dart'; // Импорт контракта прогресса
+import '../../../services/storage_service.dart'; // Импорт сервиса хранения
 
 // ViewModel для игрового экрана
 class GameViewModel extends ChangeNotifier {
@@ -22,8 +23,8 @@ class GameViewModel extends ChangeNotifier {
   // Текущие флаги (имя - значение)
   final Map<String, bool> _flags = {};
 
-  // ID игрока
-  final int _playerId = 1;
+  // ID игрока (загружается из Storage)
+  String _playerId = '';
 
   // Геттер для состояния
   AsyncState<EpisodeModel> get state => _state;
@@ -48,10 +49,9 @@ class GameViewModel extends ChangeNotifier {
     return _currentSceneIndex >= _state.data!.scenes.length - 1;
   }
 
-  // ID текущей сцены (строка)
+  // ID текущей сцены (настоящий ID из SurrealDB)
   String get _currentSceneIdStr {
     if (currentScene == null) return '';
-
     return currentScene!.sceneKey;
   }
 
@@ -63,6 +63,12 @@ class GameViewModel extends ChangeNotifier {
     _state = AsyncState.loading();
     notifyListeners();
 
+    // Загружаю player_id из Storage
+    _playerId = await StorageService.loadPlayerId();
+    if (_playerId.isEmpty) {
+      _playerId = 'player:1'; // Если не залогинен - использую player:1
+    }
+
     try {
       final episode = await _repository.getEpisode(id);
       _state = AsyncState.success(episode);
@@ -73,7 +79,7 @@ class GameViewModel extends ChangeNotifier {
           final progress = await _progressRepository.getProgress(_playerId, id);
 
           if (progress.sceneId.isNotEmpty) {
-            // Ищу сцену по sceneKey
+            // Ищу сцену по sceneKey (настоящему ID)
             for (int i = 0; i < _state.data!.scenes.length; i++) {
               if (_state.data!.scenes[i].sceneKey == progress.sceneId) {
                 _currentSceneIndex = i;

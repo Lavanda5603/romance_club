@@ -6,7 +6,7 @@ import '../generated/settings.pb.dart'; // Импорт Protobuf-модели Se
 
 // Сервис для сохранения и загрузки эпизодов (локально)
 class StorageService {
-  
+
   // Получение файла для хранения данных
   static Future<File> _getFile() async {
     final directory = await getApplicationDocumentsDirectory(); // Папка приложения
@@ -16,39 +16,39 @@ class StorageService {
   // Сохранение списка эпизодов в файл (эпизод в байты)
   static Future<void> saveEpisodes(List<Episode> episodes) async {
     final file = await _getFile(); // Получаю файл
-    
+
     // Создаю буфер для всех эпизодов
     final buffer = BytesBuilder();
-    
+
     for (final episode in episodes) {
       // Эпизод в байты
       final bytes = episode.writeToBuffer();
-      
+
       // Записываю длину эпизода
       final lengthBytes = ByteData(4)..setInt32(0, bytes.length);
       buffer.add(lengthBytes.buffer.asUint8List());
-      
+
       // Записываю сам эпизод
       buffer.add(bytes);
     }
-    
+
     await file.writeAsBytes(buffer.toBytes()); // Записываем в файл
   }
 
   // Загрузка эпизодов из файла
   static Future<List<Episode>> loadEpisodes() async {
     final file = await _getFile(); // Получаю файл
-    
+
     if (!await file.exists()) {
       return []; // Если файла нет, то возвращаю пустой список
     }
-    
+
     // Читаю все байты из файла
     final allBytes = await file.readAsBytes();
     final episodes = <Episode>[];
-    
+
     int offset = 0;
-    
+
     // Читаю эпизоды один за другим
     while (offset < allBytes.length) {
       // Читаю длину эпизода
@@ -56,18 +56,18 @@ class StorageService {
       final length = ByteData.sublistView(
         Uint8List.fromList(lengthBytes),
       ).getInt32(0);
-      
+
       offset += 4;
-      
+
       // Читаю байты эпизода
       final episodeBytes = allBytes.sublist(offset, offset + length);
       offset += length;
-      
+
       // Превращаю байты в объект Episode
       final episode = Episode.fromBuffer(episodeBytes);
       episodes.add(episode);
     }
-    
+
     return episodes;
   }
 
@@ -100,5 +100,28 @@ class StorageService {
 
     // Превращаю байты в объект Settings
     return Settings.fromBuffer(bytes);
+  }
+
+  // Получение файла для хранения player_id
+  static Future<File> _getPlayerFile() async {
+    final directory = await getApplicationDocumentsDirectory(); // Папка приложения
+    return File('${directory.path}/player_id.txt'); // Файл player_id.txt
+  }
+
+  // Сохранение player_id (строки "player:abc123")
+  static Future<void> savePlayerId(String id) async {
+    final file = await _getPlayerFile(); // Получаю файл
+    await file.writeAsString(id); // Записываю ID
+  }
+
+  // Загрузка player_id (строки "player:abc123")
+  static Future<String> loadPlayerId() async {
+    final file = await _getPlayerFile(); // Получаю файл
+
+    if (!await file.exists()) {
+      return ''; // Если файла нет - возвращаю пустую строку
+    }
+
+    return await file.readAsString(); // Читаю ID
   }
 }

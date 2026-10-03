@@ -20,7 +20,7 @@ export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 class Progress extends $pb.GeneratedMessage {
   factory Progress({
     $core.int? id,
-    $core.int? playerId,
+    $core.String? playerId,
     $core.int? episodeId,
     $core.String? sceneId,
     $core.Iterable<$core.MapEntry<$core.String, $core.bool>>? flags,
@@ -52,7 +52,7 @@ class Progress extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
       createEmptyInstance: Progress.$_createMessage)
     ..aI(1, _omitFieldNames ? '' : 'id')
-    ..aI(2, _omitFieldNames ? '' : 'playerId')
+    ..aOS(2, _omitFieldNames ? '' : 'playerId')
     ..aI(3, _omitFieldNames ? '' : 'episodeId')
     ..aOS(4, _omitFieldNames ? '' : 'sceneId')
     ..m<$core.String, $core.bool>(5, _omitFieldNames ? '' : 'flags',
@@ -98,9 +98,9 @@ class Progress extends $pb.GeneratedMessage {
   void clearId() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $core.int get playerId => $_getIZ(1);
+  $core.String get playerId => $_getSZ(1);
   @$pb.TagNumber(2)
-  set playerId($core.int value) => $_setSignedInt32(1, value);
+  set playerId($core.String value) => $_setString(1, value);
   @$pb.TagNumber(2)
   $core.bool hasPlayerId() => $_has(1);
   @$pb.TagNumber(2)

@@ -32,16 +32,15 @@ impl ProgressApi for ProgressApiService {
 
         println!("[GET_PROGRESS] player={}, episode={}", player_id, episode_id);
 
-        // Запрашиваю прогресс через query
+        // Запрашиваю прогресс
         let mut response = self
             .db
-            .query("SELECT * FROM progress WHERE player_id = type::record('player', $player_id) AND episode_id = type::record('episode', $episode_id) LIMIT 1")
-            .bind(("player_id", player_id))
+            .query("SELECT * FROM progress WHERE player_id = type::record($player_id) AND episode_id = type::record('episode', $episode_id) LIMIT 1")
+            .bind(("player_id", player_id.clone()))
             .bind(("episode_id", episode_id))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // Парсю ответ как Value
         let result: Option<Value> = response
             .take(0)
             .map_err(|e| Status::internal(e.to_string()))?;
@@ -49,7 +48,6 @@ impl ProgressApi for ProgressApiService {
         // Если прогресса нет - возвращаю пустой
         let progress = match result {
             Some(v) => {
-                // Извлекаю scene_id как строку
                 let scene_id = v
                     .get("scene_id")
                     .and_then(|s| s.as_str())
@@ -58,7 +56,6 @@ impl ProgressApi for ProgressApiService {
                 let flags = v.get("flags").cloned().unwrap_or(serde_json::json!({}));
                 let counters = v.get("counters").cloned().unwrap_or(serde_json::json!({}));
 
-                // Преобразую flags
                 let mut flags_map = std::collections::HashMap::new();
                 if let Some(obj) = flags.as_object() {
                     for (k, val) in obj {
@@ -68,7 +65,6 @@ impl ProgressApi for ProgressApiService {
                     }
                 }
 
-                // Преобразую counters
                 let mut counters_map = std::collections::HashMap::new();
                 if let Some(obj) = counters.as_object() {
                     for (k, val) in obj {
@@ -80,7 +76,7 @@ impl ProgressApi for ProgressApiService {
 
                 Progress {
                     id: 0,
-                    player_id,
+                    player_id: player_id.clone(),
                     episode_id,
                     scene_id,
                     flags: flags_map,
@@ -90,7 +86,7 @@ impl ProgressApi for ProgressApiService {
             }
             None => Progress {
                 id: 0,
-                player_id,
+                player_id: player_id.clone(),
                 episode_id,
                 scene_id: String::new(),
                 flags: std::collections::HashMap::new(),
@@ -108,7 +104,7 @@ impl ProgressApi for ProgressApiService {
         request: Request<SaveProgressRequest>,
     ) -> Result<Response<SaveProgressResponse>, Status> {
         let req = request.into_inner();
-        let player_id = req.player_id;
+        let player_id = req.player_id; // строка "player:abc123"
         let episode_id = req.episode_id;
         let scene_id = req.scene_id;
         let flags = req.flags;
@@ -124,23 +120,22 @@ impl ProgressApi for ProgressApiService {
 
         // Удаляю старый прогресс
         self.db
-            .query("DELETE progress WHERE player_id = type::record('player', $player_id) AND episode_id = type::record('episode', $episode_id)")
-            .bind(("player_id", player_id))
+            .query("DELETE progress WHERE player_id = type::record($player_id) AND episode_id = type::record('episode', $episode_id)")
+            .bind(("player_id", player_id.clone()))
             .bind(("episode_id", episode_id))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // Создаю новый прогресс (scene_id - RecordId через type::record)
+        // Создаю новый прогресс
         let result = self.db
-            .query("CREATE progress CONTENT { player_id: type::record('player', $player_id), episode_id: type::record('episode', $episode_id), scene_id: type::record($scene_id), flags: $flags, counters: $counters, updated_at: time::now() }")
-            .bind(("player_id", player_id))
+            .query("CREATE progress CONTENT { player_id: type::record($player_id), episode_id: type::record('episode', $episode_id), scene_id: type::record($scene_id), flags: $flags, counters: $counters, updated_at: time::now() }")
+            .bind(("player_id", player_id.clone()))
             .bind(("episode_id", episode_id))
             .bind(("scene_id", scene_id))
             .bind(("flags", flags_json))
             .bind(("counters", counters_json))
             .await;
 
-        // Отладка: показываю результат
         match result {
             Ok(_) => println!("[SAVE_PROGRESS] Прогресс создан"),
             Err(e) => println!("[SAVE_PROGRESS] ОШИБКА: {}", e),

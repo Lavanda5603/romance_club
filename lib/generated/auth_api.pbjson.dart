@@ -44,6 +44,18 @@ final $typed_data.Uint8List loginRequestDescriptor = $convert.base64Decode(
     'CgxMb2dpblJlcXVlc3QSFAoFbG9naW4YASABKAlSBWxvZ2luEhoKCHBhc3N3b3JkGAIgASgJUg'
     'hwYXNzd29yZA==');
 
+@$core.Deprecated('Use getPlayerRequestDescriptor instead')
+const GetPlayerRequest$json = {
+  '1': 'GetPlayerRequest',
+  '2': [
+    {'1': 'player_id', '3': 1, '4': 1, '5': 9, '10': 'playerId'},
+  ],
+};
+
+/// Descriptor for `GetPlayerRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getPlayerRequestDescriptor = $convert.base64Decode(
+    'ChBHZXRQbGF5ZXJSZXF1ZXN0EhsKCXBsYXllcl9pZBgBIAEoCVIIcGxheWVySWQ=');
+
 @$core.Deprecated('Use authResponseDescriptor instead')
 const AuthResponse$json = {
   '1': 'AuthResponse',

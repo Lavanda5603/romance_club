@@ -170,7 +170,65 @@ class LoginRequest extends $pb.GeneratedMessage {
   void clearPassword() => $_clearField(2);
 }
 
-/// Ответ с игроком (после регистрации или входа)
+/// Запрос на получение игрока
+class GetPlayerRequest extends $pb.GeneratedMessage {
+  factory GetPlayerRequest({
+    $core.String? playerId,
+  }) {
+    final result = GetPlayerRequest._();
+    if (playerId != null) result.playerId = playerId;
+    return result;
+  }
+
+  GetPlayerRequest._();
+
+  factory GetPlayerRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetPlayerRequest()..mergeFromBuffer(data, registry);
+  factory GetPlayerRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetPlayerRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetPlayerRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: GetPlayerRequest.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'playerId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetPlayerRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetPlayerRequest copyWith(void Function(GetPlayerRequest) updates) =>
+      super.copyWith((message) => updates(message as GetPlayerRequest))
+          as GetPlayerRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use GetPlayerRequest() / GetPlayerRequest.new instead')
+  static GetPlayerRequest create() => GetPlayerRequest._();
+  static $pb.GeneratedMessage $_createMessage() => GetPlayerRequest._();
+  @$core.override
+  GetPlayerRequest createEmptyInstance() => GetPlayerRequest._();
+  @$core.pragma('dart2js:noInline')
+  static GetPlayerRequest getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetPlayerRequest>(
+          GetPlayerRequest.$_createMessage);
+  static GetPlayerRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get playerId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set playerId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPlayerId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPlayerId() => $_clearField(1);
+}
+
+/// Ответ с игроком (после регистрации, входа или получения)
 class AuthResponse extends $pb.GeneratedMessage {
   factory AuthResponse({
     $core.bool? success,

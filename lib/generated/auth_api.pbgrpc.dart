@@ -47,6 +47,13 @@ class AuthApiClient extends $grpc.Client {
     return $createUnaryCall(_$login, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.AuthResponse> getPlayer(
+    $0.GetPlayerRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getPlayer, request, options: options);
+  }
+
   // method descriptors
 
   static final _$register =
@@ -58,6 +65,11 @@ class AuthApiClient extends $grpc.Client {
       '/romance_club.AuthApi/Login',
       ($0.LoginRequest value) => value.writeToBuffer(),
       $0.AuthResponse.fromBuffer);
+  static final _$getPlayer =
+      $grpc.ClientMethod<$0.GetPlayerRequest, $0.AuthResponse>(
+          '/romance_club.AuthApi/GetPlayer',
+          ($0.GetPlayerRequest value) => value.writeToBuffer(),
+          $0.AuthResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('romance_club.AuthApi')
@@ -79,6 +91,13 @@ abstract class AuthApiServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.LoginRequest.fromBuffer(value),
         ($0.AuthResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetPlayerRequest, $0.AuthResponse>(
+        'GetPlayer',
+        getPlayer_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetPlayerRequest.fromBuffer(value),
+        ($0.AuthResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.AuthResponse> register_Pre($grpc.ServiceCall $call,
@@ -96,4 +115,12 @@ abstract class AuthApiServiceBase extends $grpc.Service {
 
   $async.Future<$0.AuthResponse> login(
       $grpc.ServiceCall call, $0.LoginRequest request);
+
+  $async.Future<$0.AuthResponse> getPlayer_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.GetPlayerRequest> $request) async {
+    return getPlayer($call, await $request);
+  }
+
+  $async.Future<$0.AuthResponse> getPlayer(
+      $grpc.ServiceCall call, $0.GetPlayerRequest request);
 }

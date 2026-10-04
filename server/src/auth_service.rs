@@ -4,7 +4,7 @@ use surrealdb::Surreal;
 use serde_json::Value;
 use crate::romance_club::auth_api_server::AuthApi;
 use crate::romance_club::{
-    AuthResponse, RegisterRequest, LoginRequest, Player,
+    AuthResponse, RegisterRequest, LoginRequest, GetPlayerRequest, Player,
 };
 
 // Сервис для работы с авторизацией
@@ -26,7 +26,6 @@ impl AuthApiService {
         if login.len() < 3 {
             return Some("Логин должен быть не менее 3 символов".to_string());
         }
-        // Только английские буквы, цифры, _
         if !login.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
             return Some("Логин: только английские буквы, цифры и _".to_string());
         }
@@ -38,7 +37,6 @@ impl AuthApiService {
         if email.is_empty() {
             return Some("Введите email".to_string());
         }
-        // Должен содержать @ и точку после @
         if !email.contains('@') {
             return Some("Email должен содержать @".to_string());
         }
@@ -60,15 +58,12 @@ impl AuthApiService {
         if password.len() < 5 {
             return Some("Пароль должен быть не менее 5 символов".to_string());
         }
-        // Английская буква
         if !password.chars().any(|c| c.is_ascii_alphabetic()) {
             return Some("Пароль должен содержать английскую букву".to_string());
         }
-        // Цифра
         if !password.chars().any(|c| c.is_ascii_digit()) {
             return Some("Пароль должен содержать цифру".to_string());
         }
-        // Спецсимвол
         let specials = "!@#$%^&*(),.?\":{}|<>_-+=[]\\;/~`";
         if !password.chars().any(|c| specials.contains(c)) {
             return Some("Пароль должен содержать спецсимвол".to_string());
@@ -91,7 +86,7 @@ impl AuthApi for AuthApiService {
 
         println!("[REGISTER] login={}, email={}", login, email);
 
-        // Валидация логина
+        // Валидация
         if let Some(err) = Self::validate_login(&login) {
             return Ok(Response::new(AuthResponse {
                 success: false,
@@ -99,8 +94,6 @@ impl AuthApi for AuthApiService {
                 player: None,
             }));
         }
-
-        // Валидация email
         if let Some(err) = Self::validate_email(&email) {
             return Ok(Response::new(AuthResponse {
                 success: false,
@@ -108,8 +101,6 @@ impl AuthApi for AuthApiService {
                 player: None,
             }));
         }
-
-        // Валидация пароля
         if let Some(err) = Self::validate_password(&password) {
             return Ok(Response::new(AuthResponse {
                 success: false,
@@ -130,7 +121,6 @@ impl AuthApi for AuthApiService {
             .take(0)
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // Если игрок есть - ошибка
         if existing.is_some() {
             return Ok(Response::new(AuthResponse {
                 success: false,
@@ -142,7 +132,7 @@ impl AuthApi for AuthApiService {
         // Создаю игрока
         let mut create_response = self
             .db
-            .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password, created_at: time::now() } RETURN id, login, email")
+            .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password, created_at: time::now() } RETURN id, login, email, created_at")
             .bind(("login", login.clone()))
             .bind(("email", email.clone()))
             .bind(("password", password))
@@ -155,9 +145,14 @@ impl AuthApi for AuthApiService {
 
         match result {
             Some(v) => {
-                // Извлекаю ID игрока как строку
                 let id = v
                     .get("id")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
+
+                let created_at = v
+                    .get("created_at")
                     .and_then(|s| s.as_str())
                     .map(|s| s.to_string())
                     .unwrap_or_default();
@@ -166,7 +161,7 @@ impl AuthApi for AuthApiService {
                     id,
                     login: login.clone(),
                     email: email.clone(),
-                    created_at: String::new(),
+                    created_at,
                 };
 
                 println!("[REGISTER] Игрок создан: {}", login);
@@ -196,7 +191,7 @@ impl AuthApi for AuthApiService {
 
         println!("[LOGIN] login={}", login);
 
-        // Валидация логина
+        // Валидация
         if let Some(err) = Self::validate_login(&login) {
             return Ok(Response::new(AuthResponse {
                 success: false,
@@ -204,8 +199,6 @@ impl AuthApi for AuthApiService {
                 player: None,
             }));
         }
-
-        // Валидация пароля
         if let Some(err) = Self::validate_password(&password) {
             return Ok(Response::new(AuthResponse {
                 success: false,
@@ -214,7 +207,7 @@ impl AuthApi for AuthApiService {
             }));
         }
 
-        // Ищу игрока с таким логином и паролем
+        // Ищу игрока
         let mut response = self
             .db
             .query("SELECT * FROM player WHERE login = $login AND password_hash = $password LIMIT 1")
@@ -237,11 +230,17 @@ impl AuthApi for AuthApiService {
 
                 let email = v.get("email").and_then(|s| s.as_str()).unwrap_or("").to_string();
 
+                let created_at = v
+                    .get("created_at")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
+
                 let player = Player {
                     id,
                     login: login.clone(),
                     email,
-                    created_at: String::new(),
+                    created_at,
                 };
 
                 println!("[LOGIN] Игрок найден: {}", login);
@@ -255,6 +254,66 @@ impl AuthApi for AuthApiService {
             None => Ok(Response::new(AuthResponse {
                 success: false,
                 message: "Неверный логин или пароль".to_string(),
+                player: None,
+            })),
+        }
+    }
+
+    // Получить игрока по ID
+    async fn get_player(
+        &self,
+        request: Request<GetPlayerRequest>,
+    ) -> Result<Response<AuthResponse>, Status> {
+        let req = request.into_inner();
+        let player_id = req.player_id;
+
+        println!("[GET_PLAYER] player={}", player_id);
+
+        // Ищу игрока
+        let mut response = self
+            .db
+            .query("SELECT * FROM type::record($player_id) LIMIT 1")
+            .bind(("player_id", player_id.clone()))
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        let result: Option<Value> = response
+            .take(0)
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        match result {
+            Some(v) => {
+                let id = v
+                    .get("id")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
+
+                let login = v.get("login").and_then(|s| s.as_str()).unwrap_or("").to_string();
+                let email = v.get("email").and_then(|s| s.as_str()).unwrap_or("").to_string();
+
+                let created_at = v
+                    .get("created_at")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
+
+                let player = Player {
+                    id,
+                    login,
+                    email,
+                    created_at,
+                };
+
+                Ok(Response::new(AuthResponse {
+                    success: true,
+                    message: "Игрок найден".to_string(),
+                    player: Some(player),
+                }))
+            }
+            None => Ok(Response::new(AuthResponse {
+                success: false,
+                message: "Игрок не найден".to_string(),
                 player: None,
             })),
         }

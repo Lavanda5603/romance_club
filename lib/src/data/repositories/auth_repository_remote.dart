@@ -38,9 +38,15 @@ class AuthRepositoryRemote implements AuthRepository {
     return toDomain(response);
   }
 
+  // Получить игрока
+  @override
+  Future<AuthModel> getPlayer(String playerId) async {
+    final response = await _service.getPlayer(playerId);
+    return toDomain(response);
+  }
+
   // Преобразование Protobuf-модели в доменную
   AuthModel toDomain(AuthResponse response) {
-    // Если игрок есть - извлекаю данные
     if (response.hasPlayer()) {
       return AuthModel(
         success: response.success,
@@ -48,15 +54,16 @@ class AuthRepositoryRemote implements AuthRepository {
         playerId: response.player.id,
         login: response.player.login,
         email: response.player.email,
+        createdAt: response.player.createdAt,
       );
     }
-    // Если игрока нет - пустой результат
     return AuthModel(
       success: response.success,
       message: response.message,
       playerId: '',
       login: '',
       email: '',
+      createdAt: '',
     );
   }
 }

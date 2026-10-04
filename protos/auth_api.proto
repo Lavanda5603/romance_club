@@ -17,7 +17,12 @@ message LoginRequest {
   string password = 2; // Пароль
 }
 
-// Ответ с игроком (после регистрации или входа)
+// Запрос на получение игрока
+message GetPlayerRequest {
+  string player_id = 1; // ID игрока
+}
+
+// Ответ с игроком (после регистрации, входа или получения)
 message AuthResponse {
   bool success = 1; // Успешно ли
   string message = 2; // Сообщение
@@ -28,4 +33,5 @@ message AuthResponse {
 service AuthApi {
   rpc Register(RegisterRequest) returns (AuthResponse); // Регистрация
   rpc Login(LoginRequest) returns (AuthResponse); // Вход
+  rpc GetPlayer(GetPlayerRequest) returns (AuthResponse); // Получить игрока
 }

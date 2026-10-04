@@ -14,4 +14,7 @@ abstract class AuthRepository {
     required String login,
     required String password,
   });
+
+  // Получить игрока по ID
+  Future<AuthModel> getPlayer(String playerId);
 }

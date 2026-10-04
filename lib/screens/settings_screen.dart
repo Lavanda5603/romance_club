@@ -36,128 +36,184 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      appBar: AppBar( // Верхняя панель
-        backgroundColor: Colors.transparent, // Прозрачный фон
-        elevation: 0, // Без тени
-        leading: IconButton( // Кнопка с иконкой
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
-          onPressed: () {
-            Navigator.pop(context); // Закрыть экран
-          },
-        ),
-        title: const Text( // Текст (маленький, в AppBar)
-          'Клуб романтики',
-          style: TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        centerTitle: true, // По центру
-      ),
-      body: Padding( // Отступы
-        padding: const EdgeInsets.all(16),
-        child: Column( // Вертикальный список
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text( // Большой заголовок
-              'НАСТРОЙКИ',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+      
+      // Использую Stack, чтобы наложить контент на фон
+      body: Stack(
+        children: [
+          // Слой для фона
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
+              // Картинка фона
+              child: Image.asset(
+                'assets/images/main_background.png',
+                fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(height: 32),
-            // Подпись (розовая)
-            const Text(
-              'Громкость музыки:',
-              style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            // Слайдер музыки и процент
-            Row( // Горизонтальный список
+          ),
+
+          // Основной контент
+          SafeArea(
+            child: Column(
               children: [
-                Expanded( // Растягивание
-                  child: Slider( // Слайдер
-                    value: _musicVolume,
-                    onChanged: (value) {
-                      setState(() {
-                        _musicVolume = value; // Обновляю громкость
-                      });
-                    },
-                    activeColor: Colors.white, // Белая активная
-                    inactiveColor: Colors.grey, // Серая неактивная
+                // Верхняя панель
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Кнопка назад
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      
+                      // Заголовок
+                      const Text(
+                        'Клуб романтики',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                      
+                      // Пустой контейнер для симметрии
+                      const SizedBox(width: 48),
+                    ],
                   ),
                 ),
-                Text(
-                  '${(_musicVolume * 100).toInt()}%', // Процент
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
+
+                // Основной блок
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Заголовок
+                        const Center(
+                          child: Text(
+                            'НАСТРОЙКИ',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300, // Тонкий шрифт
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Подпись
+                        const Text(
+                          'Громкость музыки:',
+                          style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Слайдер музыки и процент
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Slider(
+                                value: _musicVolume,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _musicVolume = value;
+                                  });
+                                },
+                                activeColor: Colors.white,
+                                inactiveColor: Colors.grey,
+                              ),
+                            ),
+                            Text(
+                              '${(_musicVolume * 100).toInt()}%',
+                              style: const TextStyle(color: Colors.white, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Подпись
+                        const Text(
+                          'Громкость звуков:',
+                          style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        
+                        // Слайдер звуков и процент
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Slider(
+                                value: _soundVolume,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _soundVolume = value;
+                                  });
+                                },
+                                activeColor: Colors.white,
+                                inactiveColor: Colors.grey,
+                              ),
+                            ),
+                            Text(
+                              '${(_soundVolume * 100).toInt()}%',
+                              style: const TextStyle(color: Colors.white, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Кнопка сохранить
+                        SizedBox(
+                          width: 200, // Уже
+                          height: 55,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              // Создаю объект настроек
+                              final settings = Settings(
+                                musicVolume: _musicVolume,
+                                soundVolume: _soundVolume,
+                              );
+
+                              // Сохраняю в файл
+                              await StorageService.saveSettings(settings);
+
+                              // Показываю уведомление
+                              if (!mounted) return;
+                              // ignore: use_build_context_synchronously
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Настройки сохранены')),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD30010),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'сохранить',
+                              style: TextStyle(
+                                color: Color(0xFF3F0404), 
+                                fontSize: 18, 
+                                fontWeight: FontWeight.bold
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Пустое пространство снизу, чтобы поднять кнопку выше
+                        const SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 32),
-            // Подпись (розовая)
-            const Text(
-              'Громкость звуков:',
-              style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            // Слайдер звуков и процент
-            Row( // Горизонтальный список
-              children: [
-                Expanded( // Растягивание
-                  child: Slider( // Слайдер
-                    value: _soundVolume,
-                    onChanged: (value) {
-                      setState(() {
-                        _soundVolume = value; // Обновляю громкость
-                      });
-                    },
-                    activeColor: Colors.white, // Белая активная
-                    inactiveColor: Colors.grey, // Серая неактивная
-                  ),
-                ),
-                Text(
-                  '${(_soundVolume * 100).toInt()}%', // Процент
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            // Кнопка сохранить
-            SizedBox( // Контейнер
-              width: double.infinity, // На всю ширину
-              child: ElevatedButton( // Кнопка с фоном
-                onPressed: () async {
-                  // Создаю объект настроек
-                  final settings = Settings(
-                    musicVolume: _musicVolume, // Громкость музыки
-                    soundVolume: _soundVolume, // Громкость звуков
-                  );
-
-                  // Сохраняю в файл
-                  await StorageService.saveSettings(settings);
-
-                  // Показываю уведомление
-                  if (!mounted) return; // Проверяю, что State ещё на месте
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Настройки сохранены')),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD30010), // Красная
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'сохранить',
-                  style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -123,19 +123,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // Поле ввода (вспомогательный метод)
   Widget _buildField(String label, TextEditingController controller, {bool isPassword = false}) {
-    return Column( // Вертикальный список
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Подпись (розовая)
         Text(label, style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16)),
         const SizedBox(height: 8),
         // Поле ввода
-        TextField( // Поле ввода
+        TextField(
           controller: controller,
-          obscureText: isPassword && _obscurePassword, // Скрытие пароля
-          style: const TextStyle(color: Colors.white, fontSize: 16), // Белый текст
-          decoration: InputDecoration( // Оформление поля
-            suffixIcon: isPassword // Если пароль - иконка показать/скрыть
+          obscureText: isPassword && _obscurePassword,
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+          decoration: InputDecoration(
+            suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -149,15 +149,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   )
                 : null,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12), // Круглые углы
+              borderRadius: BorderRadius.circular(12),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white), // Белая рамка
+              borderSide: const BorderSide(color: Colors.white),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFD30010)), // Красная при фокусе
+              borderSide: const BorderSide(color: Color(0xFFD30010)),
             ),
           ),
         ),
@@ -170,91 +170,155 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      appBar: AppBar( // Верхняя панель
-        backgroundColor: Colors.transparent, // Прозрачный фон
-        elevation: 0, // Без тени
-        leading: IconButton( // Кнопка с иконкой
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
-          onPressed: () {
-            Navigator.pop(context); // Закрыть экран
-          },
-        ),
-        title: const Text( // Текст (маленький, в AppBar)
-          'Клуб романтики',
-          style: TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        centerTitle: true, // По центру
-      ),
-      body: SingleChildScrollView( // Прокрутка
-        child: Padding( // Отступы
-          padding: const EdgeInsets.all(16),
-          child: Column( // Вертикальный список
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text( // Большой заголовок
-                'РЕГИСТРАЦИЯ',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
+      
+      // Использую Stack, чтобы наложить контент на фон
+      body: Stack(
+        children: [
+          // Слой для фона
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
+              // Картинка фона
+              child: Image.asset(
+                'assets/images/main_background.png',
+                fit: BoxFit.cover,
               ),
-              const SizedBox(height: 24),
-              // Поля регистрации
-              _buildField('логин', _loginController),
-              _buildField('email', _emailController),
-              _buildField('пароль', _passwordController, isPassword: true),
-              _buildField('повторите пароль', _confirmPasswordController, isPassword: true),
-              const SizedBox(height: 16),
-              // Кнопка зарегестрироваться
-              SizedBox( // Контейнер
-                width: double.infinity, // На всю ширину
-                child: ElevatedButton( // Кнопка с фоном
-                  onPressed: _isLoading ? null : _register,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD30010), // Красная
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'зарегестрироваться',
-                          style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Кнопка вход
-              Center( // По центру
-                child: ElevatedButton( // Кнопка с фоном
-                  onPressed: () {
-                    Navigator.push( // Открыть экран
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(), // Экран авторизации
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD30010), // Красная
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'вход',
-                    style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+
+          // Основной контент
+          SafeArea(
+            child: Column(
+              children: [
+                // Верхняя панель
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Кнопка назад
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      
+                      // Заголовок
+                      const Text(
+                        'Клуб романтики',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                      
+                      // Пустой контейнер для симметрии
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                ),
+
+                // Основной блок
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Заголовок
+                        const Center(
+                          child: Text(
+                            'РЕГИСТРАЦИЯ',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300, // Тонкий шрифт
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Поля регистрации
+                        _buildField('логин', _loginController),
+                        _buildField('email', _emailController),
+                        _buildField('пароль', _passwordController, isPassword: true),
+                        _buildField('повторите пароль', _confirmPasswordController, isPassword: true),
+                        
+                        const SizedBox(height: 8),
+
+                        // Кнопка зарегистрироваться
+                        Center(
+                          child: SizedBox(
+                            width: 260,
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _register,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD30010),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: _isLoading
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : const Text(
+                                      'зарегистрироваться',
+                                      style: TextStyle(
+                                        color: Color(0xFF3F0404), 
+                                        fontSize: 16, 
+                                        fontWeight: FontWeight.bold
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 12),
+
+                        // Кнопка вход
+                        Center(
+                          child: SizedBox(
+                            width: 160,
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const LoginScreen(),
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD30010),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                'вход',
+                                style: TextStyle(
+                                  color: Color(0xFF3F0404), 
+                                  fontSize: 18, 
+                                  fontWeight: FontWeight.bold
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Пустое пространство снизу
+                        const SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

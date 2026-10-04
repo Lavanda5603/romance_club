@@ -119,156 +119,209 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      appBar: AppBar( // Верхняя панель
-        backgroundColor: Colors.transparent, // Прозрачный фон
-        elevation: 0, // Без тени
-        leading: IconButton( // Кнопка с иконкой
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
-          onPressed: () {
-            Navigator.pop(context); // Закрыть экран
-          },
-        ),
-        title: const Text( // Текст (маленький, в AppBar)
-          'Клуб романтики',
-          style: TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        centerTitle: true, // По центру
-      ),
-      body: SingleChildScrollView( // Прокрутка
-        child: Padding( // Отступы
-          padding: const EdgeInsets.all(16),
-          child: Column( // Вертикальный список
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Center( // По центру
-                child: Text( // Большой заголовок
-                  'РЕДАКТИРОВАНИЕ ДЕЙСТВИЯ',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                  ),
-                ),
+      
+      // Использую Stack, чтобы наложить контент на фон
+      body: Stack(
+        children: [
+          // Слой для фона
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
+              // Картинка фона
+              child: Image.asset(
+                'assets/images/main_background.png',
+                fit: BoxFit.cover,
               ),
-              const SizedBox(height: 16),
-              // Поле ввода названия действия (розовое)
-              TextField( // Поле ввода
-                controller: _titleController,
-                style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18), // Розовый текст
-                decoration: const InputDecoration( // Оформление поля
-                  border: InputBorder.none, // Без рамки
-                  isDense: true, // Компактнее
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Подпись (белая)
-              const Text(
-                'тип действия',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              // Выпадающий список типа действия
-              DropdownButtonFormField<String>( // Выпадающий список
-                initialValue: _selectedType,
-                dropdownColor: const Color(0xFF1A1A1A),
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                decoration: InputDecoration( // Оформление
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.white),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFD30010)),
-                  ),
-                  suffixIcon: const Icon(Icons.radio_button_unchecked, color: Colors.white), // Кругляшок справа
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'nextScene', child: Text('перейти к сцене')),
-                  DropdownMenuItem(value: 'changeCounter', child: Text('баллы')),
-                  DropdownMenuItem(value: 'changeFlag', child: Text('флаг')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedType = value;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 24),
-              // Надпись (белая)
-              const Text(
-                'параметры',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              // Поля в зависимости от типа действия
-              if (_selectedType == 'nextScene') ...[
-                Row( // Горизонтальный список
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'перейти к сцене',
-                        style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+            ),
+          ),
+
+          // Основной контент
+          SafeArea(
+            child: Column(
+              children: [
+                // Верхняя панель
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Кнопка назад
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
                       ),
-                    ),
-                    Expanded(child: _buildField(_sceneIdController, keyboardType: TextInputType.number)),
-                  ],
-                ),
-              ] else if (_selectedType == 'changeCounter') ...[
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'баллы (кол-во, счётчик',
-                        style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                      
+                      // Заголовок
+                      const Text(
+                        'Клуб романтики',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                    ),
-                    Expanded(child: _buildField(_counterNameController)),
-                    const SizedBox(width: 8),
-                    Expanded(child: _buildField(_counterValueController, keyboardType: TextInputType.number)),
-                  ],
+                      
+                      // Пустой контейнер для симметрии
+                      const SizedBox(width: 48),
+                    ],
+                  ),
                 ),
-              ] else if (_selectedType == 'changeFlag') ...[
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'флаг',
-                        style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
-                      ),
+
+                // Основной блок
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Заголовок в стиле других экранов
+                        const Center(
+                          child: Text(
+                            'РЕДАКТИРОВАНИЕ\nДЕЙСТВИЯ',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300, // Тонкий шрифт
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Поле ввода названия действия (розовое)
+                        TextField(
+                          controller: _titleController,
+                          style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Подпись
+                        const Text(
+                          'тип действия',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Выпадающий список типа действия
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedType,
+                          dropdownColor: const Color(0xFF1A1A1A),
+                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.white),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFFD30010)),
+                            ),
+                            suffixIcon: const Icon(Icons.radio_button_unchecked, color: Colors.white),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'nextScene', child: Text('перейти к сцене')),
+                            DropdownMenuItem(value: 'changeCounter', child: Text('баллы')),
+                            DropdownMenuItem(value: 'changeFlag', child: Text('флаг')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedType = value;
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Надпись
+                        const Text(
+                          'параметры',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Поля в зависимости от типа действия
+                        if (_selectedType == 'nextScene') ...[
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'перейти к сцене',
+                                  style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                                ),
+                              ),
+                              Expanded(child: _buildField(_sceneIdController, keyboardType: TextInputType.number)),
+                            ],
+                          ),
+                        ] else if (_selectedType == 'changeCounter') ...[
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'баллы (кол-во, счётчик',
+                                  style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                                ),
+                              ),
+                              Expanded(child: _buildField(_counterNameController)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildField(_counterValueController, keyboardType: TextInputType.number)),
+                            ],
+                          ),
+                        ] else if (_selectedType == 'changeFlag') ...[
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'флаг',
+                                  style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                                ),
+                              ),
+                              Expanded(child: _buildField(_flagNameController)),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+
+                        // Кнопка сохранить
+                        SizedBox(
+                          width: 200, // Уже
+                          height: 55,
+                          child: ElevatedButton(
+                            onPressed: _saveAction,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD30010),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'сохранить',
+                              style: TextStyle(
+                                color: Color(0xFF3F0404),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Пустое пространство снизу, чтобы поднять кнопку выше
+                        const SizedBox(height: 100),
+                      ],
                     ),
-                    Expanded(child: _buildField(_flagNameController)),
-                  ],
+                  ),
                 ),
               ],
-              const SizedBox(height: 24),
-              // Кнопка сохранения
-              SizedBox( // Контейнер
-                width: double.infinity, // На всю ширину
-                child: ElevatedButton( // Кнопка с фоном
-                  onPressed: _saveAction,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD30010),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'сохранить',
-                    style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

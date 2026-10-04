@@ -76,177 +76,270 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      appBar: AppBar( // Верхняя панель
-        backgroundColor: Colors.transparent, // Прозрачный фон
-        elevation: 0, // Без тени
-        leading: IconButton( // Кнопка с иконкой
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
-          onPressed: () {
-            Navigator.pop(context); // Закрыть экран
-          },
-        ),
-        title: const Text( // Текст (маленький, в AppBar)
-          'Клуб романтики',
-          style: TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        centerTitle: true, // По центру
-      ),
-      body: SingleChildScrollView( // Прокрутка
-        child: Padding( // Отступы
-          padding: const EdgeInsets.all(16),
-          child: Column( // Вертикальный список
-            children: [
-              const Text( // Большой заголовок
-                'ПРОФИЛЬ',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
+      
+      // Использую Stack, чтобы наложить контент на фон
+      body: Stack(
+        children: [
+          // Слой для фона
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
+              // Картинка фона
+              child: Image.asset(
+                'assets/images/main_background.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+
+          // Основной контент
+          SafeArea(
+            child: Column(
+              children: [
+                // --- ВЕРХНЯЯ ПАНЕЛЬ (AppBar) ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Кнопка назад
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      
+                      // Заголовок
+                      const Text(
+                        'Клуб романтики',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                      
+                      // Пустой контейнер для симметрии
+                      const SizedBox(width: 48),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              // Аватар
-              CircleAvatar( // Круглый аватар
-                radius: 60,
-                backgroundColor: const Color(0xFF333333), // Тёмный фон
-                child: Icon(
-                  Icons.person, // Иконка
-                  size: 80,
-                  color: Color(0xFFFFA0A0), // Розовая
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Имя игрока
-              TextField( // Поле ввода
-                controller: _nameController, // Контроллер
-                textAlign: TextAlign.center, // По центру
-                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold), // Белый
-                decoration: const InputDecoration( // Оформление
-                  border: InputBorder.none, // Без рамки
-                  isDense: true, // Компактнее
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Дата регистрации (розовая)
-              Text(
-                'дата регистрации: $_registrationDate',
-                style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
-              ),
-              const SizedBox(height: 32),
-              // Надпись (белая)
-              const Align( // Выравнивание
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'прогресс',
-                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Текст прогресса (розовый)
-              Align( // Выравнивание
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'пройдено эпизодов: $_completedEpisodes/$_totalEpisodes',
-                  style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Полоса прогресса (белая)
-              LinearProgressIndicator( // Полоса прогресса
-                value: _progress,
-                backgroundColor: const Color(0xFF333333), // Тёмный фон
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white), // Белая полоса
-                minHeight: 12,
-              ),
-              const SizedBox(height: 32),
-              // Надпись (белая)
-              const Align( // Выравнивание
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'достижения',
-                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Иконки достижений (розовые)
-              Row( // Горизонтальный список
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), // Алмаз 1
-                  Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), // Алмаз 2
-                  Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), // Алмаз 3
-                  Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), // Алмаз 4
-                  Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), // Алмаз 5
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Подписи достижений (розовые)
-              const Row( // Горизонтальный список
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Text('1', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)), // Достижение 1
-                  Text('2', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)), // Достижение 2
-                  Text('3', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)), // Достижение 3
-                  Text('4', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)), // Достижение 4
-                  Text('5', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)), // Достижение 5
-                ],
-              ),
-              const SizedBox(height: 32),
-              // Надпись (белая)
-              const Align( // Выравнивание
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'концовки',
-                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Иконки концовок (розовые)
-              Row( // Горизонтальный список
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), // Марикот
-                  Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), // Адринетт
-                  Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), // Супербаг
-                  Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), // АдриБаг
-                  Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), // Лука
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Подписи концовок (розовые)
-              const Row( // Горизонтальный список
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Text('Марикот', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)), // Концовка 1
-                  Text('Адринетт', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)), // Концовка 2
-                  Text('Супербаг', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)), // Концовка 3
-                  Text('АдриБаг', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)), // Концовка 4
-                  Text('Лука', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)), // Концовка 5
-                ],
-              ),
-              const SizedBox(height: 32),
-              // Кнопка выйти
-              SizedBox( // Контейнер
-                width: double.infinity, // На всю ширину
-                child: ElevatedButton( // Кнопка с фоном
-                  onPressed: _logout, // Выход из аккаунта
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF333333), // Тёмно-серый
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+
+                // --- ОСНОВНОЙ БЛОК (скроллится) ---
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Заголовок "ПРОФИЛЬ" (тонкий)
+                        const Center(
+                          child: Text(
+                            'ПРОФИЛЬ',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Аватар
+                        Center(
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundColor: const Color(0xFF534F50), // Тёмно-серый
+                            child: const Icon(
+                              Icons.person,
+                              size: 80,
+                              color: Color(0xFFFFA0A0), // Розовая иконка
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Имя игрока
+                        Center(
+                          child: TextField(
+                            controller: _nameController,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 24), // Без жирного
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Дата регистрации (розовая)
+                        Center(
+                          child: Text(
+                            'дата регистрации: $_registrationDate',
+                            style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Надпись "прогресс" (тонкая)
+                        const Text(
+                          'прогресс',
+                          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w300),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Текст прогресса (розовый)
+                        Text(
+                          'пройдено эпизодов: $_completedEpisodes/$_totalEpisodes',
+                          style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Полоса прогресса (шире и с закруглёнными углами)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10), // Закругление
+                          child: LinearProgressIndicator(
+                            value: _progress,
+                            backgroundColor: const Color(0xFF534F50),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                            minHeight: 20, // Шире
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Надпись "достижения" (тонкая)
+                        const Text(
+                          'достижения',
+                          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w300),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Иконки достижений с подписями (каждая в Column, чтобы не ехали)
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Column(
+                              children: [
+                                Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('1', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('2', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('3', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('4', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('5', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12)),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Надпись "концовки" (тонкая)
+                        const Text(
+                          'концовки',
+                          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w300),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Иконки концовок с подписями (каждая в Column, чтобы не ехали)
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Column(
+                              children: [
+                                Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('Марикот', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('Лука', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Icon(Icons.lock_outline, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Icon(Icons.lock_outline, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Icon(Icons.lock_outline, color: Color(0xFFFFA0A0), size: 32),
+                                SizedBox(height: 4),
+                                Text('', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10)),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Кнопка "выйти" (слева, серая)
+                        SizedBox(
+                          width: 200,
+                          height: 55,
+                          child: ElevatedButton(
+                            onPressed: _logout,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF534F50), // Серый
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'выйти',
+                              style: TextStyle(
+                                color: Color(0xFF3F0404), // Тёмно-красный
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Пустое пространство снизу
+                        const SizedBox(height: 100),
+                      ],
                     ),
                   ),
-                  child: const Text(
-                    'выйти',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

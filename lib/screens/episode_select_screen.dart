@@ -102,137 +102,218 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      appBar: AppBar( // Верхняя панель
-        backgroundColor: Colors.transparent, // Прозрачный фон
-        elevation: 0, // Без тени
-        leading: IconButton( // Кнопка с иконкой
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010)), // Кнопка назад
-          onPressed: () {
-            Navigator.pop(context); // Закрыть экран
-          },
-        ),
-        title: const Text( // Текст (маленький, в AppBar)
-          'Клуб романтики',
-          style: TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        centerTitle: true, // По центру
-      ),
-      body: Padding( // Отступы
-        padding: const EdgeInsets.all(16),
-        child: Column( // Вертикальный список
-          children: [
-            const Text( // Большой заголовок
-              'ВЫБОР ЭПИЗОДА',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+      
+      // Использую Stack, чтобы наложить контент на фон
+      body: Stack(
+        children: [
+          // Слой для фона
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
+              // Картинка фона
+              child: Image.asset(
+                'assets/images/main_background.png',
+                fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(height: 24),
-            // Список эпизодов
-            Expanded( // Растягивание
-              child: _isLoading
-                  // Если идёт загрузка
-                  ? const Center(child: CircularProgressIndicator())
-                  // Если ошибка
-                  : _error != null
-                      ? Center(
+          ),
+
+          // Основной контент
+          SafeArea(
+            child: Column(
+              children: [
+                // Верхняя панель
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Кнопка назад
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      
+                      // Заголовок
+                      const Text(
+                        'Клуб романтики',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                      
+                      // Пустой контейнер для симметрии
+                      const SizedBox(width: 48),
+                    ],
+                  ),
+                ),
+
+                // Основной блок
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Заголовок
+                        const Center(
                           child: Text(
-                            'Ошибка: $_error',
-                            style: const TextStyle(color: Colors.red),
+                            'ВЫБОР\nЭПИЗОДА',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w300, // Тонкий шрифт
+                              height: 1.1,
+                            ),
                           ),
-                        )
-                      // Если эпизодов нет
-                      : _episodes.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'нет эпизодов',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            )
-                          // Список эпизодов
-                          : ListView.builder(
-                              itemCount: _episodes.length,
-                              itemBuilder: (context, index) {
-                                final isSelected = index == _selectedIndex;
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: ElevatedButton( // Кнопка с фоном
-                                    onPressed: () {
-                                      setState(() {
-                                        _selectedIndex = index; // Выбираю эпизод
-                                      });
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isSelected ? const Color(0xFFD30010) : const Color(0xFF333333),
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Список эпизодов
+                        Expanded(
+                          child: _isLoading
+                              // Если идёт загрузка
+                              ? const Center(child: CircularProgressIndicator(color: Color(0xFFD30010)))
+                              // Если ошибка
+                              : _error != null
+                                  ? Center(
+                                      child: Text(
+                                        'Ошибка: $_error',
+                                        style: const TextStyle(color: Colors.red),
                                       ),
+                                    )
+                                  // Если эпизодов нет
+                                  : _episodes.isEmpty
+                                      ? const Center(
+                                          child: Text(
+                                            'нет эпизодов',
+                                            style: TextStyle(color: Colors.white),
+                                          ),
+                                        )
+                                      // Список эпизодов
+                                      : ListView.builder(
+                                          itemCount: _episodes.length,
+                                          itemBuilder: (context, index) {
+                                            // ignore: unused_local_variable
+                                            final isSelected = index == _selectedIndex;
+                                            // Логика прогресса: первый эпизод пройден (красный), остальные серые
+                                            final isPassed = index == 0;
+                                            
+                                            return Padding(
+                                              padding: const EdgeInsets.only(bottom: 12),
+                                              child: SizedBox(
+                                                width: 220,
+                                                height: 55,
+                                                child: ElevatedButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _selectedIndex = index; // Выбираю эпизод
+                                                    });
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    // Красный, если пройден, серый, если нет
+                                                    backgroundColor: isPassed 
+                                                        ? const Color(0xFFD30010) 
+                                                        : const Color(0xFF534F50),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(30),
+                                                    ),
+                                                    elevation: 0,
+                                                  ),
+                                                  child: Text(
+                                                    _episodes[index].title, // Название эпизода
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF3F0404), 
+                                                      fontSize: 18, 
+                                                      fontWeight: FontWeight.bold
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                        ),
+                        
+                        const SizedBox(height: 8),
+
+                        // Кнопка продолжить
+                        Center(
+                          child: SizedBox(
+                            width: 200,
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                // Если эпизодов нет - не перехожу
+                                if (_episodes.isEmpty) return;
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => GameScreen(
+                                      episode: _episodes[_selectedIndex], // Передаю выбранный эпизод
                                     ),
-                                    child: Text(
-                                      _episodes[index].title, // Название эпизода
-                                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
+                                  )
                                 );
                               },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD30010),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                'продолжить',
+                                style: TextStyle(
+                                  color: Color(0xFF3F0404), 
+                                  fontSize: 18, 
+                                  fontWeight: FontWeight.bold
+                                ),
+                              ),
                             ),
-            ),
-            const SizedBox(height: 16),
-            // Кнопка продолжить
-            SizedBox( // Контейнер
-              width: double.infinity, // На всю ширину
-              child: ElevatedButton( // Кнопка с фоном
-                onPressed: () {
-                  // Если эпизодов нет - не перехожу
-                  if (_episodes.isEmpty) return;
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 12),
 
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => GameScreen(
-                        episode: _episodes[_selectedIndex], // Передаю выбранный эпизод
-                      ),
-                    )
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD30010),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                        // Кнопка сбросить прогресс
+                        Center(
+                          child: SizedBox(
+                            width: 200,
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: _resetProgress, // Сброс прогресса
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF534F50), // Серый
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                'сбросить\nпрогресс',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Color(0xFF3F0404), // Тёмно-красный
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Пустое пространство снизу, чтобы поднять кнопки выше
+                        const SizedBox(height: 100),
+                      ],
+                    ),
                   ),
                 ),
-                child: const Text(
-                  'продолжить',
-                  style: TextStyle(color: Color(0xFF3F0404), fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
+              ],
             ),
-            const SizedBox(height: 8),
-            // Кнопка сбросить прогресс
-            SizedBox( // Контейнер
-              width: double.infinity, // На всю ширину
-              child: ElevatedButton( // Кнопка с фоном
-                onPressed: _resetProgress, // Сброс прогресса
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF333333),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'сбросить прогресс',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

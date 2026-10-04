@@ -2,6 +2,7 @@ import 'package:flutter/material.dart'; // Импорт Material UI
 import 'login_screen.dart'; // Импорт экрана авторизации
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория
 import '../src/data/services/auth_grpc_service.dart'; // Импорт gRPC-сервиса
+import '../src/core/validators.dart'; // Импорт валидаторов
 import '../services/storage_service.dart'; // Импорт сервиса хранения
 
 // Экран регистрации
@@ -21,6 +22,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   late TextEditingController _confirmPasswordController; // Контроллер для повторного пароля
   bool _obscurePassword = true; // Флаг видимости пароля
   bool _isLoading = false; // Флаг загрузки
+
+  // Ошибки валидации
+  String? _loginError;
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmError;
 
   // gRPC-сервис
   late AuthGrpcService _service;
@@ -55,21 +62,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // Регистрация
   Future<void> _register() async {
-    // Проверяю, что поля не пустые
-    if (_loginController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Заполните все поля')),
-      );
-      return;
-    }
+    // Валидирую поля
+    setState(() {
+      _loginError = Validators.validateLogin(_loginController.text);
+      _emailError = Validators.validateEmail(_emailController.text);
+      _passwordError = Validators.validatePassword(_passwordController.text);
+      // Проверяю, что пароли совпадают
+      if (_passwordController.text != _confirmPasswordController.text) {
+        _confirmError = 'Пароли не совпадают';
+      } else {
+        _confirmError = null;
+      }
+    });
 
-    // Проверяю, что пароли совпадают
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Пароли не совпадают')),
-      );
+    // Если есть ошибки - выхожу
+    if (_loginError != null ||
+        _emailError != null ||
+        _passwordError != null ||
+        _confirmError != null) {
       return;
     }
 
@@ -122,7 +132,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   // Поле ввода (вспомогательный метод)
-  Widget _buildField(String label, TextEditingController controller, {bool isPassword = false}) {
+  Widget _buildField(
+    String label,
+    TextEditingController controller, {
+    bool isPassword = false,
+    String? errorText,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -135,6 +150,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           obscureText: isPassword && _obscurePassword,
           style: const TextStyle(color: Colors.white, fontSize: 16),
           decoration: InputDecoration(
+            // Ошибка
+            errorText: errorText,
+            errorStyle: const TextStyle(color: Color(0xFFFFA0A0)),
             suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(
@@ -170,7 +188,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      
+
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -194,24 +212,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.center, // Центрирую
                     children: [
-                      // Кнопка назад
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                      ),
-                      
                       // Заголовок
                       const Text(
                         'Клуб романтики',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      
-                      // Пустой контейнер для симметрии
-                      const SizedBox(width: 48),
                     ],
                   ),
                 ),
@@ -239,11 +246,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 24),
 
                         // Поля регистрации
-                        _buildField('логин', _loginController),
-                        _buildField('email', _emailController),
-                        _buildField('пароль', _passwordController, isPassword: true),
-                        _buildField('повторите пароль', _confirmPasswordController, isPassword: true),
-                        
+                        _buildField('логин', _loginController, errorText: _loginError),
+                        _buildField('email', _emailController, errorText: _emailError),
+                        _buildField('пароль', _passwordController, isPassword: true, errorText: _passwordError),
+                        _buildField('повторите пароль', _confirmPasswordController, isPassword: true, errorText: _confirmError),
+
                         const SizedBox(height: 8),
 
                         // Кнопка зарегистрироваться
@@ -273,7 +280,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 12),
 
                         // Кнопка вход
@@ -283,12 +290,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             height: 55,
                             child: ElevatedButton(
                               onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const LoginScreen(),
-                                  ),
-                                );
+                                Navigator.pop(context); // Назад на логин
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),

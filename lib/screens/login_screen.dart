@@ -77,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (!mounted) return;
 
-        // Успех — переход на главное меню
+        // Успех - переход на главное меню
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Добро пожаловать, ${result.login}!')),
         );
@@ -109,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      
+
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -133,24 +133,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.center, // Центрирую
                     children: [
-                      // Кнопка назад
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                      ),
-                      
                       // Заголовок
                       const Text(
                         'Клуб романтики',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      
-                      // Пустой контейнер для симметрии
-                      const SizedBox(width: 48),
                     ],
                   ),
                 ),
@@ -180,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Подпись
                         const Text('логин', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16)),
                         const SizedBox(height: 8),
-                        
+
                         // Поле логина
                         TextField(
                           controller: _loginController,
@@ -204,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Подпись
                         const Text('пароль', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16)),
                         const SizedBox(height: 8),
-                        
+
                         // Поле пароля
                         TextField(
                           controller: _passwordController,
@@ -264,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 12),
 
                         // Кнопка регистрация

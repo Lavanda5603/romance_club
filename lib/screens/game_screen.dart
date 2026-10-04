@@ -5,6 +5,7 @@ import '../src/data/repositories/progress_repository_remote.dart'; // Импор
 import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
 import '../src/data/services/progress_grpc_service.dart'; // Импорт gRPC-сервиса прогресса
 import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
+import 'episode_end_screen.dart'; // Иморт экрана конца эпизода
 
 // Игровой экран
 class GameScreen extends StatefulWidget {
@@ -212,32 +213,39 @@ class _GameScreenState extends State<GameScreen> {
                         })
                       // Если выборов нет - показываю кнопку Дальше
                       else
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              // Если сцена последняя - выхожу
-                              if (_viewModel.isLastScene) {
-                                Navigator.pop(context);
-                                return;
-                              }
-                              // Переход к следующей сцене
-                              _viewModel.nextScene();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFD30010),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        Center(
+                          child: SizedBox(
+                            width: 200,
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (_viewModel.isLastScene) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => EpisodeEndScreen(
+                                        currentEpisode: widget.episode,
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                _viewModel.nextScene();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD30010),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 0,
                               ),
-                            ),
-                            child: Text(
-                              // Если сцена последняя - Конец эпизода
-                              _viewModel.isLastScene ? 'конец эпизода' : 'дальше',
-                              style: const TextStyle(
-                                color: Color(0xFF3F0404),
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                              child: Text(
+                                _viewModel.isLastScene ? 'конец эпизода' : 'дальше',
+                                style: const TextStyle(
+                                  color: Color(0xFF3F0404),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),

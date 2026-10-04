@@ -30,6 +30,13 @@ class ProgressRepositoryRemote implements ProgressRepository {
     return response.success;
   }
 
+  // Сбросить прогресс игрока
+  @override
+  Future<bool> resetProgress(String playerId) async {
+    final response = await _service.resetProgress(playerId);
+    return response.success;
+  }
+
   // Преобразование Protobuf-модели в доменную
   ProgressModel toDomain(Progress progress) {
     return ProgressModel(

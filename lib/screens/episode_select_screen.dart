@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
-import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса
+import '../src/data/repositories/progress_repository_remote.dart'; // Импорт репозитория прогресса
+import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
+import '../src/data/services/progress_grpc_service.dart'; // Импорт gRPC-сервиса прогресса
+import '../services/storage_service.dart'; // Импорт сервиса хранения
 import 'game_screen.dart'; // Импорт игрового экрана
+import 'main_menu_screen.dart'; // Импорт главного меню
 
 // Экран выбора эпизода
 class EpisodeSelectScreen extends StatefulWidget {
@@ -17,6 +21,9 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
   // Список эпизодов (Protobuf-модели)
   final List<Episode> _episodes = [];
 
+  // Список пройденных эпизодов (по индексу)
+  final Set<int> _passedEpisodes = {};
+
   // Выбранный эпизод
   int _selectedIndex = 0;
 
@@ -26,37 +33,84 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
   // Ошибка загрузки
   String? _error;
 
-  // gRPC-сервис
-  late EpisodeGrpcService _service;
+  // gRPC-сервис эпизодов
+  late EpisodeGrpcService _episodeService;
+
+  // gRPC-сервис прогресса
+  late ProgressGrpcService _progressService;
+
+  // Репозиторий прогресса
+  late ProgressRepositoryRemote _progressRepository;
+
+  // ID игрока
+  String _playerId = '';
 
   @override
   void initState() {
     super.initState();
-    // Создаю gRPC-сервис
-    _service = EpisodeGrpcService();
+    // Создаю gRPC-сервисы
+    _episodeService = EpisodeGrpcService();
+    _progressService = ProgressGrpcService();
+    // Создаю репозиторий прогресса
+    _progressRepository = ProgressRepositoryRemote(_progressService);
     // Загружаю эпизоды при открытии экрана
     _loadEpisodes();
   }
 
   @override
   void dispose() {
-    // Закрываю соединение
-    _service.close();
+    // Закрываю соединения
+    _episodeService.close();
+    _progressService.close();
     super.dispose();
   }
 
   // Загрузка эпизодов с сервера
   Future<void> _loadEpisodes() async {
     try {
+      // Загружаю player_id из Storage
+      _playerId = await StorageService.loadPlayerId();
+
       // Запрашиваю эпизоды с сервера
-      final episodes = await _service.getAllEpisodes();
+      final episodes = await _episodeService.getAllEpisodes();
+
+      // Проверяю прогресс для каждого эпизода
+      final passed = <int>{};
+      if (_playerId.isNotEmpty) {
+        for (final ep in episodes) {
+          try {
+            final progress = await _progressRepository.getProgress(_playerId, ep.id);
+            // Если сцена есть - эпизод пройден
+            if (progress.sceneId.isNotEmpty) {
+              passed.add(ep.id);
+            }
+          } catch (e) {
+            // Игнорирую ошибку отдельного эпизода
+          }
+        }
+      }
+
+      if (!mounted) return;
 
       setState(() {
         _episodes.clear(); // Очищаю текущий список
         _episodes.addAll(episodes); // Добавляю загруженные эпизоды
+        _passedEpisodes.clear();
+        _passedEpisodes.addAll(passed);
+        
+        // Автовыбор первого непройденного эпизода
+        _selectedIndex = 0;
+        for (int i = 0; i < episodes.length; i++) {
+          if (!passed.contains(episodes[i].id)) {
+            _selectedIndex = i;
+            break;
+          }
+        }
+
         _isLoading = false; // Загрузка завершена
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString(); // Сохраняю ошибку
         _isLoading = false; // Загрузка завершена
@@ -89,12 +143,28 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
       },
     );
 
-    // Если пользователь подтвердил - сбрасываю прогресс
+     // Если пользователь подтвердил - сбрасываю прогресс
     if (confirmed == true) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Прогресс сброшен')),
-      );
+      try {
+        // Сбрасываю прогресс на сервере
+        await _progressRepository.resetProgress(_playerId);
+
+        if (!mounted) return;
+
+        // Очищаю локальный список пройденных
+        setState(() {
+          _passedEpisodes.clear();
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Прогресс сброшен')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
+      }
     }
   }
 
@@ -132,7 +202,11 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
                         onPressed: () {
-                          Navigator.pop(context);
+                          // Переход в главное меню
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const MainMenu()),
+                          );
                         },
                       ),
                       
@@ -195,38 +269,39 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                       : ListView.builder(
                                           itemCount: _episodes.length,
                                           itemBuilder: (context, index) {
-                                            // ignore: unused_local_variable
-                                            final isSelected = index == _selectedIndex;
-                                            // Логика прогресса: первый эпизод пройден (красный), остальные серые
-                                            final isPassed = index == 0;
+                                            final episode = _episodes[index];
+                                            // Эпизод пройден?
+                                            final isPassed = _passedEpisodes.contains(episode.id);
                                             
                                             return Padding(
                                               padding: const EdgeInsets.only(bottom: 12),
-                                              child: SizedBox(
-                                                width: 220,
-                                                height: 55,
-                                                child: ElevatedButton(
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      _selectedIndex = index; // Выбираю эпизод
-                                                    });
-                                                  },
-                                                  style: ElevatedButton.styleFrom(
-                                                    // Красный, если пройден, серый, если нет
-                                                    backgroundColor: isPassed 
-                                                        ? const Color(0xFFD30010) 
-                                                        : const Color(0xFF534F50),
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius: BorderRadius.circular(30),
+                                              child: Center(
+                                                child: SizedBox(
+                                                  width: 220,
+                                                  height: 55,
+                                                  child: ElevatedButton(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        _selectedIndex = index; // Выбираю эпизод
+                                                      });
+                                                    },
+                                                    style: ElevatedButton.styleFrom(
+                                                      // Красный, если пройден, серый, если нет
+                                                      backgroundColor: isPassed 
+                                                          ? const Color(0xFFD30010) 
+                                                          : const Color(0xFF534F50),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(30),
+                                                      ),
+                                                      elevation: 0,
                                                     ),
-                                                    elevation: 0,
-                                                  ),
-                                                  child: Text(
-                                                    _episodes[index].title, // Название эпизода
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF3F0404), 
-                                                      fontSize: 18, 
-                                                      fontWeight: FontWeight.bold
+                                                    child: Text(
+                                                      episode.title, // Название эпизода
+                                                      style: const TextStyle(
+                                                        color: Color(0xFF3F0404), 
+                                                        fontSize: 18, 
+                                                        fontWeight: FontWeight.bold
+                                                      ),
                                                     ),
                                                   ),
                                                 ),

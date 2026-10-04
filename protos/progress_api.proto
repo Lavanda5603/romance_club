@@ -25,8 +25,20 @@ message SaveProgressResponse {
   string message = 2; // Сообщение
 }
 
+// Запрос на сброс прогресса
+message ResetProgressRequest {
+  string player_id = 1; // ID игрока
+}
+
+// Ответ после сброса
+message ResetProgressResponse {
+  bool success = 1; // Успешно ли
+  string message = 2; // Сообщение
+}
+
 // gRPC-сервис для работы с прогрессом
 service ProgressApi {
   rpc GetProgress(GetProgressRequest) returns (Progress); // Получить прогресс
   rpc SaveProgress(SaveProgressRequest) returns (SaveProgressResponse); // Сохранить прогресс
+  rpc ResetProgress(ResetProgressRequest) returns (ResetProgressResponse); // Сбросить прогресс
 }

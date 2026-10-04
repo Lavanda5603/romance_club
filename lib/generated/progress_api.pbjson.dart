@@ -102,3 +102,30 @@ const SaveProgressResponse$json = {
 final $typed_data.Uint8List saveProgressResponseDescriptor = $convert.base64Decode(
     'ChRTYXZlUHJvZ3Jlc3NSZXNwb25zZRIYCgdzdWNjZXNzGAEgASgIUgdzdWNjZXNzEhgKB21lc3'
     'NhZ2UYAiABKAlSB21lc3NhZ2U=');
+
+@$core.Deprecated('Use resetProgressRequestDescriptor instead')
+const ResetProgressRequest$json = {
+  '1': 'ResetProgressRequest',
+  '2': [
+    {'1': 'player_id', '3': 1, '4': 1, '5': 9, '10': 'playerId'},
+  ],
+};
+
+/// Descriptor for `ResetProgressRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resetProgressRequestDescriptor =
+    $convert.base64Decode(
+        'ChRSZXNldFByb2dyZXNzUmVxdWVzdBIbCglwbGF5ZXJfaWQYASABKAlSCHBsYXllcklk');
+
+@$core.Deprecated('Use resetProgressResponseDescriptor instead')
+const ResetProgressResponse$json = {
+  '1': 'ResetProgressResponse',
+  '2': [
+    {'1': 'success', '3': 1, '4': 1, '5': 8, '10': 'success'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+  ],
+};
+
+/// Descriptor for `ResetProgressResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resetProgressResponseDescriptor = $convert.base64Decode(
+    'ChVSZXNldFByb2dyZXNzUmVzcG9uc2USGAoHc3VjY2VzcxgBIAEoCFIHc3VjY2VzcxIYCgdtZX'
+    'NzYWdlGAIgASgJUgdtZXNzYWdl');

@@ -211,10 +211,9 @@ impl EpisodeApi for EpisodeApiService {
         &self,
         _request: Request<GetAllEpisodesRequest>,
     ) -> Result<Response<GetAllEpisodesResponse>, Status> {
-        // Читаю эпизоды через query, чтобы получить настоящий id
         let mut response = self
             .db
-            .query("SELECT * FROM episode ORDER BY id")
+            .query("SELECT * FROM episode ORDER BY created_at ASC")
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 

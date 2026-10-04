@@ -48,6 +48,13 @@ class ProgressApiClient extends $grpc.Client {
     return $createUnaryCall(_$saveProgress, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.ResetProgressResponse> resetProgress(
+    $0.ResetProgressRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$resetProgress, request, options: options);
+  }
+
   // method descriptors
 
   static final _$getProgress =
@@ -60,6 +67,11 @@ class ProgressApiClient extends $grpc.Client {
           '/romance_club.ProgressApi/SaveProgress',
           ($0.SaveProgressRequest value) => value.writeToBuffer(),
           $0.SaveProgressResponse.fromBuffer);
+  static final _$resetProgress =
+      $grpc.ClientMethod<$0.ResetProgressRequest, $0.ResetProgressResponse>(
+          '/romance_club.ProgressApi/ResetProgress',
+          ($0.ResetProgressRequest value) => value.writeToBuffer(),
+          $0.ResetProgressResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('romance_club.ProgressApi')
@@ -84,6 +96,15 @@ abstract class ProgressApiServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.SaveProgressRequest.fromBuffer(value),
             ($0.SaveProgressResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.ResetProgressRequest, $0.ResetProgressResponse>(
+            'ResetProgress',
+            resetProgress_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.ResetProgressRequest.fromBuffer(value),
+            ($0.ResetProgressResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$1.Progress> getProgress_Pre($grpc.ServiceCall $call,
@@ -102,4 +123,13 @@ abstract class ProgressApiServiceBase extends $grpc.Service {
 
   $async.Future<$0.SaveProgressResponse> saveProgress(
       $grpc.ServiceCall call, $0.SaveProgressRequest request);
+
+  $async.Future<$0.ResetProgressResponse> resetProgress_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.ResetProgressRequest> $request) async {
+    return resetProgress($call, await $request);
+  }
+
+  $async.Future<$0.ResetProgressResponse> resetProgress(
+      $grpc.ServiceCall call, $0.ResetProgressRequest request);
 }

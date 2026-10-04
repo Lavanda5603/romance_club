@@ -7,4 +7,7 @@ abstract class ProgressRepository {
 
   // Сохранить прогресс
   Future<bool> saveProgress(ProgressModel progress);
+
+  // Сбросить прогресс игрока
+  Future<bool> resetProgress(String playerId);
 }

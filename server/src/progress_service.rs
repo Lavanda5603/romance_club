@@ -5,6 +5,7 @@ use serde_json::Value;
 use crate::romance_club::progress_api_server::ProgressApi;
 use crate::romance_club::{
     Progress, GetProgressRequest, SaveProgressRequest, SaveProgressResponse,
+    ResetProgressRequest, ResetProgressResponse,
 };
 
 // Сервис для работы с прогрессом
@@ -32,7 +33,6 @@ impl ProgressApi for ProgressApiService {
 
         println!("[GET_PROGRESS] player={}, episode={}", player_id, episode_id);
 
-        // Запрашиваю прогресс
         let mut response = self
             .db
             .query("SELECT * FROM progress WHERE player_id = type::record($player_id) AND episode_id = type::record('episode', $episode_id) LIMIT 1")
@@ -45,7 +45,6 @@ impl ProgressApi for ProgressApiService {
             .take(0)
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // Если прогресса нет - возвращаю пустой
         let progress = match result {
             Some(v) => {
                 let scene_id = v
@@ -104,7 +103,7 @@ impl ProgressApi for ProgressApiService {
         request: Request<SaveProgressRequest>,
     ) -> Result<Response<SaveProgressResponse>, Status> {
         let req = request.into_inner();
-        let player_id = req.player_id; // строка "player:abc123"
+        let player_id = req.player_id;
         let episode_id = req.episode_id;
         let scene_id = req.scene_id;
         let flags = req.flags;
@@ -112,13 +111,11 @@ impl ProgressApi for ProgressApiService {
 
         println!("[SAVE_PROGRESS] player={}, episode={}, scene={}", player_id, episode_id, scene_id);
 
-        // Преобразую flags и counters в JSON
         let flags_json: serde_json::Value = serde_json::to_value(&flags)
             .unwrap_or(serde_json::json!({}));
         let counters_json: serde_json::Value = serde_json::to_value(&counters)
             .unwrap_or(serde_json::json!({}));
 
-        // Удаляю старый прогресс
         self.db
             .query("DELETE progress WHERE player_id = type::record($player_id) AND episode_id = type::record('episode', $episode_id)")
             .bind(("player_id", player_id.clone()))
@@ -126,7 +123,6 @@ impl ProgressApi for ProgressApiService {
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // Создаю новый прогресс
         let result = self.db
             .query("CREATE progress CONTENT { player_id: type::record($player_id), episode_id: type::record('episode', $episode_id), scene_id: type::record($scene_id), flags: $flags, counters: $counters, updated_at: time::now() }")
             .bind(("player_id", player_id.clone()))
@@ -144,6 +140,34 @@ impl ProgressApi for ProgressApiService {
         Ok(Response::new(SaveProgressResponse {
             success: true,
             message: "Прогресс сохранён".to_string(),
+        }))
+    }
+
+    // Сбросить прогресс игрока
+    async fn reset_progress(
+        &self,
+        request: Request<ResetProgressRequest>,
+    ) -> Result<Response<ResetProgressResponse>, Status> {
+        let req = request.into_inner();
+        let player_id = req.player_id;
+
+        println!("[RESET_PROGRESS] player={}", player_id);
+
+        // Удаляю весь прогресс игрока
+        let result = self
+            .db
+            .query("DELETE progress WHERE player_id = type::record($player_id)")
+            .bind(("player_id", player_id.clone()))
+            .await;
+
+        match result {
+            Ok(_) => println!("[RESET_PROGRESS] Прогресс сброшен"),
+            Err(e) => println!("[RESET_PROGRESS] ОШИБКА: {}", e),
+        }
+
+        Ok(Response::new(ResetProgressResponse {
+            success: true,
+            message: "Прогресс сброшен".to_string(),
         }))
     }
 }

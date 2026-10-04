@@ -48,6 +48,12 @@ class ProgressGrpcService {
     return await _client.saveProgress(request);
   }
 
+  // Сбросить прогресс
+  Future<ResetProgressResponse> resetProgress(String playerId) async {
+    final request = ResetProgressRequest(playerId: playerId);
+    return await _client.resetProgress(request);
+  }
+
   // Закрыть соединение
   Future<void> close() async {
     await _channel.shutdown();

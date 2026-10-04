@@ -220,11 +220,15 @@ class _GameScreenState extends State<GameScreen> {
                             child: ElevatedButton(
                               onPressed: () {
                                 if (_viewModel.isLastScene) {
+                                  // Определяю концовку
+                                  final ending = _viewModel.determineEnding();
+
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => EpisodeEndScreen(
                                         currentEpisode: widget.episode,
+                                        ending: ending,
                                       ),
                                     ),
                                   );

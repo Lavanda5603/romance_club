@@ -7,11 +7,13 @@ import 'game_screen.dart'; // Импорт игрового экрана
 // Экран окончания эпизода
 class EpisodeEndScreen extends StatefulWidget {
   final Episode currentEpisode; // Текущий (пройденный) эпизод
+  final String ending; // Название концовки
 
   // Конструктор класса EpisodeEndScreen
   const EpisodeEndScreen({
     super.key,
     required this.currentEpisode,
+    this.ending = '',
   });
 
   // Метод createState (создание объекта состояния)
@@ -57,7 +59,6 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
       Episode? next;
       for (final ep in episodes) {
         if (ep.id > widget.currentEpisode.id) {
-          // Первый эпизод с большим id - следующий
           if (next == null || ep.id < next.id) {
             next = ep;
           }
@@ -147,7 +148,29 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                               fontSize: 18,
                             ),
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 24),
+
+                          // Название концовки (если есть)
+                          if (widget.ending.isNotEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF3F0404),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'Концовка: ${widget.ending}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          const SizedBox(height: 16),
 
                           // Если загрузка - показываю крутилку
                           if (_isLoading)

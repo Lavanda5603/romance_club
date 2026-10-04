@@ -23,8 +23,11 @@ class GameViewModel extends ChangeNotifier {
   // Текущие флаги (имя - значение)
   final Map<String, bool> _flags = {};
 
-  // ID игрока (загружается из Storage)
+  // ID игрока
   String _playerId = '';
+
+  // Текущая концовка (если эпизод завершён)
+  String _ending = '';
 
   // Геттер для состояния
   AsyncState<EpisodeModel> get state => _state;
@@ -43,13 +46,16 @@ class GameViewModel extends ChangeNotifier {
   // Геттер для флагов
   Map<String, bool> get flags => _flags;
 
+  // Геттер для концовки
+  String get ending => _ending;
+
   // Геттер: последняя ли сцена
   bool get isLastScene {
     if (_state.data == null) return false;
     return _currentSceneIndex >= _state.data!.scenes.length - 1;
   }
 
-  // ID текущей сцены (настоящий ID из SurrealDB)
+  // ID текущей сцены
   String get _currentSceneIdStr {
     if (currentScene == null) return '';
     return currentScene!.sceneKey;
@@ -66,20 +72,20 @@ class GameViewModel extends ChangeNotifier {
     // Загружаю player_id из Storage
     _playerId = await StorageService.loadPlayerId();
     if (_playerId.isEmpty) {
-      _playerId = 'player:1'; // Если не залогинен - использую player:1
+      _playerId = 'player:1';
     }
 
     try {
       final episode = await _repository.getEpisode(id);
       _state = AsyncState.success(episode);
 
-      // Загружаю прогресс, если есть репозиторий
+      // Загружаю прогресс
       if (_progressRepository != null) {
         try {
           final progress = await _progressRepository.getProgress(_playerId, id);
 
           if (progress.sceneId.isNotEmpty) {
-            // Ищу сцену по sceneKey (настоящему ID)
+            // Ищу сцену по sceneKey
             for (int i = 0; i < _state.data!.scenes.length; i++) {
               if (_state.data!.scenes[i].sceneKey == progress.sceneId) {
                 _currentSceneIndex = i;
@@ -107,6 +113,44 @@ class GameViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Проверка условия сцены
+  bool _isConditionMet(String condition) {
+    // Если условие пустое - показываю сцену
+    if (condition.isEmpty) return true;
+
+    // Проверяю условия типа flag:имя=true или flag:имя=false
+    if (condition.startsWith('flag:')) {
+      final parts = condition.substring(5).split('=');
+      if (parts.length == 2) {
+        final flagName = parts[0].trim();
+        final expected = parts[1].trim().toLowerCase() == 'true';
+        final actual = _flags[flagName] ?? false;
+        return actual == expected;
+      }
+    }
+
+    // Проверяю условия типа points>=5 или points<=3
+    if (condition.startsWith('points>=')) {
+      final value = int.tryParse(condition.substring(8).trim()) ?? 0;
+      return _points >= value;
+    }
+    if (condition.startsWith('points<=')) {
+      final value = int.tryParse(condition.substring(8).trim()) ?? 0;
+      return _points <= value;
+    }
+    if (condition.startsWith('points>')) {
+      final value = int.tryParse(condition.substring(7).trim()) ?? 0;
+      return _points > value;
+    }
+    if (condition.startsWith('points<')) {
+      final value = int.tryParse(condition.substring(7).trim()) ?? 0;
+      return _points < value;
+    }
+
+    // Неизвестное условие - считаю выполненным
+    return true;
+  }
+
   // Переход к сцене по ID
   void goToScene(int sceneId) {
     if (_state.data == null) return;
@@ -124,7 +168,23 @@ class GameViewModel extends ChangeNotifier {
   void nextScene() {
     if (_state.data == null) return;
     if (isLastScene) return;
-    _currentSceneIndex += 1;
+
+    // Ищу следующую сцену, у которой выполнено условие
+    int nextIndex = _currentSceneIndex + 1;
+    while (nextIndex < _state.data!.scenes.length) {
+      final nextScene = _state.data!.scenes[nextIndex];
+      if (_isConditionMet(nextScene.condition)) {
+        _currentSceneIndex = nextIndex;
+        _saveProgress();
+        notifyListeners();
+        return;
+      }
+      // Пропускаю сцену, если условие не выполнено
+      nextIndex++;
+    }
+
+    // Если не нашли - переходим на последнюю
+    _currentSceneIndex = _state.data!.scenes.length - 1;
     _saveProgress();
     notifyListeners();
   }
@@ -140,13 +200,42 @@ class GameViewModel extends ChangeNotifier {
         _points += action.counterValue;
       } else if (action.type == 'changeFlag') {
         _flags[action.flagName] = action.flagValue;
+      } else if (action.type == 'ending') {
+        // Установка концовки
+        _ending = action.title;
       }
     }
     _saveProgress();
     notifyListeners();
   }
 
-  // Сохранить прогресс на сервере
+  // Определить концовку по флагам и баллам
+  String determineEnding() {
+    // Если концовка уже установлена - возвращаю её
+    if (_ending.isNotEmpty) return _ending;
+
+    // Простейшая логика концовок (настраивается под сюжет)
+    // Флаг выбрал_луку + много баллов = Лука
+    if (_flags['выбрал_луку'] == true && _points >= 5) {
+      return 'Лука';
+    }
+    // Флаг выбрал_луку = Лука
+    if (_flags['выбрал_луку'] == true) {
+      return 'Лука';
+    }
+    // Флаг выбрал_адриана = Адринетт
+    if (_flags['выбрал_адриана'] == true) {
+      return 'Адринетт';
+    }
+    // Флаг выбрал_суперкота = Марикот
+    if (_flags['выбрал_суперкота'] == true) {
+      return 'Марикот';
+    }
+    // По умолчанию
+    return 'Марикот';
+  }
+
+  // Сохранить прогресс
   Future<void> _saveProgress() async {
     if (_progressRepository == null) return;
     if (_state.data == null) return;

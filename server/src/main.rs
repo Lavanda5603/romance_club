@@ -1,5 +1,6 @@
 mod progress_service;
 mod auth_service;
+mod achievement_service;
 
 use tonic::{transport::Server, Request, Response, Status};
 use surrealdb::engine::remote::ws::{Client, Ws};
@@ -11,6 +12,8 @@ use progress_service::ProgressApiService;
 use romance_club::progress_api_server::ProgressApiServer;
 use auth_service::AuthApiService;
 use romance_club::auth_api_server::AuthApiServer;
+use achievement_service::AchievementApiService;
+use romance_club::achievement_api_server::AchievementApiServer;
 
 // Подключаю сгенерированный код
 pub mod romance_club {
@@ -462,7 +465,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let episode_service = EpisodeApiService::new(db.clone());
     let progress_service = ProgressApiService::new(db.clone());
-    let auth_service = AuthApiService::new(db);
+    let auth_service = AuthApiService::new(db.clone());
+    let achievement_service = AchievementApiService::new(db);
     let addr = "0.0.0.0:50051".parse()?;
 
     println!("Сервер запущен на {}", addr);
@@ -471,6 +475,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(EpisodeApiServer::new(episode_service))
         .add_service(ProgressApiServer::new(progress_service))
         .add_service(AuthApiServer::new(auth_service))
+        .add_service(AchievementApiServer::new(achievement_service))
         .serve(addr)
         .await?;
 

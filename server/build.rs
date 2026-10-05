@@ -15,6 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "../protos/episode_api.proto",
                 "../protos/progress_api.proto",
                 "../protos/auth_api.proto",
+                "../protos/achievement_api.proto",
             ],
             &["../protos"],
         )?;

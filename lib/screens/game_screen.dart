@@ -2,8 +2,10 @@ import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../src/data/repositories/episode_repository_remote.dart'; // Импорт репозитория эпизодов
 import '../src/data/repositories/progress_repository_remote.dart'; // Импорт репозитория прогресса
+import '../src/data/repositories/achievement_repository_remote.dart'; // Импорт репозитория достижений
 import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
 import '../src/data/services/progress_grpc_service.dart'; // Импорт gRPC-сервиса прогресса
+import '../src/data/services/achievement_grpc_service.dart'; // Импорт gRPC-сервиса достижений
 import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
 import 'episode_end_screen.dart'; // Иморт экрана конца эпизода
 
@@ -26,8 +28,10 @@ class _GameScreenState extends State<GameScreen> {
   late GameViewModel _viewModel; // ViewModel
   late EpisodeGrpcService _episodeService; // gRPC-сервис эпизодов
   late ProgressGrpcService _progressService; // gRPC-сервис прогресса
+  late AchievementGrpcService _achievementService; // gRPC-сервис достижений
   late EpisodeRepositoryRemote _episodeRepository; // Репозиторий эпизодов
   late ProgressRepositoryRemote _progressRepository; // Репозиторий прогресса
+  late AchievementRepositoryRemote _achievementRepository; // Репозиторий достижений
 
   @override
   void initState() {
@@ -35,11 +39,13 @@ class _GameScreenState extends State<GameScreen> {
     // Создаю gRPC-сервисы
     _episodeService = EpisodeGrpcService();
     _progressService = ProgressGrpcService();
+    _achievementService = AchievementGrpcService();
     // Создаю репозитории
     _episodeRepository = EpisodeRepositoryRemote(_episodeService);
     _progressRepository = ProgressRepositoryRemote(_progressService);
+    _achievementRepository = AchievementRepositoryRemote(_achievementService);
     // Создаю ViewModel
-    _viewModel = GameViewModel(_episodeRepository, _progressRepository);
+    _viewModel = GameViewModel(_episodeRepository, _progressRepository, _achievementRepository);
     // Загружаю эпизод с сервера по ID
     _viewModel.loadEpisode(widget.episode.id);
   }
@@ -49,6 +55,7 @@ class _GameScreenState extends State<GameScreen> {
     // Закрываю соединения
     _episodeService.close();
     _progressService.close();
+    _achievementService.close();
     _viewModel.dispose();
     super.dispose();
   }

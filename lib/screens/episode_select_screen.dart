@@ -270,7 +270,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                           itemCount: _episodes.length,
                                           itemBuilder: (context, index) {
                                             final episode = _episodes[index];
-                                            // Эпизод пройден?
+                                            // Эпизод пройден
                                             final isPassed = _passedEpisodes.contains(episode.id);
                                             
                                             return Padding(

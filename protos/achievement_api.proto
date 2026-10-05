@@ -1,0 +1,37 @@
+syntax = "proto3"; // Версия синтаксиса Protobuf
+
+package romance_club; // Пространство имён
+
+// Достижение игрока
+message Achievement {
+  string name = 1; // Ключ достижения (all_episodes, all_endings, ...)
+  string unlocked_at = 2; // Дата открытия (пусто, если не открыто)
+}
+
+// Запрос на получение достижений
+message GetAchievementsRequest {
+  string player_id = 1; // ID игрока
+}
+
+// Ответ со списком достижений
+message GetAchievementsResponse {
+  repeated Achievement achievements = 1; // Список открытых достижений
+}
+
+// Запрос на открытие достижения
+message UnlockAchievementRequest {
+  string player_id = 1; // ID игрока
+  string name = 2; // Ключ достижения
+}
+
+// Ответ после открытия
+message UnlockAchievementResponse {
+  bool success = 1; // Успешно ли
+  string message = 2; // Сообщение
+}
+
+// gRPC-сервис для работы с достижениями
+service AchievementApi {
+  rpc GetAchievements(GetAchievementsRequest) returns (GetAchievementsResponse); // Получить достижения
+  rpc UnlockAchievement(UnlockAchievementRequest) returns (UnlockAchievementResponse); // Открыть достижение
+}

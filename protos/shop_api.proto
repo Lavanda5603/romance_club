@@ -1,0 +1,52 @@
+syntax = "proto3"; // Версия синтаксиса Protobuf
+
+package romance_club; // Пространство имён
+
+// Покупка
+message Purchase {
+  string item_id = 1; // ID предмета (episode:1, subscription, diamonds_100)
+  string item_type = 2; // Тип (episode, subscription, currency)
+  string purchased_at = 3; // Дата покупки
+}
+
+// Валюта игрока
+message Currency {
+  string player_id = 1; // ID игрока
+  int32 diamonds = 2; // Баланс алмазов
+}
+
+// Запрос на получение покупок
+message GetPurchasesRequest {
+  string player_id = 1; // ID игрока
+}
+
+// Ответ со списком покупок
+message GetPurchasesResponse {
+  repeated Purchase purchases = 1; // Список покупок
+}
+
+// Запрос на покупку
+message PurchaseRequest {
+  string player_id = 1; // ID игрока
+  string item_id = 2; // ID предмета
+  string item_type = 3; // Тип (episode, subscription, currency)
+}
+
+// Ответ после покупки
+message PurchaseResponse {
+  bool success = 1; // Успешно ли
+  string message = 2; // Сообщение
+  Currency currency = 3; // Новый баланс
+}
+
+// Запрос на получение баланса
+message GetCurrencyRequest {
+  string player_id = 1; // ID игрока
+}
+
+// gRPC-сервис для работы с магазином
+service ShopApi {
+  rpc GetPurchases(GetPurchasesRequest) returns (GetPurchasesResponse); // Получить покупки
+  rpc Purchase(PurchaseRequest) returns (PurchaseResponse); // Купить
+  rpc GetCurrency(GetCurrencyRequest) returns (Currency); // Получить баланс
+}

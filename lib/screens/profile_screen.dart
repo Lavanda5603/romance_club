@@ -2,9 +2,11 @@ import 'package:flutter/material.dart'; // Импорт Material UI
 import '../services/storage_service.dart'; // Импорт сервиса хранения
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория авторизации
 import '../src/data/repositories/progress_repository_remote.dart'; // Импорт репозитория прогресса
+import '../src/data/repositories/achievement_repository_remote.dart'; // Импорт репозитория достижений
 import '../src/data/services/auth_grpc_service.dart'; // Импорт gRPC-сервиса авторизации
 import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
 import '../src/data/services/progress_grpc_service.dart'; // Импорт gRPC-сервиса прогресса
+import '../src/data/services/achievement_grpc_service.dart'; // Импорт gRPC-сервиса достижений
 import 'login_screen.dart'; // Импорт экрана авторизации
 
 // Экран профиля игрока
@@ -25,6 +27,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _completedEpisodes = 0; // Пройдено эпизодов
   int _totalEpisodes = 0; // Всего эпизодов
 
+  // Список всех достижений (ключ - название)
+  final List<Map<String, String>> _allAchievements = [
+    {'key': 'all_episodes', 'title': 'Все эпизоды'},
+    {'key': 'all_endings', 'title': 'Все концовки'},
+    {'key': 'max_points', 'title': 'Максимум баллов'},
+    {'key': 'secret_scene', 'title': 'Секретная сцена'},
+    {'key': 'all_friends', 'title': 'Все друзья'},
+  ];
+
+  // Множество открытых достижений
+  final Set<String> _unlockedAchievements = {};
+
   // Флаг загрузки
   bool _isLoading = true;
 
@@ -32,10 +46,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late AuthGrpcService _authService;
   late EpisodeGrpcService _episodeService;
   late ProgressGrpcService _progressService;
+  late AchievementGrpcService _achievementService;
 
   // Репозитории
   late AuthRepositoryRemote _authRepository;
   late ProgressRepositoryRemote _progressRepository;
+  late AchievementRepositoryRemote _achievementRepository;
 
   // ID игрока
   String _playerId = '';
@@ -47,9 +63,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _authService = AuthGrpcService();
     _episodeService = EpisodeGrpcService();
     _progressService = ProgressGrpcService();
+    _achievementService = AchievementGrpcService();
     // Создаю репозитории
     _authRepository = AuthRepositoryRemote(_authService);
     _progressRepository = ProgressRepositoryRemote(_progressService);
+    _achievementRepository = AchievementRepositoryRemote(_achievementService);
     // Загружаю данные
     _loadProfile();
   }
@@ -60,6 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _authService.close();
     _episodeService.close();
     _progressService.close();
+    _achievementService.close();
     super.dispose();
   }
 
@@ -96,6 +115,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
+      // Загружаю достижения
+      final achievements = await _achievementRepository.getAchievements(_playerId);
+      final unlocked = <String>{};
+      for (final a in achievements) {
+        if (a.isUnlocked) unlocked.add(a.name);
+      }
+
       if (!mounted) return;
 
       setState(() {
@@ -104,6 +130,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _createdAt = authModel.createdAt;
         _completedEpisodes = completed;
         _totalEpisodes = episodes.length;
+        _unlockedAchievements.clear();
+        _unlockedAchievements.addAll(unlocked);
         _isLoading = false;
       });
     } catch (e) {
@@ -315,15 +343,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w300),
                               ),
                               const SizedBox(height: 12),
-                              const Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  Column(children: [Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('1', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12))]),
-                                  Column(children: [Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('2', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12))]),
-                                  Column(children: [Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('3', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12))]),
-                                  Column(children: [Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('4', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12))]),
-                                  Column(children: [Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('5', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 12))]),
-                                ],
+                              Wrap(
+                                alignment: WrapAlignment.spaceEvenly,
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: _allAchievements.map((item) {
+                                  final isUnlocked = _unlockedAchievements.contains(item['key']);
+                                  return Column(
+                                    children: [
+                                      Icon(
+                                        isUnlocked ? Icons.diamond : Icons.lock_outline,
+                                        color: isUnlocked ? const Color(0xFFFFA0A0) : const Color(0xFF534F50),
+                                        size: 32,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        item['title']!,
+                                        style: TextStyle(
+                                          color: isUnlocked ? const Color(0xFFFFA0A0) : const Color(0xFF534F50),
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
                               ),
                               const SizedBox(height: 32),
 
@@ -336,11 +379,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                 children: [
-                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('Марикот', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
+                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('МариКот', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
+                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('СуперБаг', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
+                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('АдриБаг', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
+                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('АдриНетт', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
                                   Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('Лука', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
-                                  Column(children: [Icon(Icons.lock_outline, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
-                                  Column(children: [Icon(Icons.lock_outline, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
-                                  Column(children: [Icon(Icons.lock_outline, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
                                 ],
                               ),
                               const SizedBox(height: 32),

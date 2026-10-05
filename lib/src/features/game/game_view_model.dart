@@ -4,12 +4,14 @@ import '../../domain/models/episode_model.dart'; // Импорт доменны�
 import '../../domain/models/progress_model.dart'; // Импорт прогресса
 import '../../domain/repositories/episode_repository.dart'; // Импорт контракта
 import '../../domain/repositories/progress_repository.dart'; // Импорт контракта прогресса
+import '../../domain/repositories/achievement_repository.dart'; // Импорт контракта достижений
 import '../../../services/storage_service.dart'; // Импорт сервиса хранения
 
 // ViewModel для игрового экрана
 class GameViewModel extends ChangeNotifier {
   final EpisodeRepository _repository; // Репозиторий эпизодов
   final ProgressRepository? _progressRepository; // Репозиторий прогресса
+  final AchievementRepository? _achievementRepository; // Репозиторий достижений
 
   // Состояние загрузки эпизода
   AsyncState<EpisodeModel> _state = AsyncState.idle();
@@ -26,7 +28,7 @@ class GameViewModel extends ChangeNotifier {
   // ID игрока
   String _playerId = '';
 
-  // Текущая концовка (если эпизод завершён)
+  // Текущая концовка
   String _ending = '';
 
   // Геттер для состояния
@@ -62,7 +64,7 @@ class GameViewModel extends ChangeNotifier {
   }
 
   // Конструктор класса GameViewModel
-  GameViewModel(this._repository, [this._progressRepository]);
+  GameViewModel(this._repository, [this._progressRepository, this._achievementRepository]);
 
   // Загрузить эпизод по ID
   Future<void> loadEpisode(int id) async {
@@ -158,6 +160,7 @@ class GameViewModel extends ChangeNotifier {
       if (_state.data!.scenes[i].id == sceneId) {
         _currentSceneIndex = i;
         _saveProgress();
+        _checkAchievements();
         notifyListeners();
         return;
       }
@@ -176,6 +179,7 @@ class GameViewModel extends ChangeNotifier {
       if (_isConditionMet(nextScene.condition)) {
         _currentSceneIndex = nextIndex;
         _saveProgress();
+        _checkAchievements();
         notifyListeners();
         return;
       }
@@ -183,9 +187,10 @@ class GameViewModel extends ChangeNotifier {
       nextIndex++;
     }
 
-    // Если не нашли - переходим на последнюю
+    // Если не нашла - перехожу на последнюю
     _currentSceneIndex = _state.data!.scenes.length - 1;
     _saveProgress();
+    _checkAchievements();
     notifyListeners();
   }
 
@@ -206,6 +211,7 @@ class GameViewModel extends ChangeNotifier {
       }
     }
     _saveProgress();
+    _checkAchievements();
     notifyListeners();
   }
 
@@ -214,25 +220,61 @@ class GameViewModel extends ChangeNotifier {
     // Если концовка уже установлена - возвращаю её
     if (_ending.isNotEmpty) return _ending;
 
-    // Простейшая логика концовок (настраивается под сюжет)
-    // Флаг выбрал_луку + много баллов = Лука
-    if (_flags['выбрал_луку'] == true && _points >= 5) {
-      return 'Лука';
-    }
-    // Флаг выбрал_луку = Лука
+    // Логика концовок
+
+    // Маринетт + Лука
     if (_flags['выбрал_луку'] == true) {
       return 'Лука';
     }
-    // Флаг выбрал_адриана = Адринетт
-    if (_flags['выбрал_адриана'] == true) {
-      return 'Адринетт';
+    // Леди Баг + Адриан
+    if (_flags['выбрал_адрибаг'] == true) {
+      return 'АдриБаг';
     }
-    // Флаг выбрал_суперкота = Марикот
-    if (_flags['выбрал_суперкота'] == true) {
-      return 'Марикот';
+    // Леди Баг + Супер-Кот
+    if (_flags['выбрал_супербаг'] == true) {
+      return 'СуперБаг';
+    }
+    // Маринетт + Адриан
+    if (_flags['выбрал_адринетт'] == true) {
+      return 'АдриНетт';
     }
     // По умолчанию
-    return 'Марикот';
+    return 'МариКот';
+  }
+
+  // Проверить и открыть достижения
+  Future<void> _checkAchievements() async {
+    if (_achievementRepository == null) return;
+    if (_state.data == null) return;
+
+    try {
+      // Достижение: все эпизоды
+      if (isLastScene) {
+        await _achievementRepository.unlockAchievement(_playerId, 'all_episodes');
+      }
+
+      // Достижение: максимум баллов
+      if (_points >= 100) {
+        await _achievementRepository.unlockAchievement(_playerId, 'max_points');
+      }
+
+      // Достижение: все концовки
+      if (_ending.isNotEmpty) {
+        await _achievementRepository.unlockAchievement(_playerId, 'all_endings');
+      }
+
+      // Достижение: секретная сцена
+      if (_flags['secret_scene'] == true) {
+        await _achievementRepository.unlockAchievement(_playerId, 'secret_scene');
+      }
+
+      // Достижение: все друзья
+      if (_flags['all_friends'] == true) {
+        await _achievementRepository.unlockAchievement(_playerId, 'all_friends');
+      }
+    } catch (e) {
+      debugPrint('Ошибка открытия достижения: $e');
+    }
   }
 
   // Сохранить прогресс

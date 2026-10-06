@@ -46,7 +46,10 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
         title: 'сцена ${widget.episode.scenes.length + 1}', // Название по умолчанию
         background: '', // Фон
         character: '', // Персонаж
+        characterEmotion: '', // Эмоция персонажа
         condition: '', // Условие
+        characterPosition: 'center', // Позиция персонажа
+        textPosition: 'bottom_center', // Позиция текста
       );
 
       // Добавляю в список (repeated)
@@ -239,6 +242,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                                 MaterialPageRoute(
                                                   builder: (context) => SceneEditorScreen(
                                                     scene: scene,
+                                                    episodeId: 'episode:${widget.episode.id}', // ID эпизода
                                                     onSave: (newScene) {
                                                       setState(() {
                                                         widget.episode.scenes[index] = newScene;

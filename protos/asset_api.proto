@@ -1,0 +1,30 @@
+syntax = "proto3"; // Версия синтаксиса Protobuf
+
+package romance_club; // Пространство имён
+
+// Ассет (картинка, звук)
+message Asset {
+  string id = 1; // ID в SurrealDB
+  string type = 2; // Тип: background, character, sound
+  string name = 3; // Имя: ep1/paris_morning, marinet
+  string emotion = 4; // Эмоция (только для персонажей)
+  string url = 5; // Путь к файлу: assets/images/ep1/paris_morning.png
+  string display_name = 6; // Человеческое имя
+  string episode_id = 7; // ID эпизода (если относится к эпизоду)
+}
+
+// Запрос на получение ассетов по типу
+message GetAssetsRequest {
+  string type = 1; // Тип: background, character, sound
+  string episode_id = 2; // ID эпизода
+}
+
+// Ответ со списком ассетов
+message GetAssetsResponse {
+  repeated Asset assets = 1; // Список ассетов
+}
+
+// gRPC-сервис для работы с ассетами
+service AssetApi {
+  rpc GetAssets(GetAssetsRequest) returns (GetAssetsResponse); // Получить ассеты по типу
+}

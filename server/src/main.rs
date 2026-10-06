@@ -2,6 +2,7 @@ mod progress_service;
 mod auth_service;
 mod achievement_service;
 mod shop_service;
+mod asset_service;
 
 use tonic::{transport::Server, Request, Response, Status};
 use surrealdb::engine::remote::ws::{Client, Ws};
@@ -17,6 +18,8 @@ use achievement_service::AchievementApiService;
 use romance_club::achievement_api_server::AchievementApiServer;
 use shop_service::ShopApiService;
 use romance_club::shop_api_server::ShopApiServer;
+use asset_service::AssetApiService;
+use romance_club::asset_api_server::AssetApiServer;
 
 // Подключаю сгенерированный код
 pub mod romance_club {
@@ -294,7 +297,7 @@ impl EpisodeApi for EpisodeApiService {
                 .bind(("title", scene.title.clone()))
                 .bind(("background", scene.background.clone()))
                 .bind(("character", scene.character.clone()))
-                .bind(("char_emotion", scene.character_emotion.clone())) // Эмоция персонажа
+                .bind(("char_emotion", scene.character_emotion.clone()))
                 .bind(("texts", scene.texts.clone()))
                 .bind(("condition", scene.condition.clone()))
                 .bind(("text_pos", scene.text_position.clone()))
@@ -473,7 +476,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let progress_service = ProgressApiService::new(db.clone());
     let auth_service = AuthApiService::new(db.clone());
     let achievement_service = AchievementApiService::new(db.clone());
-    let shop_service = ShopApiService::new(db);
+    let shop_service = ShopApiService::new(db.clone());
+    let asset_service = AssetApiService::new(db);
     let addr = "0.0.0.0:50051".parse()?;
 
     println!("Сервер запущен на {}", addr);
@@ -484,6 +488,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(AuthApiServer::new(auth_service))
         .add_service(AchievementApiServer::new(achievement_service))
         .add_service(ShopApiServer::new(shop_service))
+        .add_service(AssetApiServer::new(asset_service))
         .serve(addr)
         .await?;
 

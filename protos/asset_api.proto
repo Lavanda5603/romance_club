@@ -5,17 +5,18 @@ package romance_club; // Пространство имён
 // Ассет (картинка, звук)
 message Asset {
   string id = 1; // ID в SurrealDB
-  string type = 2; // Тип: background, character, sound
-  string name = 3; // Имя: ep1/paris_morning, marinet
-  string emotion = 4; // Эмоция (только для персонажей)
-  string url = 5; // Путь к файлу: assets/images/ep1/paris_morning.png
+  string type = 2; // Тип
+  string name = 3; // Имя
+  string emotion = 4; // Эмоция
+  string url = 5; // Путь к файлу
   string display_name = 6; // Человеческое имя
-  string episode_id = 7; // ID эпизода (если относится к эпизоду)
+  string episode_id = 7; // ID эпизода
+  bytes file_data = 8; // Байты файла (сама картинка)
 }
 
 // Запрос на получение ассетов по типу
 message GetAssetsRequest {
-  string type = 1; // Тип: background, character, sound
+  string type = 1; // Тип
   string episode_id = 2; // ID эпизода
 }
 
@@ -24,7 +25,26 @@ message GetAssetsResponse {
   repeated Asset assets = 1; // Список ассетов
 }
 
+// Запрос на загрузку нового ассета
+message UploadAssetRequest {
+  string type = 1; // Тип
+  string name = 2; // Имя: ep1/new_bg, marinet
+  string emotion = 3; // Эмоция
+  string display_name = 4; // Человеческое имя
+  string episode_id = 5; // ID эпизода
+  bytes file_data = 6; // Байты файла
+  string file_name = 7; // Имя файла с расширением
+}
+
+// Ответ после загрузки
+message UploadAssetResponse {
+  bool success = 1; // Успешно ли
+  string message = 2; // Сообщение
+  Asset asset = 3; // Созданный ассет
+}
+
 // gRPC-сервис для работы с ассетами
 service AssetApi {
   rpc GetAssets(GetAssetsRequest) returns (GetAssetsResponse); // Получить ассеты по типу
+  rpc UploadAsset(UploadAssetRequest) returns (UploadAssetResponse); // Загрузить новый ассет
 }

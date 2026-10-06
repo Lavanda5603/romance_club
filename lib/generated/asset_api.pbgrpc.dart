@@ -40,6 +40,13 @@ class AssetApiClient extends $grpc.Client {
     return $createUnaryCall(_$getAssets, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.UploadAssetResponse> uploadAsset(
+    $0.UploadAssetRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$uploadAsset, request, options: options);
+  }
+
   // method descriptors
 
   static final _$getAssets =
@@ -47,6 +54,11 @@ class AssetApiClient extends $grpc.Client {
           '/romance_club.AssetApi/GetAssets',
           ($0.GetAssetsRequest value) => value.writeToBuffer(),
           $0.GetAssetsResponse.fromBuffer);
+  static final _$uploadAsset =
+      $grpc.ClientMethod<$0.UploadAssetRequest, $0.UploadAssetResponse>(
+          '/romance_club.AssetApi/UploadAsset',
+          ($0.UploadAssetRequest value) => value.writeToBuffer(),
+          $0.UploadAssetResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('romance_club.AssetApi')
@@ -61,6 +73,15 @@ abstract class AssetApiServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.GetAssetsRequest.fromBuffer(value),
         ($0.GetAssetsResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.UploadAssetRequest, $0.UploadAssetResponse>(
+            'UploadAsset',
+            uploadAsset_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.UploadAssetRequest.fromBuffer(value),
+            ($0.UploadAssetResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.GetAssetsResponse> getAssets_Pre($grpc.ServiceCall $call,
@@ -70,4 +91,12 @@ abstract class AssetApiServiceBase extends $grpc.Service {
 
   $async.Future<$0.GetAssetsResponse> getAssets(
       $grpc.ServiceCall call, $0.GetAssetsRequest request);
+
+  $async.Future<$0.UploadAssetResponse> uploadAsset_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.UploadAssetRequest> $request) async {
+    return uploadAsset($call, await $request);
+  }
+
+  $async.Future<$0.UploadAssetResponse> uploadAsset(
+      $grpc.ServiceCall call, $0.UploadAssetRequest request);
 }

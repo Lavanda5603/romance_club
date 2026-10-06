@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
+import 'dart:typed_data'; // Импорт Uint8List
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../src/data/repositories/episode_repository_remote.dart'; // Импорт репозитория эпизодов
 import '../src/data/repositories/progress_repository_remote.dart'; // Импорт репозитория прогресса
 import '../src/data/repositories/achievement_repository_remote.dart'; // Импорт репозитория достижений
+import '../src/data/repositories/asset_repository_remote.dart'; // Импорт репозитория ассетов
 import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
 import '../src/data/services/progress_grpc_service.dart'; // Импорт gRPC-сервиса прогресса
 import '../src/data/services/achievement_grpc_service.dart'; // Импорт gRPC-сервиса достижений
+import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
 import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
 import 'episode_end_screen.dart'; // Иморт экрана конца эпизода
 
@@ -31,9 +34,18 @@ class _GameScreenState extends State<GameScreen> {
   late EpisodeGrpcService _episodeService; // gRPC-сервис эпизодов
   late ProgressGrpcService _progressService; // gRPC-сервис прогресса
   late AchievementGrpcService _achievementService; // gRPC-сервис достижений
+  late AssetGrpcService _assetService; // gRPC-сервис ассетов
   late EpisodeRepositoryRemote _episodeRepository; // Репозиторий эпизодов
   late ProgressRepositoryRemote _progressRepository; // Репозиторий прогресса
   late AchievementRepositoryRemote _achievementRepository; // Репозиторий достижений
+  late AssetRepositoryRemote _assetRepository; // Репозиторий ассетов
+
+  // Кэш картинок (ключ - имя или имя_эмоция)
+  final Map<String, Uint8List> _backgroundsCache = {};
+  final Map<String, Uint8List> _charactersCache = {};
+
+  // Флаг: ассеты загружены
+  bool _assetsLoaded = false;
 
   @override
   void initState() {
@@ -42,14 +54,18 @@ class _GameScreenState extends State<GameScreen> {
     _episodeService = EpisodeGrpcService();
     _progressService = ProgressGrpcService();
     _achievementService = AchievementGrpcService();
+    _assetService = AssetGrpcService();
     // Создаю репозитории
     _episodeRepository = EpisodeRepositoryRemote(_episodeService);
     _progressRepository = ProgressRepositoryRemote(_progressService);
     _achievementRepository = AchievementRepositoryRemote(_achievementService);
+    _assetRepository = AssetRepositoryRemote(_assetService);
     // Создаю ViewModel
     _viewModel = GameViewModel(_episodeRepository, _progressRepository, _achievementRepository);
     // Загружаю эпизод с сервера по ID
     _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
+    // Загружаю ассеты
+    _loadAssets();
   }
 
   @override
@@ -58,59 +74,80 @@ class _GameScreenState extends State<GameScreen> {
     _episodeService.close();
     _progressService.close();
     _achievementService.close();
+    _assetService.close();
     _viewModel.dispose();
     super.dispose();
   }
 
-  // Получаю Alignment для позиции (9 вариантов)
-  Alignment _getAlignment(String position) {
-    switch (position) {
-      // Верх
-      case 'top_left':
-        return Alignment.topLeft;
-      case 'top_center':
-      case 'top':
-        return Alignment.topCenter;
-      case 'top_right':
-        return Alignment.topRight;
+  // Загрузка всех ассетов (фонов и персонажей) в кэш
+  Future<void> _loadAssets() async {
+    try {
+      // Загружаю фоны
+      final backgrounds = await _assetRepository.getAssets('background');
+      for (final a in backgrounds) {
+        if (a.fileData.isNotEmpty) {
+          _backgroundsCache[a.name] = Uint8List.fromList(a.fileData);
+        }
+      }
 
-      // Середина
-      case 'center_left':
-      case 'left':
-        return Alignment.centerLeft;
-      case 'center_right':
-      case 'right':
-        return Alignment.centerRight;
+      // Загружаю персонажей
+      final characters = await _assetRepository.getAssets('character');
+      for (final a in characters) {
+        if (a.fileData.isNotEmpty) {
+          // Ключ: имя_эмоция
+          final key = a.emotion.isEmpty ? a.name : '${a.name}_${a.emotion}';
+          _charactersCache[key] = Uint8List.fromList(a.fileData);
+        }
+      }
 
-      // Низ
-      case 'bottom_left':
-        return Alignment.bottomLeft;
-      case 'bottom_center':
-      case 'bottom':
-        return Alignment.bottomCenter;
-      case 'bottom_right':
-        return Alignment.bottomRight;
-
-      // По умолчанию
-      case 'center':
-      default:
-        return Alignment.center;
+      if (!mounted) return;
+      setState(() {
+        _assetsLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('Ошибка загрузки ассетов: $e');
+      if (!mounted) return;
+      setState(() {
+        _assetsLoaded = true; // Всё равно грузим игру, но без картинок
+      });
     }
   }
 
-  // Собираю путь к фону
-  String _getBackgroundPath(String background) {
-    if (background.isEmpty) return '';
-    // Локально: assets/images/ep1/paris_morning.png
-    return 'assets/images/$background.png';
+  // Получаю Alignment для позиции
+  Alignment _getAlignment(String position) {
+    switch (position) {
+      case 'top_left': return Alignment.topLeft;
+      case 'top_center':
+      case 'top': return Alignment.topCenter;
+      case 'top_right': return Alignment.topRight;
+      case 'center_left':
+      case 'left': return Alignment.centerLeft;
+      case 'center_right':
+      case 'right': return Alignment.centerRight;
+      case 'bottom_left': return Alignment.bottomLeft;
+      case 'bottom_center':
+      case 'bottom': return Alignment.bottomCenter;
+      case 'bottom_right': return Alignment.bottomRight;
+      case 'center':
+      default: return Alignment.center;
+    }
   }
 
-  // Собираю путь к персонажу
-  String _getCharacterPath(String character, String emotion) {
-    if (character.isEmpty) return '';
-    final e = emotion.isEmpty ? 'default' : emotion;
-    // Локально: assets/characters/marinet_sad.png
-    return 'assets/characters/${character}_$e.png';
+  // Получаю байты фона по имени
+  Uint8List? _getBackgroundBytes(String background) {
+    if (background.isEmpty) return null;
+    return _backgroundsCache[background];
+  }
+
+  // Получаю байты персонажа по имени и эмоции
+  Uint8List? _getCharacterBytes(String character, String emotion) {
+    if (character.isEmpty) return null;
+    // Пробую сначала с эмоцией, потом без
+    final keyWithEmotion = emotion.isEmpty ? character : '${character}_$emotion';
+    if (_charactersCache.containsKey(keyWithEmotion)) {
+      return _charactersCache[keyWithEmotion];
+    }
+    return _charactersCache[character];
   }
 
   // Получаю имя персонажа для отображения
@@ -144,8 +181,8 @@ class _GameScreenState extends State<GameScreen> {
         builder: (context, _) {
           final state = _viewModel.state; // Текущее состояние
 
-          // Если загрузка
-          if (state.isLoading) {
+          // Если загрузка (эпизод или ассеты)
+          if (state.isLoading || !_assetsLoaded) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -172,9 +209,9 @@ class _GameScreenState extends State<GameScreen> {
             );
           }
 
-          // Собираю пути к картинкам
-          final bgPath = _getBackgroundPath(scene.background);
-          final charPath = _getCharacterPath(scene.character, scene.characterEmotion);
+          // Получаю байты картинок
+          final bgBytes = _getBackgroundBytes(scene.background);
+          final charBytes = _getCharacterBytes(scene.character, scene.characterEmotion);
           final charName = _getCharacterName(scene.character);
 
           // Основной интерфейс
@@ -189,18 +226,17 @@ class _GameScreenState extends State<GameScreen> {
               children: [
                 // Фон сцены
                 Positioned.fill(
-                  child: bgPath.isEmpty
+                  child: bgBytes == null
                       ? Container(color: const Color(0xFF333333))
-                      : Image.asset(
-                          bgPath,
+                      : Image.memory(
+                          bgBytes,
                           fit: BoxFit.cover,
-                          // Заглушка, если файла нет
                           errorBuilder: (context, error, stackTrace) {
                             return Container(color: const Color(0xFF333333));
                           },
                         ),
                 ),
-                // Затемнение снизу (чтоб текст читался)
+                // Затемнение снизу
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -215,13 +251,13 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                 ),
-                // Персонаж (если есть) — сдвинут вверх, чтобы не пересекаться с текстом
-                if (charPath.isNotEmpty)
+                // Персонаж
+                if (charBytes != null)
                   Positioned(
-                    top: 60, // Отступ сверху, чтобы не перекрывать кнопки
+                    top: 60,
                     left: 0,
                     right: 0,
-                    bottom: 200, // Отступ снизу, чтобы не пересекаться с текстом
+                    bottom: 200,
                     child: Align(
                       alignment: _getAlignment(
                         scene.characterPosition.isNotEmpty
@@ -231,10 +267,9 @@ class _GameScreenState extends State<GameScreen> {
                       child: FractionallySizedBox(
                         widthFactor: 0.55,
                         heightFactor: 0.55,
-                        child: Image.asset(
-                          charPath,
+                        child: Image.memory(
+                          charBytes,
                           fit: BoxFit.contain,
-                          // Заглушка, если файла нет
                           errorBuilder: (context, error, stackTrace) {
                             return Icon(
                               Icons.person,
@@ -291,7 +326,7 @@ class _GameScreenState extends State<GameScreen> {
                     ],
                   ),
                 ),
-                // Текст (облачко) — в позиции text_position
+                // Текст
                 Align(
                   alignment: _getAlignment(
                     scene.textPosition.isNotEmpty
@@ -356,7 +391,7 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                 ),
-                // Выборы — внизу экрана
+                // Выборы - внизу экрана
                 if (_viewModel.isTextFinished && scene.choices.isNotEmpty)
                   Positioned(
                     left: 16,
@@ -417,7 +452,6 @@ class _GameScreenState extends State<GameScreen> {
                         child: ElevatedButton(
                           onPressed: () {
                             if (_viewModel.isLastScene) {
-                              // Определяю концовку
                               final ending = _viewModel.determineEnding();
 
                               Navigator.pushReplacement(

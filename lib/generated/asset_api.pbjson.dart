@@ -26,6 +26,7 @@ const Asset$json = {
     {'1': 'url', '3': 5, '4': 1, '5': 9, '10': 'url'},
     {'1': 'display_name', '3': 6, '4': 1, '5': 9, '10': 'displayName'},
     {'1': 'episode_id', '3': 7, '4': 1, '5': 9, '10': 'episodeId'},
+    {'1': 'file_data', '3': 8, '4': 1, '5': 12, '10': 'fileData'},
   ],
 };
 
@@ -34,7 +35,7 @@ final $typed_data.Uint8List assetDescriptor = $convert.base64Decode(
     'CgVBc3NldBIOCgJpZBgBIAEoCVICaWQSEgoEdHlwZRgCIAEoCVIEdHlwZRISCgRuYW1lGAMgAS'
     'gJUgRuYW1lEhgKB2Vtb3Rpb24YBCABKAlSB2Vtb3Rpb24SEAoDdXJsGAUgASgJUgN1cmwSIQoM'
     'ZGlzcGxheV9uYW1lGAYgASgJUgtkaXNwbGF5TmFtZRIdCgplcGlzb2RlX2lkGAcgASgJUgllcG'
-    'lzb2RlSWQ=');
+    'lzb2RlSWQSGwoJZmlsZV9kYXRhGAggASgMUghmaWxlRGF0YQ==');
 
 @$core.Deprecated('Use getAssetsRequestDescriptor instead')
 const GetAssetsRequest$json = {
@@ -69,3 +70,47 @@ const GetAssetsResponse$json = {
 final $typed_data.Uint8List getAssetsResponseDescriptor = $convert.base64Decode(
     'ChFHZXRBc3NldHNSZXNwb25zZRIrCgZhc3NldHMYASADKAsyEy5yb21hbmNlX2NsdWIuQXNzZX'
     'RSBmFzc2V0cw==');
+
+@$core.Deprecated('Use uploadAssetRequestDescriptor instead')
+const UploadAssetRequest$json = {
+  '1': 'UploadAssetRequest',
+  '2': [
+    {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'emotion', '3': 3, '4': 1, '5': 9, '10': 'emotion'},
+    {'1': 'display_name', '3': 4, '4': 1, '5': 9, '10': 'displayName'},
+    {'1': 'episode_id', '3': 5, '4': 1, '5': 9, '10': 'episodeId'},
+    {'1': 'file_data', '3': 6, '4': 1, '5': 12, '10': 'fileData'},
+    {'1': 'file_name', '3': 7, '4': 1, '5': 9, '10': 'fileName'},
+  ],
+};
+
+/// Descriptor for `UploadAssetRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List uploadAssetRequestDescriptor = $convert.base64Decode(
+    'ChJVcGxvYWRBc3NldFJlcXVlc3QSEgoEdHlwZRgBIAEoCVIEdHlwZRISCgRuYW1lGAIgASgJUg'
+    'RuYW1lEhgKB2Vtb3Rpb24YAyABKAlSB2Vtb3Rpb24SIQoMZGlzcGxheV9uYW1lGAQgASgJUgtk'
+    'aXNwbGF5TmFtZRIdCgplcGlzb2RlX2lkGAUgASgJUgllcGlzb2RlSWQSGwoJZmlsZV9kYXRhGA'
+    'YgASgMUghmaWxlRGF0YRIbCglmaWxlX25hbWUYByABKAlSCGZpbGVOYW1l');
+
+@$core.Deprecated('Use uploadAssetResponseDescriptor instead')
+const UploadAssetResponse$json = {
+  '1': 'UploadAssetResponse',
+  '2': [
+    {'1': 'success', '3': 1, '4': 1, '5': 8, '10': 'success'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+    {
+      '1': 'asset',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.romance_club.Asset',
+      '10': 'asset'
+    },
+  ],
+};
+
+/// Descriptor for `UploadAssetResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List uploadAssetResponseDescriptor = $convert.base64Decode(
+    'ChNVcGxvYWRBc3NldFJlc3BvbnNlEhgKB3N1Y2Nlc3MYASABKAhSB3N1Y2Nlc3MSGAoHbWVzc2'
+    'FnZRgCIAEoCVIHbWVzc2FnZRIpCgVhc3NldBgDIAEoCzITLnJvbWFuY2VfY2x1Yi5Bc3NldFIF'
+    'YXNzZXQ=');

@@ -1,4 +1,5 @@
 import 'package:grpc/grpc.dart'; // Импорт gRPC
+import 'dart:typed_data'; // Импорт Uint8List
 import '../../../generated/asset_api.pbgrpc.dart'; // Импорт gRPC-клиента
 
 // Сервис для работы с gRPC (транспортный слой)
@@ -34,6 +35,31 @@ class AssetGrpcService {
 
     // Возвращаю список ассетов
     return response.assets;
+  }
+
+  // Загрузить новый ассет
+  Future<UploadAssetResponse> uploadAsset({
+    required String type,
+    required String name,
+    required String emotion,
+    required String displayName,
+    required String episodeId,
+    required Uint8List fileData,
+    required String fileName,
+  }) async {
+    // Создаю запрос
+    final request = UploadAssetRequest(
+      type: type,
+      name: name,
+      emotion: emotion,
+      displayName: displayName,
+      episodeId: episodeId,
+      fileData: fileData,
+      fileName: fileName,
+    );
+
+    // Вызываю метод сервера
+    return await _client.uploadAsset(request);
   }
 
   // Закрыть соединение

@@ -15,6 +15,7 @@ dependencies:
   surrealdb: ^1.1.2
   grpc: ^5.1.0
   async: ^2.13.1
+  file_picker: ^8.1.0
 
 dev_dependencies:
   flutter_test:

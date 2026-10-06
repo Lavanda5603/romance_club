@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
+import 'package:file_picker/file_picker.dart'; // Импорт выбора файла
+import 'dart:typed_data'; // Импорт Uint8List
 import '../src/data/repositories/asset_repository_remote.dart'; // Импорт репозитория ассетов
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса
 import '../src/domain/models/asset_model.dart'; // Импорт доменной модели
@@ -28,6 +30,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
   List<AssetModel> _assets = []; // Список ассетов
   bool _isLoading = true; // Флаг загрузки
+  bool _isUploading = false; // Флаг загрузки файла
   String _error = ''; // Ошибка
 
   @override
@@ -70,19 +73,122 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     }
   }
 
+  // Загрузка нового ассета
+  Future<void> _uploadNewAsset() async {
+    // Открываю диалог выбора файла
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg'],
+    );
+
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    final bytes = file.bytes;
+    if (bytes == null) return;
+
+    if (!mounted) return; // Проверка после await
+
+    // Диалог ввода имени
+    final nameController = TextEditingController();
+    final displayController = TextEditingController(text: file.name);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Новый ассет'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Имя (латиницей, без пробелов)',
+                  hintText: 'например: new_bg',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: displayController,
+                decoration: const InputDecoration(
+                  labelText: 'Название (для отображения)',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Отмена'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Загрузить'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return; // Проверка после await
+
+    // Проверяю имя
+    final name = nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Имя обязательно')),
+      );
+      return;
+    }
+
+    // Показываю индикатор
+    setState(() => _isUploading = true);
+
+    // Формирую имя с префиксом
+    final fullName = widget.type == 'background'
+        ? 'ep1/$name'
+        : name;
+
+    // Отправляю на сервер
+    final asset = await _repository.uploadAsset(
+      type: widget.type,
+      name: fullName,
+      emotion: '',
+      displayName: displayController.text.trim(),
+      episodeId: widget.episodeId,
+      fileData: bytes,
+      fileName: file.name,
+    );
+
+    if (!mounted) return;
+    setState(() => _isUploading = false);
+
+    if (asset != null) {
+      setState(() {
+        _assets.add(asset);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ассет загружен')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ошибка загрузки')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
-      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
 
-      // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
-          // Слой для фона
           Positioned.fill(
             child: Container(
-              color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
-              // Картинка фона
+              color: const Color(0xFF1A1A1A),
               child: Image.asset(
                 'assets/images/main_background.png',
                 fit: BoxFit.cover,
@@ -90,44 +196,38 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
             ),
           ),
 
-          // Основной контент
           SafeArea(
             child: Column(
               children: [
-                // Верхняя панель
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
                         onPressed: () {
-                          Navigator.pop(context, null); // Возвращаю null (отмена)
+                          Navigator.pop(context, null);
                         },
                       ),
-
-                      // Заголовок
                       Text(
                         widget.title,
                         style: const TextStyle(color: Colors.white, fontSize: 14),
                       ),
-
-                      // Пустой контейнер для симметрии
-                      const SizedBox(width: 48),
+                      IconButton(
+                        icon: const Icon(Icons.upload, color: Color(0xFFD30010), size: 28),
+                        onPressed: _uploadNewAsset,
+                      ),
                     ],
                   ),
                 ),
 
-                // Основной блок
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Заголовок
                         Center(
                           child: Text(
                             widget.title.toUpperCase(),
@@ -142,14 +242,12 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Если загрузка
                         if (_isLoading)
                           const Expanded(
                             child: Center(
                               child: CircularProgressIndicator(color: Color(0xFFD30010)),
                             ),
                           )
-                        // Если ошибка
                         else if (_error.isNotEmpty)
                           Expanded(
                             child: Center(
@@ -160,7 +258,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                               ),
                             ),
                           )
-                        // Если пусто
                         else if (_assets.isEmpty)
                           const Expanded(
                             child: Center(
@@ -170,26 +267,24 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                               ),
                             ),
                           )
-                        // Сетка картинок
                         else
                           Expanded(
                             child: GridView.builder(
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2, // 2 колонки
-                                crossAxisSpacing: 12, // Отступ между колонками
-                                mainAxisSpacing: 12, // Отступ между строками
-                                childAspectRatio: 1.2, // Соотношение сторон
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                                childAspectRatio: 1.0,
                               ),
                               itemCount: _assets.length,
                               itemBuilder: (context, index) {
                                 final asset = _assets[index];
                                 return GestureDetector(
-                                  // Клик по картинке - возвращаю ассет
                                   onTap: () => Navigator.pop(context, asset),
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF3F0404),
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: const Color(0xFFFFA0A0),
                                         width: 1,
@@ -197,40 +292,48 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                     ),
                                     child: Column(
                                       children: [
-                                        // Картинка
                                         Expanded(
                                           child: ClipRRect(
                                             borderRadius: const BorderRadius.vertical(
-                                              top: Radius.circular(15),
+                                              top: Radius.circular(11),
                                             ),
-                                            child: Image.asset(
-                                              asset.url,
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                              // Заглушка, если файла нет
-                                              errorBuilder: (context, error, stackTrace) {
-                                                return Container(
-                                                  color: const Color(0xFF333333),
-                                                  child: const Center(
-                                                    child: Icon(
-                                                      Icons.image_not_supported,
-                                                      color: Colors.white,
-                                                      size: 40,
+                                            child: asset.fileData.isEmpty
+                                                ? Container(
+                                                    color: const Color(0xFF333333),
+                                                    child: const Center(
+                                                      child: Icon(
+                                                        Icons.image_not_supported,
+                                                        color: Colors.white,
+                                                        size: 24,
+                                                      ),
                                                     ),
+                                                  )
+                                                : Image.memory(
+                                                    Uint8List.fromList(asset.fileData),
+                                                    fit: BoxFit.cover,
+                                                    width: double.infinity,
+                                                    errorBuilder: (context, error, stackTrace) {
+                                                      return Container(
+                                                        color: const Color(0xFF333333),
+                                                        child: const Center(
+                                                          child: Icon(
+                                                            Icons.broken_image,
+                                                            color: Colors.white,
+                                                            size: 24,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    },
                                                   ),
-                                                );
-                                              },
-                                            ),
                                           ),
                                         ),
-                                        // Название
                                         Padding(
-                                          padding: const EdgeInsets.all(6),
+                                          padding: const EdgeInsets.all(4),
                                           child: Text(
                                             asset.displayName,
                                             style: const TextStyle(
                                               color: Colors.white,
-                                              fontSize: 12,
+                                              fontSize: 10,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -251,6 +354,16 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
               ],
             ),
           ),
+
+          if (_isUploading)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.5),
+                child: const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFD30010)),
+                ),
+              ),
+            ),
         ],
       ),
     );

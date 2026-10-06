@@ -19,6 +19,9 @@ class GameViewModel extends ChangeNotifier {
   // Текущая сцена (индекс)
   int _currentSceneIndex = 0;
 
+  // Текущая реплика (индекс внутри сцены)
+  int _currentTextIndex = 0;
+
   // Текущие баллы
   int _points = 0;
 
@@ -40,6 +43,28 @@ class GameViewModel extends ChangeNotifier {
       return _state.data!.scenes[_currentSceneIndex];
     }
     return null;
+  }
+
+  // Геттер: текущая реплика
+  String get currentText {
+    if (currentScene == null) return '';
+    if (currentScene!.texts.isEmpty) return '';
+    if (_currentTextIndex >= currentScene!.texts.length) {
+      return currentScene!.texts.last;
+    }
+    return currentScene!.texts[_currentTextIndex];
+  }
+
+  // Геттер: есть ли ещё реплики
+  bool get hasMoreTexts {
+    if (currentScene == null) return false;
+    return _currentTextIndex < currentScene!.texts.length - 1;
+  }
+
+  // Геттер: все ли реплики показаны
+  bool get isTextFinished {
+    if (currentScene == null) return true;
+    return _currentTextIndex >= currentScene!.texts.length - 1;
   }
 
   // Геттер для баллов
@@ -67,7 +92,7 @@ class GameViewModel extends ChangeNotifier {
   GameViewModel(this._repository, [this._progressRepository, this._achievementRepository]);
 
   // Загрузить эпизод по ID
-  Future<void> loadEpisode(int id) async {
+  Future<void> loadEpisode(int id, {bool startFromBeginning = false}) async {
     _state = AsyncState.loading();
     notifyListeners();
 
@@ -81,7 +106,17 @@ class GameViewModel extends ChangeNotifier {
       final episode = await _repository.getEpisode(id);
       _state = AsyncState.success(episode);
 
-      // Загружаю прогресс
+      // Если надо начать с начала - сбрасываю прогресс
+      if (startFromBeginning) {
+        _currentSceneIndex = 0;
+        _currentTextIndex = 0;
+        _points = 0;
+        _flags.clear();
+        notifyListeners();
+        return;
+      }
+
+      // Загружаю прогресс, если есть репозиторий
       if (_progressRepository != null) {
         try {
           final progress = await _progressRepository.getProgress(_playerId, id);
@@ -108,11 +143,20 @@ class GameViewModel extends ChangeNotifier {
           _flags.clear();
         }
       }
+      _currentTextIndex = 0;
     } catch (e) {
       _state = AsyncState.failure(e.toString());
     }
 
     notifyListeners();
+  }
+
+  // Следующая реплика (если есть)
+  void nextText() {
+    if (hasMoreTexts) {
+      _currentTextIndex++;
+      notifyListeners();
+    }
   }
 
   // Проверка условия сцены
@@ -159,6 +203,7 @@ class GameViewModel extends ChangeNotifier {
     for (int i = 0; i < _state.data!.scenes.length; i++) {
       if (_state.data!.scenes[i].id == sceneId) {
         _currentSceneIndex = i;
+        _currentTextIndex = 0;
         _saveProgress();
         _checkAchievements();
         notifyListeners();
@@ -178,6 +223,7 @@ class GameViewModel extends ChangeNotifier {
       final nextScene = _state.data!.scenes[nextIndex];
       if (_isConditionMet(nextScene.condition)) {
         _currentSceneIndex = nextIndex;
+        _currentTextIndex = 0;
         _saveProgress();
         _checkAchievements();
         notifyListeners();
@@ -189,6 +235,7 @@ class GameViewModel extends ChangeNotifier {
 
     // Если не нашла - перехожу на последнюю
     _currentSceneIndex = _state.data!.scenes.length - 1;
+    _currentTextIndex = 0;
     _saveProgress();
     _checkAchievements();
     notifyListeners();

@@ -427,11 +427,13 @@ class _ShopScreenState extends State<ShopScreen> {
                                             height: 36,
                                             child: ElevatedButton(
                                               onPressed: () {
-                                                // Переход в игру с выбранным эпизодом
                                                 Navigator.push(
                                                   context,
                                                   MaterialPageRoute(
-                                                    builder: (context) => GameScreen(episode: episode),
+                                                    builder: (context) => GameScreen(
+                                                      episode: episode,
+                                                      startFromBeginning: true,
+                                                    ),
                                                   ),
                                                 );
                                               },

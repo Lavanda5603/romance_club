@@ -26,3 +26,6 @@ flutter:
 
   assets:
     - assets/images/main_background.png
+    - assets/images/
+    - assets/images/ep1/
+    - assets/characters/

@@ -115,6 +115,7 @@ impl EpisodeApi for EpisodeApiService {
             let title = scene_value.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let background = scene_value.get("background").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let character = scene_value.get("character").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let character_emotion = scene_value.get("character_emotion").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let condition = scene_value.get("condition").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let text_position = scene_value.get("text_position").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let character_position = scene_value.get("character_position").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -191,6 +192,7 @@ impl EpisodeApi for EpisodeApiService {
                 title,
                 background,
                 character,
+                character_emotion,
                 texts,
                 choices,
                 condition,
@@ -284,14 +286,15 @@ impl EpisodeApi for EpisodeApiService {
 
         // 3. Сохраняю сцены (CREATE с type::record)
         for (scene_index, scene) in episode.scenes.iter().enumerate() {
-            // Создаю сцену, сразу получаю её id через RETURN id
+            // Создаю сцену, сразу получаю её id через RETURN id  (character_emotion в CONTENT)
             let mut sc_response = self
                 .db
-                .query("CREATE scene CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order } RETURN id")
+                .query("CREATE scene CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, character_emotion: $char_emotion, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order } RETURN id")
                 .bind(("ep_id", id))
                 .bind(("title", scene.title.clone()))
                 .bind(("background", scene.background.clone()))
                 .bind(("character", scene.character.clone()))
+                .bind(("char_emotion", scene.character_emotion.clone())) // Эмоция персонажа
                 .bind(("texts", scene.texts.clone()))
                 .bind(("condition", scene.condition.clone()))
                 .bind(("text_pos", scene.text_position.clone()))

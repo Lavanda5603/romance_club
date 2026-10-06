@@ -16,4 +16,5 @@ message Scene {
   string text_position = 8; // Позиция текста
   string character_position = 9; // Позиция персонажа
   string scene_key = 10; // Настоящий ID в SurrealDB
+  string character_emotion = 11; // Эмоция персонажа
 }

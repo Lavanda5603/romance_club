@@ -21,6 +21,7 @@ class SceneModel {
   final String title; // Название
   final String background; // Фон
   final String character; // Персонаж
+  final String characterEmotion; // Эмоция персонажа
   final List<String> texts; // Тексты
   final List<ChoiceModel> choices; // Выборы
   final String condition; // Условие
@@ -34,6 +35,7 @@ class SceneModel {
     required this.title,
     required this.background,
     required this.character,
+    required this.characterEmotion,
     required this.texts,
     required this.choices,
     required this.condition,

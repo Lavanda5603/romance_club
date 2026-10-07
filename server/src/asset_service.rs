@@ -113,34 +113,46 @@ impl AssetApi for AssetApiService {
             return Err(Status::invalid_argument("Файл больше 5 МБ"));
         }
 
-        // Кодирую байты в base64 (SurrealDB требует строку для bytes)
+        // Кодирую байты в base64
         let file_base64 = general_purpose::STANDARD.encode(&req.file_data);
 
-        // Собираю url (для совместимости со старым кодом)
+        // Собираю url
         let url = if req.emotion.is_empty() {
             format!("assets/{}/{}", req.r#type, req.name)
         } else {
             format!("assets/{}/{}_{}", req.r#type, req.name, req.emotion)
         };
 
+        // Эмоция: пустая строка - NONE
+        let emotion_value: Option<String> = if req.emotion.is_empty() {
+            None
+        } else {
+            Some(req.emotion.clone())
+        };
+
         // Создаю запись в БД
         let mut response = self
             .db
-            .query("CREATE asset CONTENT { type: $type, name: $name, emotion: $emotion, url: $url, display_name: $display_name, episode_id: $episode_id, file_data: $file_data, created_at: time::now() }")
+            .query("CREATE asset CONTENT { type: $type, name: $name, emotion: $emotion, url: $url, display_name: $display_name, file_data: $file_data, created_at: time::now() }")
             .bind(("type", req.r#type.clone()))
             .bind(("name", req.name.clone()))
-            .bind(("emotion", req.emotion.clone()))
+            .bind(("emotion", emotion_value))
             .bind(("url", url.clone()))
             .bind(("display_name", if req.display_name.is_empty() { req.name.clone() } else { req.display_name.clone() }))
-            .bind(("episode_id", if req.episode_id.is_empty() { None } else { Some(req.episode_id.clone()) }))
             .bind(("file_data", file_base64))
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| {
+                println!("[UPLOAD_ASSET] ОШИБКА БД: {}", e);
+                Status::internal(format!("Ошибка БД: {}", e))
+            })?;
 
         // Читаю созданную запись
         let created: Option<Value> = response
             .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| {
+                println!("[UPLOAD_ASSET] ОШИБКА ЧТЕНИЯ: {}", e);
+                Status::internal(format!("Ошибка чтения: {}", e))
+            })?;
 
         let asset = match created {
             Some(v) => {
@@ -152,7 +164,7 @@ impl AssetApi for AssetApiService {
                     emotion: req.emotion.clone(),
                     url,
                     display_name: if req.display_name.is_empty() { req.name } else { req.display_name },
-                    episode_id: req.episode_id,
+                    episode_id: String::new(),
                     file_data: req.file_data,
                 }
             }

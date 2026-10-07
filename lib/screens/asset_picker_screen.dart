@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'package:file_picker/file_picker.dart'; // Импорт выбора файла
+import 'dart:io'; // Импорт File
 import 'dart:typed_data'; // Импорт Uint8List
 import '../src/data/repositories/asset_repository_remote.dart'; // Импорт репозитория ассетов
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса
@@ -75,47 +76,76 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
   // Загрузка нового ассета
   Future<void> _uploadNewAsset() async {
-    // Открываю диалог выбора файла
+    // Открываю диалог выбора файла (withData: true 0 чтобы получить байты)
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['png', 'jpg', 'jpeg'],
+      withData: true,
     );
 
     if (result == null || result.files.isEmpty) return;
 
     final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) return;
 
-    if (!mounted) return; // Проверка после await
+    // Получаю байты (сначала из file.bytes, потом из файла по пути)
+    Uint8List? bytes = file.bytes;
+    if (bytes == null && file.path != null) {
+      bytes = await File(file.path!).readAsBytes();
+    }
 
-    // Диалог ввода имени
+    if (bytes == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось прочитать файл')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    // Контроллеры для диалога
     final nameController = TextEditingController();
     final displayController = TextEditingController(text: file.name);
+    final emotionController = TextEditingController(); // Эмоция
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Новый ассет'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Имя (латиницей, без пробелов)',
-                  hintText: 'например: new_bg',
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Имя (техническое)
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Имя (латиницей, без пробелов)',
+                    hintText: 'например: new_bg, marinet',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: displayController,
-                decoration: const InputDecoration(
-                  labelText: 'Название (для отображения)',
+                const SizedBox(height: 8),
+                // Эмоция (только для персонажей)
+                if (widget.type == 'character')
+                  TextField(
+                    controller: emotionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Эмоция (латиницей)',
+                      hintText: 'например: happy, sad',
+                    ),
+                  ),
+                if (widget.type == 'character')
+                  const SizedBox(height: 8),
+                // Отображаемое имя
+                TextField(
+                  controller: displayController,
+                  decoration: const InputDecoration(
+                    labelText: 'Название (для отображения)',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -132,7 +162,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     );
 
     if (confirmed != true) return;
-    if (!mounted) return; // Проверка после await
+    if (!mounted) return;
 
     // Проверяю имя
     final name = nameController.text.trim();
@@ -148,14 +178,14 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     // Формирую имя с префиксом
     final fullName = widget.type == 'background'
-        ? 'ep1/$name'
-        : name;
+        ? 'ep1/$name' // Фоны
+        : name; // Персонажи
 
     // Отправляю на сервер
     final asset = await _repository.uploadAsset(
       type: widget.type,
       name: fullName,
-      emotion: '',
+      emotion: emotionController.text.trim(), // Эмоция
       displayName: displayController.text.trim(),
       episodeId: widget.episodeId,
       fileData: bytes,

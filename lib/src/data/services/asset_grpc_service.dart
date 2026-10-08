@@ -62,6 +62,15 @@ class AssetGrpcService {
     return await _client.uploadAsset(request);
   }
 
+  // Удалить ассет по ID
+  Future<DeleteAssetResponse> deleteAsset(String id) async {
+    // Создаю запрос
+    final request = DeleteAssetRequest(id: id);
+
+    // Вызываю метод сервера
+    return await _client.deleteAsset(request);
+  }
+
   // Закрыть соединение
   Future<void> close() async {
     await _channel.shutdown(); // Закрываю канал

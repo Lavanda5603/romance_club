@@ -24,7 +24,6 @@ class GameScreen extends StatefulWidget {
     this.startFromBeginning = false,
   });
 
-  // Метод createState (создание объекта состояния)
   @override
   State<GameScreen> createState() => _GameScreenState();
 }
@@ -40,37 +39,30 @@ class _GameScreenState extends State<GameScreen> {
   late AchievementRepositoryRemote _achievementRepository; // Репозиторий достижений
   late AssetRepositoryRemote _assetRepository; // Репозиторий ассетов
 
-  // Кэш картинок (ключ - имя или имя_эмоция)
+  // Кэш картинок
   final Map<String, Uint8List> _backgroundsCache = {};
   final Map<String, Uint8List> _charactersCache = {};
 
-  // Флаг: ассеты загружены
   bool _assetsLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    // Создаю gRPC-сервисы
     _episodeService = EpisodeGrpcService();
     _progressService = ProgressGrpcService();
     _achievementService = AchievementGrpcService();
     _assetService = AssetGrpcService();
-    // Создаю репозитории
     _episodeRepository = EpisodeRepositoryRemote(_episodeService);
     _progressRepository = ProgressRepositoryRemote(_progressService);
     _achievementRepository = AchievementRepositoryRemote(_achievementService);
     _assetRepository = AssetRepositoryRemote(_assetService);
-    // Создаю ViewModel
     _viewModel = GameViewModel(_episodeRepository, _progressRepository, _achievementRepository);
-    // Загружаю эпизод с сервера по ID
     _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
-    // Загружаю ассеты
     _loadAssets();
   }
 
   @override
   void dispose() {
-    // Закрываю соединения
     _episodeService.close();
     _progressService.close();
     _achievementService.close();
@@ -79,10 +71,9 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
-  // Загрузка всех ассетов (фонов и персонажей) в кэш
+  // Загрузка всех ассетов в кэш
   Future<void> _loadAssets() async {
     try {
-      // Загружаю фоны
       final backgrounds = await _assetRepository.getAssets('background');
       for (final a in backgrounds) {
         if (a.fileData.isNotEmpty) {
@@ -90,11 +81,9 @@ class _GameScreenState extends State<GameScreen> {
         }
       }
 
-      // Загружаю персонажей
       final characters = await _assetRepository.getAssets('character');
       for (final a in characters) {
         if (a.fileData.isNotEmpty) {
-          // Ключ: имя_эмоция
           final key = a.emotion.isEmpty ? a.name : '${a.name}_${a.emotion}';
           _charactersCache[key] = Uint8List.fromList(a.fileData);
         }
@@ -108,7 +97,7 @@ class _GameScreenState extends State<GameScreen> {
       debugPrint('Ошибка загрузки ассетов: $e');
       if (!mounted) return;
       setState(() {
-        _assetsLoaded = true; // Всё равно грузим игру, но без картинок
+        _assetsLoaded = true;
       });
     }
   }
@@ -133,16 +122,24 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  // Получаю байты фона по имени
+  // Отступы для текста (чтобы не пересекаться с кнопками)
+  EdgeInsets _getTextPadding(String position) {
+    if (position.startsWith('top')) {
+      return const EdgeInsets.only(top: 70, left: 16, right: 16, bottom: 16);
+    }
+    if (position.startsWith('bottom')) {
+      return const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 90);
+    }
+    return const EdgeInsets.all(16);
+  }
+
   Uint8List? _getBackgroundBytes(String background) {
     if (background.isEmpty) return null;
     return _backgroundsCache[background];
   }
 
-  // Получаю байты персонажа по имени и эмоции
   Uint8List? _getCharacterBytes(String character, String emotion) {
     if (character.isEmpty) return null;
-    // Пробую сначала с эмоцией, потом без
     final keyWithEmotion = emotion.isEmpty ? character : '${character}_$emotion';
     if (_charactersCache.containsKey(keyWithEmotion)) {
       return _charactersCache[keyWithEmotion];
@@ -150,43 +147,32 @@ class _GameScreenState extends State<GameScreen> {
     return _charactersCache[character];
   }
 
-  // Получаю имя персонажа для отображения
   String _getCharacterName(String character) {
     switch (character) {
-      case 'marinet':
-        return 'Маринетт';
-      case 'adrian':
-        return 'Адриан';
-      case 'cat':
-        return 'Супер-Кот';
-      case 'ladybug':
-        return 'Леди Баг';
-      case 'luka':
-        return 'Лука';
-      case 'mama':
-        return 'Мама';
-      case 'grandpa':
-        return 'Дедушка';
-      default:
-        return character;
+      case 'marinet': return 'Маринетт';
+      case 'adrian': return 'Адриан';
+      case 'cat': return 'Супер-Кот';
+      case 'ladybug': return 'Леди Баг';
+      case 'luka': return 'Лука';
+      case 'mama': return 'Мама';
+      case 'grandpa': return 'Дедушка';
+      default: return character;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
-      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
       body: ListenableBuilder(
-        listenable: _viewModel, // Слушаю ViewModel
+        listenable: _viewModel,
         builder: (context, _) {
-          final state = _viewModel.state; // Текущее состояние
+          final state = _viewModel.state;
 
-          // Если загрузка (эпизод или ассеты)
           if (state.isLoading || !_assetsLoaded) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Если ошибка
           if (state.error != null) {
             return Center(
               child: Text(
@@ -196,10 +182,8 @@ class _GameScreenState extends State<GameScreen> {
             );
           }
 
-          // Если эпизод загружен
           final scene = _viewModel.currentScene;
 
-          // Если сцены нет
           if (scene == null) {
             return const Center(
               child: Text(
@@ -209,20 +193,17 @@ class _GameScreenState extends State<GameScreen> {
             );
           }
 
-          // Получаю байты картинок
           final bgBytes = _getBackgroundBytes(scene.background);
           final charBytes = _getCharacterBytes(scene.character, scene.characterEmotion);
           final charName = _getCharacterName(scene.character);
 
-          // Основной интерфейс
           return GestureDetector(
-            // Клик по экрану - следующая реплика
             onTap: () {
               if (_viewModel.hasMoreTexts) {
                 _viewModel.nextText();
               }
             },
-            child: Stack( // Стопка виджетов
+            child: Stack(
               children: [
                 // Фон сцены
                 Positioned.fill(
@@ -288,7 +269,6 @@ class _GameScreenState extends State<GameScreen> {
                   right: 16,
                   child: Row(
                     children: [
-                      // Кнопка выхода
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Container(
@@ -304,7 +284,6 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       ),
                       const Spacer(),
-                      // Баллы
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -326,7 +305,7 @@ class _GameScreenState extends State<GameScreen> {
                     ],
                   ),
                 ),
-                // Текст
+                // Текст (с отступами)
                 Align(
                   alignment: _getAlignment(
                     scene.textPosition.isNotEmpty
@@ -334,12 +313,15 @@ class _GameScreenState extends State<GameScreen> {
                         : 'bottom_center',
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: _getTextPadding(
+                      scene.textPosition.isNotEmpty
+                          ? scene.textPosition
+                          : 'bottom_center',
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Имя персонажа над текстом
                         if (charName.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(left: 8, bottom: 4),
@@ -362,7 +344,6 @@ class _GameScreenState extends State<GameScreen> {
                               ),
                             ),
                           ),
-                        // Текст сцены (розовое облачко)
                         GestureDetector(
                           onTap: () {
                             if (_viewModel.hasMoreTexts) {
@@ -439,7 +420,7 @@ class _GameScreenState extends State<GameScreen> {
                       }).toList(),
                     ),
                   )
-                // Кнопка дальше
+                // Кнопка дальше - внизу экрана
                 else if (_viewModel.isTextFinished && scene.choices.isEmpty)
                   Positioned(
                     left: 16,

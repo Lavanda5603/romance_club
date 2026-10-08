@@ -114,3 +114,29 @@ final $typed_data.Uint8List uploadAssetResponseDescriptor = $convert.base64Decod
     'ChNVcGxvYWRBc3NldFJlc3BvbnNlEhgKB3N1Y2Nlc3MYASABKAhSB3N1Y2Nlc3MSGAoHbWVzc2'
     'FnZRgCIAEoCVIHbWVzc2FnZRIpCgVhc3NldBgDIAEoCzITLnJvbWFuY2VfY2x1Yi5Bc3NldFIF'
     'YXNzZXQ=');
+
+@$core.Deprecated('Use deleteAssetRequestDescriptor instead')
+const DeleteAssetRequest$json = {
+  '1': 'DeleteAssetRequest',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+  ],
+};
+
+/// Descriptor for `DeleteAssetRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List deleteAssetRequestDescriptor =
+    $convert.base64Decode('ChJEZWxldGVBc3NldFJlcXVlc3QSDgoCaWQYASABKAlSAmlk');
+
+@$core.Deprecated('Use deleteAssetResponseDescriptor instead')
+const DeleteAssetResponse$json = {
+  '1': 'DeleteAssetResponse',
+  '2': [
+    {'1': 'success', '3': 1, '4': 1, '5': 8, '10': 'success'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+  ],
+};
+
+/// Descriptor for `DeleteAssetResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List deleteAssetResponseDescriptor = $convert.base64Decode(
+    'ChNEZWxldGVBc3NldFJlc3BvbnNlEhgKB3N1Y2Nlc3MYASABKAhSB3N1Y2Nlc3MSGAoHbWVzc2'
+    'FnZRgCIAEoCVIHbWVzc2FnZQ==');

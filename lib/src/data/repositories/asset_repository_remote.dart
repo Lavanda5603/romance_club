@@ -54,6 +54,18 @@ class AssetRepositoryRemote implements AssetRepository {
     }
   }
 
+  // Удалить ассет по ID
+  @override
+  Future<bool> deleteAsset(String id) async {
+    try {
+      // Отправляю на сервер
+      final response = await _service.deleteAsset(id);
+      return response.success;
+    } catch (e) {
+      return false; // Ошибка удаления
+    }
+  }
+
   // Преобразование Protobuf-модели в доменную
   AssetModel toDomain(Asset asset) {
     return AssetModel(

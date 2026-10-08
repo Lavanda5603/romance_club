@@ -21,43 +21,43 @@ class SceneEditorScreen extends StatefulWidget {
     this.episodeId = '',
   });
 
-  // Метод createState (создание объекта состояния)
   @override
   State<SceneEditorScreen> createState() => _SceneEditorScreenState();
 }
 
 class _SceneEditorScreenState extends State<SceneEditorScreen> {
-  late TextEditingController _titleController; // Контроллер названия
-  late TextEditingController _conditionController; // Контроллер условия
-  late TextEditingController _musicController; // Контроллер музыки
+  late TextEditingController _titleController;
+  late TextEditingController _conditionController;
+  late TextEditingController _musicController;
 
-  // Список контроллеров для каждого текста
   late List<TextEditingController> _textControllers;
 
-  // gRPC-сервис и репозиторий ассетов
   late AssetGrpcService _assetService;
   late AssetRepositoryRemote _assetRepository;
 
-  // Выбранный фон и персонаж (плюс байты для предпросмотра)
   String _selectedBackground = '';
   Uint8List? _selectedBackgroundBytes;
   String _selectedCharacter = '';
   String _selectedEmotion = '';
   Uint8List? _selectedCharacterBytes;
 
-  // Позиции
   String _selectedCharacterPosition = 'center';
   String _selectedTextPosition = 'bottom_center';
 
-  // Список позиций (английские значения — для БД)
-  final List<String> _positions = [
+  // Список позиций персонажа (9 вариантов)
+  final List<String> _characterPositions = [
     'top_left', 'top_center', 'top_right',
     'center_left', 'center', 'center_right',
     'bottom_left', 'bottom_center', 'bottom_right',
   ];
 
-  // Русские названия позиций (для отображения)
-  final Map<String, String> _positionNames = {
+  // Список позиций текста (3 варианта)
+  final List<String> _textPositions = [
+    'top_center', 'center', 'bottom_center',
+  ];
+
+  // Русские названия позиций персонажа
+  final Map<String, String> _characterPositionNames = {
     'top_left': 'Сверху слева',
     'top_center': 'Сверху по центру',
     'top_right': 'Сверху справа',
@@ -69,16 +69,21 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     'bottom_right': 'Снизу справа',
   };
 
+  // Русские названия позиций текста
+  final Map<String, String> _textPositionNames = {
+    'top_center': 'Сверху',
+    'center': 'По центру',
+    'bottom_center': 'Снизу',
+  };
+
   @override
   void initState() {
     super.initState();
 
-    // Создаю контроллеры
     _titleController = TextEditingController(text: widget.scene.title);
     _conditionController = TextEditingController(text: widget.scene.condition);
     _musicController = TextEditingController();
 
-    // Создаю контроллеры для каждого существующего текста
     _textControllers = widget.scene.texts
         .map((t) => TextEditingController(text: t))
         .toList();
@@ -87,7 +92,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       _textControllers.add(TextEditingController());
     }
 
-    // Инициализирую выбранные значения
     _selectedBackground = widget.scene.background;
     _selectedCharacter = widget.scene.character;
     _selectedEmotion = widget.scene.characterEmotion;
@@ -98,11 +102,19 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         ? widget.scene.textPosition
         : 'bottom_center';
 
-    // Создаю сервис и репозиторий
+    // Для совместимости
+    if (!_textPositions.contains(_selectedTextPosition)) {
+      if (_selectedTextPosition.startsWith('top')) {
+        _selectedTextPosition = 'top_center';
+      } else if (_selectedTextPosition.startsWith('bottom')) {
+        _selectedTextPosition = 'bottom_center';
+      } else {
+        _selectedTextPosition = 'center';
+      }
+    }
     _assetService = AssetGrpcService();
     _assetRepository = AssetRepositoryRemote(_assetService);
 
-    // Загружаю байты для уже выбранных фона и персонажа
     _loadSelectedAssets();
   }
 
@@ -118,10 +130,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     super.dispose();
   }
 
-  // Загрузка байтов для уже выбранных фона и персонажа
   Future<void> _loadSelectedAssets() async {
     try {
-      // Загружаю фоны
       final backgrounds = await _assetRepository.getAssets('background');
       for (final a in backgrounds) {
         if (a.name == _selectedBackground && a.fileData.isNotEmpty) {
@@ -130,7 +140,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         }
       }
 
-      // Загружаю персонажей
       final characters = await _assetRepository.getAssets('character');
       for (final a in characters) {
         if (a.name == _selectedCharacter &&
@@ -148,14 +157,12 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
-  // Добавить новое поле текста
   void _addTextField() {
     setState(() {
       _textControllers.add(TextEditingController());
     });
   }
 
-  // Удалить поле текста по индексу
   void _removeTextField(int index) {
     setState(() {
       _textControllers[index].dispose();
@@ -163,7 +170,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     });
   }
 
-  // Открыть экран выбора фона
   Future<void> _pickBackground() async {
     final result = await Navigator.push<AssetModel>(
       context,
@@ -186,7 +192,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
-  // Открыть экран выбора персонажа
   Future<void> _pickCharacter() async {
     final result = await Navigator.push<AssetModel>(
       context,
@@ -209,7 +214,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
-  // Убрать персонажа из сцены
   void _removeCharacter() {
     setState(() {
       _selectedCharacter = '';
@@ -218,7 +222,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     });
   }
 
-  // Сохранение сцены
   void _saveScene() {
     final newScene = Scene(
       id: widget.scene.id,
@@ -249,7 +252,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     Navigator.pop(context);
   }
 
-  // Добавление нового выбора
   void _addChoice() {
     Navigator.push(
       context,
@@ -267,7 +269,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
-  // Редактирование выбора
   void _editChoice(int index) {
     Navigator.push(
       context,
@@ -284,7 +285,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
-  // Удаление выбора
   Future<void> _deleteChoice(int index) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -315,7 +315,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
-  // Виджет поля ввода с рамкой
   Widget _buildField(String label, TextEditingController controller,
       {int maxLines = 1, TextInputType? keyboardType}) {
     return Column(
@@ -350,9 +349,15 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
-  // Виджет выпадающего списка (с русскими названиями)
-  Widget _buildDropdown(String label, String value, Function(String?) onChanged) {
-    final safeItems = _positions.contains(value) ? _positions : [value, ..._positions];
+  // Выпадающий список позиций (принимает список и словарь названий)
+  Widget _buildDropdown(
+    String label,
+    String value,
+    List<String> items,
+    Map<String, String> names,
+    Function(String?) onChanged,
+  ) {
+    final safeItems = items.contains(value) ? items : [value, ...items];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,7 +382,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             items: safeItems.map((item) {
               return DropdownMenuItem<String>(
                 value: item,
-                child: Text(_positionNames[item] ?? item), // Русское название
+                child: Text(names[item] ?? item),
               );
             }).toList(),
             onChanged: onChanged,
@@ -388,7 +393,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
-  // Виджет предпросмотра (картинки из байтов)
   Widget _buildPreview() {
     Alignment getAlign(String pos) {
       switch (pos) {
@@ -423,7 +427,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             borderRadius: BorderRadius.circular(11),
             child: Stack(
               children: [
-                // Фон
                 Positioned.fill(
                   child: _selectedBackgroundBytes == null
                       ? Container(color: const Color(0xFF333333))
@@ -435,7 +438,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           },
                         ),
                 ),
-                // Персонаж
                 if (_selectedCharacterBytes != null)
                   Positioned(
                     top: 20,
@@ -461,7 +463,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                       ),
                     ),
                   ),
-                // Текст
                 Align(
                   alignment: getAlign(_selectedTextPosition),
                   child: Padding(
@@ -640,9 +641,12 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         ),
                         const SizedBox(height: 16),
 
+                        // Позиция персонажа (9 вариантов)
                         _buildDropdown(
                           'позиция персонажа',
                           _selectedCharacterPosition,
+                          _characterPositions,
+                          _characterPositionNames,
                           (value) {
                             if (value != null) {
                               setState(() => _selectedCharacterPosition = value);
@@ -650,9 +654,12 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           },
                         ),
 
+                        // Позиция текста (3 варианта)
                         _buildDropdown(
                           'позиция текста',
                           _selectedTextPosition,
+                          _textPositions,
+                          _textPositionNames,
                           (value) {
                             if (value != null) {
                               setState(() => _selectedTextPosition = value);

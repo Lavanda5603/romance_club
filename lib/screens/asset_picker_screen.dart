@@ -76,7 +76,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
   // Загрузка нового ассета
   Future<void> _uploadNewAsset() async {
-    // Открываю диалог выбора файла (withData: true 0 чтобы получить байты)
+    // Открываю диалог выбора файла
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['png', 'jpg', 'jpeg'],
@@ -87,7 +87,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     final file = result.files.first;
 
-    // Получаю байты (сначала из file.bytes, потом из файла по пути)
+    // Получаю байты
     Uint8List? bytes = file.bytes;
     if (bytes == null && file.path != null) {
       bytes = await File(file.path!).readAsBytes();
@@ -106,7 +106,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     // Контроллеры для диалога
     final nameController = TextEditingController();
     final displayController = TextEditingController(text: file.name);
-    final emotionController = TextEditingController(); // Эмоция
+    final emotionController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -117,7 +117,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Имя (техническое)
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
@@ -126,7 +125,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Эмоция (только для персонажей)
                 if (widget.type == 'character')
                   TextField(
                     controller: emotionController,
@@ -137,7 +135,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                   ),
                 if (widget.type == 'character')
                   const SizedBox(height: 8),
-                // Отображаемое имя
                 TextField(
                   controller: displayController,
                   decoration: const InputDecoration(
@@ -164,7 +161,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     if (confirmed != true) return;
     if (!mounted) return;
 
-    // Проверяю имя
     final name = nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -173,19 +169,14 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       return;
     }
 
-    // Показываю индикатор
     setState(() => _isUploading = true);
 
-    // Формирую имя с префиксом
-    final fullName = widget.type == 'background'
-        ? 'ep1/$name' // Фоны
-        : name; // Персонажи
+    final fullName = widget.type == 'background' ? 'ep1/$name' : name;
 
-    // Отправляю на сервер
     final asset = await _repository.uploadAsset(
       type: widget.type,
       name: fullName,
-      emotion: emotionController.text.trim(), // Эмоция
+      emotion: emotionController.text.trim(),
       displayName: displayController.text.trim(),
       episodeId: widget.episodeId,
       fileData: bytes,
@@ -205,6 +196,50 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ошибка загрузки')),
+      );
+    }
+  }
+
+  // Удалить ассет (с подтверждением)
+  Future<void> _deleteAsset(AssetModel asset) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Удалить ассет?'),
+          content: Text('Удалить "${asset.displayName}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Отмена'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Удалить'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    // Отправляю на сервер
+    final success = await _repository.deleteAsset(asset.id);
+
+    if (!mounted) return;
+
+    if (success) {
+      setState(() {
+        _assets.removeWhere((a) => a.id == asset.id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ассет удалён')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ошибка удаления')),
       );
     }
   }
@@ -311,67 +346,92 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                 final asset = _assets[index];
                                 return GestureDetector(
                                   onTap: () => Navigator.pop(context, asset),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF3F0404),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: const Color(0xFFFFA0A0),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Expanded(
-                                          child: ClipRRect(
-                                            borderRadius: const BorderRadius.vertical(
-                                              top: Radius.circular(11),
-                                            ),
-                                            child: asset.fileData.isEmpty
-                                                ? Container(
-                                                    color: const Color(0xFF333333),
-                                                    child: const Center(
-                                                      child: Icon(
-                                                        Icons.image_not_supported,
-                                                        color: Colors.white,
-                                                        size: 24,
-                                                      ),
-                                                    ),
-                                                  )
-                                                : Image.memory(
-                                                    Uint8List.fromList(asset.fileData),
-                                                    fit: BoxFit.cover,
-                                                    width: double.infinity,
-                                                    errorBuilder: (context, error, stackTrace) {
-                                                      return Container(
+                                  child: Stack(
+                                    children: [
+                                      // Карточка
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF3F0404),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: const Color(0xFFFFA0A0),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Expanded(
+                                              child: ClipRRect(
+                                                borderRadius: const BorderRadius.vertical(
+                                                  top: Radius.circular(11),
+                                                ),
+                                                child: asset.fileData.isEmpty
+                                                    ? Container(
                                                         color: const Color(0xFF333333),
                                                         child: const Center(
                                                           child: Icon(
-                                                            Icons.broken_image,
+                                                            Icons.image_not_supported,
                                                             color: Colors.white,
                                                             size: 24,
                                                           ),
                                                         ),
-                                                      );
-                                                    },
-                                                  ),
-                                          ),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.all(4),
-                                          child: Text(
-                                            asset.displayName,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
+                                                      )
+                                                    : Image.memory(
+                                                        Uint8List.fromList(asset.fileData),
+                                                        fit: BoxFit.cover,
+                                                        width: double.infinity,
+                                                        errorBuilder: (context, error, stackTrace) {
+                                                          return Container(
+                                                            color: const Color(0xFF333333),
+                                                            child: const Center(
+                                                              child: Icon(
+                                                                Icons.broken_image,
+                                                                color: Colors.white,
+                                                                size: 24,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
+                                                      ),
+                                              ),
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.center,
+                                            Padding(
+                                              padding: const EdgeInsets.all(4),
+                                              child: Text(
+                                                asset.displayName,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Кнопка удаления (корзина)
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: GestureDetector(
+                                          onTap: () => _deleteAsset(asset),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(alpha: 0.7),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.delete_outline,
+                                              color: Color(0xFFD30010),
+                                              size: 18,
+                                            ),
                                           ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               },

@@ -497,6 +497,135 @@ class UploadAssetResponse extends $pb.GeneratedMessage {
   Asset ensureAsset() => $_ensure(2);
 }
 
+/// Запрос на удаление ассета
+class DeleteAssetRequest extends $pb.GeneratedMessage {
+  factory DeleteAssetRequest({
+    $core.String? id,
+  }) {
+    final result = DeleteAssetRequest._();
+    if (id != null) result.id = id;
+    return result;
+  }
+
+  DeleteAssetRequest._();
+
+  factory DeleteAssetRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeleteAssetRequest()..mergeFromBuffer(data, registry);
+  factory DeleteAssetRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeleteAssetRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DeleteAssetRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: DeleteAssetRequest.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteAssetRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteAssetRequest copyWith(void Function(DeleteAssetRequest) updates) =>
+      super.copyWith((message) => updates(message as DeleteAssetRequest))
+          as DeleteAssetRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use DeleteAssetRequest() / DeleteAssetRequest.new instead')
+  static DeleteAssetRequest create() => DeleteAssetRequest._();
+  static $pb.GeneratedMessage $_createMessage() => DeleteAssetRequest._();
+  @$core.override
+  DeleteAssetRequest createEmptyInstance() => DeleteAssetRequest._();
+  @$core.pragma('dart2js:noInline')
+  static DeleteAssetRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<DeleteAssetRequest>(
+          DeleteAssetRequest.$_createMessage);
+  static DeleteAssetRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+}
+
+/// Ответ после удаления
+class DeleteAssetResponse extends $pb.GeneratedMessage {
+  factory DeleteAssetResponse({
+    $core.bool? success,
+    $core.String? message,
+  }) {
+    final result = DeleteAssetResponse._();
+    if (success != null) result.success = success;
+    if (message != null) result.message = message;
+    return result;
+  }
+
+  DeleteAssetResponse._();
+
+  factory DeleteAssetResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeleteAssetResponse()..mergeFromBuffer(data, registry);
+  factory DeleteAssetResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeleteAssetResponse()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DeleteAssetResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: DeleteAssetResponse.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'success')
+    ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteAssetResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeleteAssetResponse copyWith(void Function(DeleteAssetResponse) updates) =>
+      super.copyWith((message) => updates(message as DeleteAssetResponse))
+          as DeleteAssetResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use DeleteAssetResponse() / DeleteAssetResponse.new instead')
+  static DeleteAssetResponse create() => DeleteAssetResponse._();
+  static $pb.GeneratedMessage $_createMessage() => DeleteAssetResponse._();
+  @$core.override
+  DeleteAssetResponse createEmptyInstance() => DeleteAssetResponse._();
+  @$core.pragma('dart2js:noInline')
+  static DeleteAssetResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<DeleteAssetResponse>(
+          DeleteAssetResponse.$_createMessage);
+  static DeleteAssetResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get success => $_getBF(0);
+  @$pb.TagNumber(1)
+  set success($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSuccess() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSuccess() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get message => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set message($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMessage() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMessage() => $_clearField(2);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

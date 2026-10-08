@@ -47,6 +47,13 @@ class AssetApiClient extends $grpc.Client {
     return $createUnaryCall(_$uploadAsset, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.DeleteAssetResponse> deleteAsset(
+    $0.DeleteAssetRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$deleteAsset, request, options: options);
+  }
+
   // method descriptors
 
   static final _$getAssets =
@@ -59,6 +66,11 @@ class AssetApiClient extends $grpc.Client {
           '/romance_club.AssetApi/UploadAsset',
           ($0.UploadAssetRequest value) => value.writeToBuffer(),
           $0.UploadAssetResponse.fromBuffer);
+  static final _$deleteAsset =
+      $grpc.ClientMethod<$0.DeleteAssetRequest, $0.DeleteAssetResponse>(
+          '/romance_club.AssetApi/DeleteAsset',
+          ($0.DeleteAssetRequest value) => value.writeToBuffer(),
+          $0.DeleteAssetResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('romance_club.AssetApi')
@@ -82,6 +94,15 @@ abstract class AssetApiServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.UploadAssetRequest.fromBuffer(value),
             ($0.UploadAssetResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.DeleteAssetRequest, $0.DeleteAssetResponse>(
+            'DeleteAsset',
+            deleteAsset_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.DeleteAssetRequest.fromBuffer(value),
+            ($0.DeleteAssetResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.GetAssetsResponse> getAssets_Pre($grpc.ServiceCall $call,
@@ -99,4 +120,12 @@ abstract class AssetApiServiceBase extends $grpc.Service {
 
   $async.Future<$0.UploadAssetResponse> uploadAsset(
       $grpc.ServiceCall call, $0.UploadAssetRequest request);
+
+  $async.Future<$0.DeleteAssetResponse> deleteAsset_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.DeleteAssetRequest> $request) async {
+    return deleteAsset($call, await $request);
+  }
+
+  $async.Future<$0.DeleteAssetResponse> deleteAsset(
+      $grpc.ServiceCall call, $0.DeleteAssetRequest request);
 }

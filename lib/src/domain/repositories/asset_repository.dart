@@ -16,4 +16,7 @@ abstract class AssetRepository {
     required Uint8List fileData, // Байты файла
     required String fileName, // Имя файла с расширением
   });
+
+  // Удалить ассет по ID
+  Future<bool> deleteAsset(String id);
 }

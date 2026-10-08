@@ -280,16 +280,29 @@ impl EpisodeApi for EpisodeApiService {
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 2. Удаляю старые сцены эпизода (чтобы не дублировать)
+        // 2. Удаляю старые action эпизода (сначала - самые вложенные)
+        self.db
+            .query("DELETE action WHERE choice_id IN (SELECT id FROM choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id)))")
+            .bind(("id", id))
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        // 3. Удаляю старые choice эпизода
+        self.db
+            .query("DELETE choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id))")
+            .bind(("id", id))
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        // 4. Удаляю старые scene эпизода
         self.db
             .query("DELETE scene WHERE episode_id = type::record('episode', $id)")
             .bind(("id", id))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 3. Сохраняю сцены (CREATE с type::record)
+        // 5. Сохраняю сцены (CREATE с type::record)
         for (scene_index, scene) in episode.scenes.iter().enumerate() {
-            // Создаю сцену, сразу получаю её id через RETURN id  (character_emotion в CONTENT)
             let mut sc_response = self
                 .db
                 .query("CREATE scene CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, character_emotion: $char_emotion, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order } RETURN id")
@@ -306,7 +319,6 @@ impl EpisodeApi for EpisodeApiService {
                 .await
                 .map_err(|e| Status::internal(e.to_string()))?;
 
-            // Извлекаю id созданной сцены
             let scene_id_value: Option<Value> = sc_response
                 .take(0)
                 .map_err(|e| Status::internal(e.to_string()))?;
@@ -321,7 +333,7 @@ impl EpisodeApi for EpisodeApiService {
                 None => continue,
             };
 
-            // 4. Сохраняю выборы
+            // 6. Сохраняю выборы
             for (choice_index, choice) in scene.choices.iter().enumerate() {
                 let mut ch_response = self
                     .db
@@ -347,7 +359,7 @@ impl EpisodeApi for EpisodeApiService {
                     None => continue,
                 };
 
-                // 5. Сохраняю действия
+                // 7. Сохраняю действия
                 for action in choice.actions.iter() {
                     let _: Option<Value> = self
                         .db

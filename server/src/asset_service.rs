@@ -7,6 +7,7 @@ use crate::romance_club::asset_api_server::AssetApi; // Импорт трейт�
 use crate::romance_club::{
     Asset, GetAssetsRequest, GetAssetsResponse,
     UploadAssetRequest, UploadAssetResponse,
+    DeleteAssetRequest, DeleteAssetResponse,
 }; // Импорт структур
 
 // Сервис для работы с ассетами
@@ -123,7 +124,7 @@ impl AssetApi for AssetApiService {
             format!("assets/{}/{}_{}", req.r#type, req.name, req.emotion)
         };
 
-        // Эмоция: пустая строка - NONE
+        // Эмоция: пустая строка
         let emotion_value: Option<String> = if req.emotion.is_empty() {
             None
         } else {
@@ -177,6 +178,37 @@ impl AssetApi for AssetApiService {
             success: true,
             message: "Ассет загружен".to_string(),
             asset: Some(asset),
+        }))
+    }
+
+    // Удалить ассет по ID
+    async fn delete_asset(
+        &self,
+        request: Request<DeleteAssetRequest>,
+    ) -> Result<Response<DeleteAssetResponse>, Status> {
+        let id = request.into_inner().id;
+
+        println!("[DELETE_ASSET] Удаляю ассет: {}", id);
+
+        if id.is_empty() {
+            return Err(Status::invalid_argument("ID обязателен"));
+        }
+
+        // Удаляю запись
+        self.db
+            .query("DELETE type::record($id)")
+            .bind(("id", id.clone()))
+            .await
+            .map_err(|e| {
+                println!("[DELETE_ASSET] ОШИБКА: {}", e);
+                Status::internal(format!("Ошибка удаления: {}", e))
+            })?;
+
+        println!("[DELETE_ASSET] Ассет удалён: {}", id);
+
+        Ok(Response::new(DeleteAssetResponse {
+            success: true,
+            message: "Ассет удалён".to_string(),
         }))
     }
 }

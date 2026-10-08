@@ -28,7 +28,7 @@ message GetAssetsResponse {
 // Запрос на загрузку нового ассета
 message UploadAssetRequest {
   string type = 1; // Тип
-  string name = 2; // Имя: ep1/new_bg, marinet
+  string name = 2; // Имя
   string emotion = 3; // Эмоция
   string display_name = 4; // Человеческое имя
   string episode_id = 5; // ID эпизода
@@ -43,8 +43,20 @@ message UploadAssetResponse {
   Asset asset = 3; // Созданный ассет
 }
 
+// Запрос на удаление ассета
+message DeleteAssetRequest {
+  string id = 1; // ID ассета (asset:xyz)
+}
+
+// Ответ после удаления
+message DeleteAssetResponse {
+  bool success = 1; // Успешно ли
+  string message = 2; // Сообщение
+}
+
 // gRPC-сервис для работы с ассетами
 service AssetApi {
-  rpc GetAssets(GetAssetsRequest) returns (GetAssetsResponse); // Получить ассеты по типу
-  rpc UploadAsset(UploadAssetRequest) returns (UploadAssetResponse); // Загрузить новый ассет
+  rpc GetAssets(GetAssetsRequest) returns (GetAssetsResponse); // Получить ассеты
+  rpc UploadAsset(UploadAssetRequest) returns (UploadAssetResponse); // Загрузить
+  rpc DeleteAsset(DeleteAssetRequest) returns (DeleteAssetResponse); // Удалить
 }

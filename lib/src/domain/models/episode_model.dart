@@ -16,17 +16,18 @@ class EpisodeModel {
 
 // Доменная модель сцены
 class SceneModel {
-  final int id; // ID сцены (номер)
+  final int id; // ID сцены
   final String sceneKey; // Настоящий ID в SurrealDB
   final String title; // Название
   final String background; // Фон
   final String character; // Персонаж
-  final String characterEmotion; // Эмоция персонажа
+  final String characterEmotion; // Эмоция
   final List<String> texts; // Тексты
   final List<ChoiceModel> choices; // Выборы
   final String condition; // Условие
   final String textPosition; // Позиция текста
   final String characterPosition; // Позиция персонажа
+  final int nextSceneId; // ID следующей сцены (0 = конец)
 
   // Конструктор класса SceneModel
   const SceneModel({
@@ -41,6 +42,7 @@ class SceneModel {
     required this.condition,
     required this.textPosition,
     required this.characterPosition,
+    required this.nextSceneId,
   });
 }
 

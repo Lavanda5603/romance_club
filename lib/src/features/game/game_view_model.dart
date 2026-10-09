@@ -76,8 +76,11 @@ class GameViewModel extends ChangeNotifier {
   // Геттер для концовки
   String get ending => _ending;
 
-  // Геттер: последняя ли сцена
+  // Геттер: последняя ли сцена (или nextSceneId == 0)
   bool get isLastScene {
+    if (currentScene == null) return true;
+    // Если next_scene_id == 0 - это конец
+    if (currentScene!.nextSceneId == 0) return true;
     if (_state.data == null) return false;
     return _currentSceneIndex >= _state.data!.scenes.length - 1;
   }
@@ -160,6 +163,7 @@ class GameViewModel extends ChangeNotifier {
   }
 
   // Проверка условия сцены
+  // ignore: unused_element
   bool _isConditionMet(String condition) {
     // Если условие пустое - показываю сцену
     if (condition.isEmpty) return true;
@@ -212,33 +216,20 @@ class GameViewModel extends ChangeNotifier {
     }
   }
 
-  // Переход к следующей сцене (по порядку)
+  // Переход к следующей сцене (по next_scene_id или по порядку)
   void nextScene() {
     if (_state.data == null) return;
-    if (isLastScene) return;
+    if (currentScene == null) return;
 
-    // Ищу следующую сцену, у которой выполнено условие
-    int nextIndex = _currentSceneIndex + 1;
-    while (nextIndex < _state.data!.scenes.length) {
-      final nextScene = _state.data!.scenes[nextIndex];
-      if (_isConditionMet(nextScene.condition)) {
-        _currentSceneIndex = nextIndex;
-        _currentTextIndex = 0;
-        _saveProgress();
-        _checkAchievements();
-        notifyListeners();
-        return;
-      }
-      // Пропускаю сцену, если условие не выполнено
-      nextIndex++;
+    // Если у сцены задан nextSceneId - иду на него
+    final nextId = currentScene!.nextSceneId;
+    if (nextId > 0) {
+      goToScene(nextId);
+      return;
     }
 
-    // Если не нашла - перехожу на последнюю
-    _currentSceneIndex = _state.data!.scenes.length - 1;
-    _currentTextIndex = 0;
-    _saveProgress();
-    _checkAchievements();
-    notifyListeners();
+    // Если nextSceneId == 0 - конец эпизода
+    return;
   }
 
   // Обработка выбора (индекс выбора в текущей сцене)

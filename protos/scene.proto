@@ -17,4 +17,5 @@ message Scene {
   string character_position = 9; // Позиция персонажа
   string scene_key = 10; // Настоящий ID в SurrealDB
   string character_emotion = 11; // Эмоция персонажа
+  int32 next_scene_id = 12; // ID следующей сцены (0 = конец эпизода)
 }

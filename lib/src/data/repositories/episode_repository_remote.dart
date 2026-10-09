@@ -64,6 +64,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
           condition: scene.condition,
           textPosition: scene.textPosition,
           characterPosition: scene.characterPosition,
+          nextSceneId: scene.nextSceneId,
           choices: scene.choices.map((choice) {
             return ChoiceModel(
               text: choice.text,
@@ -108,6 +109,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
         condition: scene.condition,
         textPosition: scene.textPosition,
         characterPosition: scene.characterPosition,
+        nextSceneId: scene.nextSceneId,
       );
       protoScene.texts.addAll(scene.texts);
 

@@ -32,6 +32,7 @@ class Scene extends $pb.GeneratedMessage {
     $core.String? characterPosition,
     $core.String? sceneKey,
     $core.String? characterEmotion,
+    $core.int? nextSceneId,
   }) {
     final result = Scene._();
     if (id != null) result.id = id;
@@ -45,6 +46,7 @@ class Scene extends $pb.GeneratedMessage {
     if (characterPosition != null) result.characterPosition = characterPosition;
     if (sceneKey != null) result.sceneKey = sceneKey;
     if (characterEmotion != null) result.characterEmotion = characterEmotion;
+    if (nextSceneId != null) result.nextSceneId = nextSceneId;
     return result;
   }
 
@@ -73,6 +75,7 @@ class Scene extends $pb.GeneratedMessage {
     ..aOS(9, _omitFieldNames ? '' : 'characterPosition')
     ..aOS(10, _omitFieldNames ? '' : 'sceneKey')
     ..aOS(11, _omitFieldNames ? '' : 'characterEmotion')
+    ..aI(12, _omitFieldNames ? '' : 'nextSceneId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -181,6 +184,15 @@ class Scene extends $pb.GeneratedMessage {
   $core.bool hasCharacterEmotion() => $_has(10);
   @$pb.TagNumber(11)
   void clearCharacterEmotion() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.int get nextSceneId => $_getIZ(11);
+  @$pb.TagNumber(12)
+  set nextSceneId($core.int value) => $_setSignedInt32(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasNextSceneId() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearNextSceneId() => $_clearField(12);
 }
 
 const $core.bool _omitFieldNames =

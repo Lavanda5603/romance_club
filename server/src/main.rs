@@ -189,6 +189,12 @@ impl EpisodeApi for EpisodeApiService {
                 });
             }
 
+            // Читаю next_scene_id (0 = конец)
+            let next_scene_id = scene_value
+                .get("next_scene_id")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0) as i32;
+
             scenes.push(Scene {
                 id: order_index + 1,
                 scene_key: scene_id_str.clone(),
@@ -201,6 +207,7 @@ impl EpisodeApi for EpisodeApiService {
                 condition,
                 text_position,
                 character_position,
+                next_scene_id,
             });
         }
 
@@ -305,7 +312,7 @@ impl EpisodeApi for EpisodeApiService {
         for (scene_index, scene) in episode.scenes.iter().enumerate() {
             let mut sc_response = self
                 .db
-                .query("CREATE scene CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, character_emotion: $char_emotion, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order } RETURN id")
+                .query("CREATE scene CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, character_emotion: $char_emotion, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order, next_scene_id: $next_scene } RETURN id")
                 .bind(("ep_id", id))
                 .bind(("title", scene.title.clone()))
                 .bind(("background", scene.background.clone()))
@@ -316,6 +323,7 @@ impl EpisodeApi for EpisodeApiService {
                 .bind(("text_pos", scene.text_position.clone()))
                 .bind(("char_pos", scene.character_position.clone()))
                 .bind(("order", scene_index as i32))
+                .bind(("next_scene", scene.next_scene_id))
                 .await
                 .map_err(|e| Status::internal(e.to_string()))?;
 

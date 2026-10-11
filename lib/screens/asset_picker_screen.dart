@@ -169,6 +169,21 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       return;
     }
 
+    // Формирую полное имя с префиксом
+    final fullNameCheck = widget.type == 'background' ? 'ep1/$name' : name;
+    final emotionCheck = emotionController.text.trim();
+
+    // Проверяю - есть ли уже такой ассет в списке
+    final alreadyExists = _assets.any((a) =>
+        a.name == fullNameCheck && a.emotion == emotionCheck);
+
+    if (alreadyExists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ассет с таким именем и эмоцией уже существует')),
+      );
+      return;
+    }
+
     setState(() => _isUploading = true);
 
     final fullName = widget.type == 'background' ? 'ep1/$name' : name;

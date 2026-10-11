@@ -124,14 +124,87 @@ impl AssetApi for AssetApiService {
             format!("assets/{}/{}_{}", req.r#type, req.name, req.emotion)
         };
 
-        // Эмоция: пустая строка
+        // Эмоция: пустая строка - NONE
         let emotion_value: Option<String> = if req.emotion.is_empty() {
             None
         } else {
             Some(req.emotion.clone())
         };
 
-        // Создаю запись в БД
+        // Проверяю - есть ли уже запись с таким name, type и emotion
+        let mut check_response = self
+            .db
+            .query("SELECT id FROM asset WHERE type = $type AND name = $name AND emotion = $emotion")
+            .bind(("type", req.r#type.clone()))
+            .bind(("name", req.name.clone()))
+            .bind(("emotion", emotion_value.clone()))
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        let existing: Vec<Value> = check_response
+            .take(0)
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        // Если запись есть - обновляю её
+        if !existing.is_empty() {
+            let existing_id = existing[0]
+                .get("id")
+                .and_then(|s| s.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            println!("[UPLOAD_ASSET] Найдена существующая запись: {}", existing_id);
+
+            self.db
+                .query("UPDATE type::record($id) SET url = $url, display_name = $display_name, file_data = $file_data")
+                .bind(("id", existing_id.clone()))
+                .bind(("url", url.clone()))
+                .bind(("display_name", if req.display_name.is_empty() { req.name.clone() } else { req.display_name.clone() }))
+                .bind(("file_data", file_base64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            // Читаю обновлённую запись
+            let mut read_response = self
+                .db
+                .query("SELECT * FROM type::record($id)")
+                .bind(("id", existing_id.clone()))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let updated: Option<Value> = read_response
+                .take(0)
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let asset = match updated {
+                Some(v) => {
+                    let id = v.get("id").and_then(|s| s.as_str()).unwrap_or("").to_string();
+                    Asset {
+                        id,
+                        r#type: req.r#type.clone(),
+                        name: req.name.clone(),
+                        emotion: req.emotion.clone(),
+                        url,
+                        display_name: if req.display_name.is_empty() { req.name.clone() } else { req.display_name.clone() },
+                        episode_id: String::new(),
+                        file_data: req.file_data,
+                    }
+                }
+                None => return Err(Status::internal("Не удалось обновить ассет")),
+            };
+
+            println!("[UPLOAD_ASSET] Ассет обновлён: {}", asset.id);
+
+            return Ok(Response::new(UploadAssetResponse {
+                success: true,
+                message: "Ассет обновлён".to_string(),
+                asset: Some(asset),
+            }));
+        }
+
+        // Если записи нет - создаю новую
+        println!("[UPLOAD_ASSET] Создаю новую запись");
+
         let mut response = self
             .db
             .query("CREATE asset CONTENT { type: $type, name: $name, emotion: $emotion, url: $url, display_name: $display_name, file_data: $file_data, created_at: time::now() }")
@@ -147,13 +220,9 @@ impl AssetApi for AssetApiService {
                 Status::internal(format!("Ошибка БД: {}", e))
             })?;
 
-        // Читаю созданную запись
         let created: Option<Value> = response
             .take(0)
-            .map_err(|e| {
-                println!("[UPLOAD_ASSET] ОШИБКА ЧТЕНИЯ: {}", e);
-                Status::internal(format!("Ошибка чтения: {}", e))
-            })?;
+            .map_err(|e| Status::internal(e.to_string()))?;
 
         let asset = match created {
             Some(v) => {
@@ -172,7 +241,7 @@ impl AssetApi for AssetApiService {
             None => return Err(Status::internal("Не удалось создать ассет")),
         };
 
-        println!("[UPLOAD_ASSET] Ассет загружен: {}", asset.id);
+        println!("[UPLOAD_ASSET] Ассет создан: {}", asset.id);
 
         Ok(Response::new(UploadAssetResponse {
             success: true,

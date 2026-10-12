@@ -1,0 +1,25 @@
+syntax = "proto3"; // Версия синтаксиса Protobuf
+
+package romance_club; // Пространство имён
+
+// Запрос на удаление ассета
+message AdminDeleteAssetRequest {
+  string asset_id = 1; // ID ассета
+}
+
+// Запрос на удаление эпизода
+message AdminDeleteEpisodeRequest {
+  int32 episode_id = 1; // ID эпизода
+}
+
+// Ответ админ-операции
+message AdminResponse {
+  bool success = 1; // Успешно ли
+  string message = 2; // Сообщение
+}
+
+// gRPC-сервис для админ-операций
+service AdminApi {
+  rpc DeleteAsset(AdminDeleteAssetRequest) returns (AdminResponse); // Удалить ассет
+  rpc DeleteEpisode(AdminDeleteEpisodeRequest) returns (AdminResponse); // Удалить эпизод
+}

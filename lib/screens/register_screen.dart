@@ -98,8 +98,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       if (result.success) {
-        // Сохраняю player_id локально
+        // Сохраняю player_id и JWT-токен локально
         await StorageService.savePlayerId(result.playerId);
+        await StorageService.saveToken(result.token);
 
         if (!mounted) return;
 

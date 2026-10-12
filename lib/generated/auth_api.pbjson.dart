@@ -70,6 +70,7 @@ const AuthResponse$json = {
       '6': '.romance_club.Player',
       '10': 'player'
     },
+    {'1': 'token', '3': 4, '4': 1, '5': 9, '10': 'token'},
   ],
 };
 
@@ -77,4 +78,4 @@ const AuthResponse$json = {
 final $typed_data.Uint8List authResponseDescriptor = $convert.base64Decode(
     'CgxBdXRoUmVzcG9uc2USGAoHc3VjY2VzcxgBIAEoCFIHc3VjY2VzcxIYCgdtZXNzYWdlGAIgAS'
     'gJUgdtZXNzYWdlEiwKBnBsYXllchgDIAEoCzIULnJvbWFuY2VfY2x1Yi5QbGF5ZXJSBnBsYXll'
-    'cg==');
+    'chIUCgV0b2tlbhgEIAEoCVIFdG9rZW4=');

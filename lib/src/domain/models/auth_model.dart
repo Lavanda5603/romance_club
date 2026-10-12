@@ -6,6 +6,7 @@ class AuthModel {
   final String login; // Логин
   final String email; // Email
   final String createdAt; // Дата регистрации
+  final String token; // JWT-токен
 
   // Конструктор класса AuthModel
   const AuthModel({
@@ -15,6 +16,7 @@ class AuthModel {
     required this.login,
     required this.email,
     required this.createdAt,
+    required this.token,
   });
 
   // Пустой результат
@@ -25,5 +27,6 @@ class AuthModel {
         login: '',
         email: '',
         createdAt: '',
+        token: '',
       );
 }

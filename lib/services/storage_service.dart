@@ -32,7 +32,7 @@ class StorageService {
       buffer.add(bytes);
     }
 
-    await file.writeAsBytes(buffer.toBytes()); // Записываем в файл
+    await file.writeAsBytes(buffer.toBytes()); // Записываю в файл
   }
 
   // Загрузка эпизодов из файла
@@ -108,13 +108,13 @@ class StorageService {
     return File('${directory.path}/player_id.txt'); // Файл player_id.txt
   }
 
-  // Сохранение player_id (строки "player:abc123")
+  // Сохранение player_id
   static Future<void> savePlayerId(String id) async {
     final file = await _getPlayerFile(); // Получаю файл
     await file.writeAsString(id); // Записываю ID
   }
 
-  // Загрузка player_id (строки "player:abc123")
+  // Загрузка player_id
   static Future<String> loadPlayerId() async {
     final file = await _getPlayerFile(); // Получаю файл
 
@@ -123,5 +123,36 @@ class StorageService {
     }
 
     return await file.readAsString(); // Читаю ID
+  }
+
+  // Получение файла для хранения JWT-токена
+  static Future<File> _getTokenFile() async {
+    final directory = await getApplicationDocumentsDirectory(); // Папка приложения
+    return File('${directory.path}/token.txt'); // Файл token.txt
+  }
+
+  // Сохранение JWT-токена
+  static Future<void> saveToken(String token) async {
+    final file = await _getTokenFile(); // Получаю файл
+    await file.writeAsString(token); // Записываю токен
+  }
+
+  // Загрузка JWT-токена
+  static Future<String> loadToken() async {
+    final file = await _getTokenFile(); // Получаю файл
+
+    if (!await file.exists()) {
+      return ''; // Если файла нет - возвращаю пустую строку
+    }
+
+    return await file.readAsString(); // Читаю токен
+  }
+
+  // Удаление JWT-токена (при выходе)
+  static Future<void> deleteToken() async {
+    final file = await _getTokenFile(); // Получаю файл
+    if (await file.exists()) {
+      await file.delete(); // Удаляю файл
+    }
   }
 }

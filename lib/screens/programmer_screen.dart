@@ -1,43 +1,44 @@
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import 'episode_editor_screen.dart'; // Импорт экрана редактирования эпизода
-import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса
+import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
+import '../src/data/services/admin_grpc_service.dart'; // Импорт gRPC-сервиса админа
+import '../src/data/repositories/admin_repository_remote.dart'; // Импорт админ-репозитория
 
 // Экран режима разработчика
 class ProgrammerScreen extends StatefulWidget {
-  // Конструктор класса ProgrammerScreen
   const ProgrammerScreen({super.key});
 
-  // Метод createState (создание объекта состояния)
   @override
   State<ProgrammerScreen> createState() => _ProgrammerScreenState();
 }
 
 class _ProgrammerScreenState extends State<ProgrammerScreen> {
-  final List<Episode> _episodes = []; // Список эпизодов (Protobuf-модели)
+  List<Episode> _episodes = []; // Список эпизодов
 
-  // gRPC-сервис
-  late EpisodeGrpcService _service;
+  late EpisodeGrpcService _service; // gRPC-сервис эпизодов
+  late AdminGrpcService _adminService; // gRPC-сервис админа
+  late AdminRepositoryRemote _adminRepository; // Админ-репозиторий
 
-  // Флаг загрузки
-  bool _isLoading = true;
-
-  // Ошибка
-  String? _error;
+  bool _isLoading = true; // Флаг загрузки
+  String? _error; // Ошибка
 
   @override
   void initState() {
     super.initState();
-    // Создаю gRPC-сервис
+    // Создаю сервисы
     _service = EpisodeGrpcService();
-    // Загружаю эпизоды при открытии экрана
+    _adminService = AdminGrpcService();
+    _adminRepository = AdminRepositoryRemote(_adminService);
+    // Загружаю эпизоды
     _loadEpisodes();
   }
 
   @override
   void dispose() {
-    // Закрываю соединение
+    // Закрываю соединения
     _service.close();
+    _adminService.close();
     super.dispose();
   }
 
@@ -46,8 +47,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     try {
       final episodes = await _service.getAllEpisodes();
       setState(() {
-        _episodes.clear();
-        _episodes.addAll(episodes);
+        _episodes = List.from(episodes); // Создаю новый список
         _isLoading = false;
       });
     } catch (e) {
@@ -72,7 +72,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     );
 
     setState(() {
-      _episodes.add(newEpisode);
+      _episodes = List.from(_episodes)..add(newEpisode);
     });
 
     try {
@@ -89,12 +89,12 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     }
   }
 
-  // Открыть редактор эпизода (с полной загрузкой)
+  // Открыть редактор эпизода
   Future<void> _openEditor(int index) async {
     final episode = _episodes[index];
 
     try {
-      // Загружаю полный эпизод со сценами
+      // Загружаю полный эпизод
       final fullEpisode = await _service.getEpisode(episode.id);
 
       if (!mounted) return;
@@ -105,18 +105,31 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
           builder: (context) => EpisodeEditorScreen(
             episode: fullEpisode,
             onSave: (newEpisode) async {
+              // ЛОГ: сохраняю эпизод
+              print('[FLUTTER] onSave вызван: ${newEpisode.title}, сцен: ${newEpisode.scenes.length}');
+
               setState(() {
-                _episodes[index] = newEpisode;
+                // Создаю новый список и обновляю элемент
+                final newList = List<Episode>.from(_episodes);
+                newList[index] = newEpisode;
+                _episodes = newList;
               });
+
               try {
-                await _service.saveEpisode(newEpisode);
+                // Отправляю на сервер
+                final response = await _service.saveEpisode(newEpisode);
+                print('[FLUTTER] saveEpisode ответ: success=${response.success}, message=${response.message}');
+
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar( // ignore: use_build_context_synchronously
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Эпизод сохранён на сервере')),
                 );
               } catch (e) {
+                print('[FLUTTER] Ошибка saveEpisode: $e');
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar( // ignore: use_build_context_synchronously
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Ошибка: $e')),
                 );
               }
@@ -132,7 +145,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     }
   }
 
-  // Удаление эпизода
+  // Удаление эпизода (через АДМИН-репозиторий)
   Future<void> _deleteEpisode(int index) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -159,19 +172,23 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     if (confirmed == true) {
       final episodeId = _episodes[index].id;
 
-      try {
-        await _service.deleteEpisode(episodeId);
-        if (!mounted) return;
+      // Вызываю АДМИН-репозиторий (проверка прав на сервере)
+      final success = await _adminRepository.deleteEpisode(episodeId);
+
+      if (!mounted) return;
+
+      if (success) {
         setState(() {
-          _episodes.removeAt(index);
+          final newList = List<Episode>.from(_episodes);
+          newList.removeAt(index);
+          _episodes = newList;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Эпизод удалён с сервера')),
         );
-      } catch (e) {
-        if (!mounted) return;
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
+          const SnackBar(content: Text('Нет прав на удаление (только админ)')),
         );
       }
     }
@@ -180,16 +197,13 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      
-      // Использую Stack, чтобы наложить контент на фон
+      backgroundColor: const Color(0xFF1A1A1A),
       body: Stack(
         children: [
-          // Слой для фона
+          // Фон
           Positioned.fill(
             child: Container(
-              color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
-              // Картинка фона
+              color: const Color(0xFF1A1A1A),
               child: Image.asset(
                 'assets/images/main_background.png',
                 fit: BoxFit.cover,
@@ -207,21 +221,14 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      
-                      // Заголовок
                       const Text(
                         'Клуб романтики',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      
-                      // Пустой контейнер для симметрии (чтобы заголовок был по центру)
                       const SizedBox(width: 48),
                     ],
                   ),
@@ -230,30 +237,30 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                 // Основной блок
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20), // Отступы по бокам
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start, // Прижимаю всё влево
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Заголовок
-                        const Center( // Центрирую только заголовок
+                        const Center(
                           child: Text(
                             'РЕЖИМ\nРАЗРАБОТЧИКА',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 32,
-                              fontWeight: FontWeight.w300, // Тонкий шрифт
+                              fontWeight: FontWeight.w300,
                               height: 1.1,
                             ),
                           ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Подзаголовок
                         const Text(
                           'список эпизодов:',
                           style: TextStyle(
-                            color: Color(0xFFFFA0A0), 
+                            color: Color(0xFFFFA0A0),
                             fontSize: 22,
                           ),
                         ),
@@ -281,7 +288,6 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                                           itemCount: _episodes.length,
                                           itemBuilder: (context, index) {
                                             final episode = _episodes[index];
-                                            // Кастомный виджет для строки эпизода
                                             return Padding(
                                               padding: const EdgeInsets.symmetric(vertical: 8),
                                               child: Row(
@@ -299,7 +305,6 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                                                           ),
                                                         ),
                                                         const SizedBox(height: 4),
-                                                        // ID с отступом слева
                                                         Padding(
                                                           padding: const EdgeInsets.only(left: 8),
                                                           child: Text(
@@ -329,7 +334,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                                           },
                                         ),
                         ),
-                        
+
                         const SizedBox(height: 4),
 
                         // Кнопка создать эпизод
@@ -355,7 +360,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 8),
 
                         // Кнопка сохранить
@@ -364,7 +369,6 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                           height: 55,
                           child: ElevatedButton(
                             onPressed: () {
-                              // Логика сохранения
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Сохранено!')),
                               );
@@ -387,8 +391,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                           ),
                         ),
 
-                        // Пустое пространство снизу, чтобы поднять кнопки выше
-                        const SizedBox(height: 100), 
+                        const SizedBox(height: 100),
                       ],
                     ),
                   ),

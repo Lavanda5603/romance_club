@@ -183,8 +183,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // Если пользователь подтвердил - выхожу
     if (confirmed == true) {
-      // Удаляю player_id из Storage
+      // Удаляю player_id и JWT-токен из Storage
       await StorageService.savePlayerId('');
+      await StorageService.deleteToken();
 
       if (!mounted) return;
 

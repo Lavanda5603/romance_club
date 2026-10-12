@@ -176,10 +176,10 @@ impl AuthApi for AuthApiService {
             }
         };
 
-        // Создаю игрока (с хэшем пароля)
+        // Создаю игрока (с хэшем пароля и is_admin = false)
         let mut create_response = self
             .db
-            .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password_hash, created_at: time::now() } RETURN id, login, email, created_at")
+            .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password_hash, is_admin: false, created_at: time::now() } RETURN id, login, email, created_at, is_admin")
             .bind(("login", login.clone()))
             .bind(("email", email.clone()))
             .bind(("password_hash", password_hash))
@@ -204,8 +204,13 @@ impl AuthApi for AuthApiService {
                     .map(|s| s.to_string())
                     .unwrap_or_default();
 
-                // Генерирую JWT
-                let token = match jwt::create_token(&id, &login) {
+                let is_admin = v
+                    .get("is_admin")
+                    .and_then(|s| s.as_bool())
+                    .unwrap_or(false);
+
+                // Генерирую JWT с is_admin
+                let token = match jwt::create_token(&id, &login, is_admin) {
                     Ok(t) => t,
                     Err(e) => {
                         println!("[REGISTER] Ошибка создания токена: {}", e);
@@ -301,6 +306,11 @@ impl AuthApi for AuthApiService {
                     .map(|s| s.to_string())
                     .unwrap_or_default();
 
+                let is_admin = v
+                    .get("is_admin")
+                    .and_then(|s| s.as_bool())
+                    .unwrap_or(false);
+
                 // Проверяю пароль
                 if !Self::verify_password(&password, &password_hash) {
                     println!("[LOGIN] Неверный пароль для: {}", login);
@@ -312,8 +322,8 @@ impl AuthApi for AuthApiService {
                     }));
                 }
 
-                // Генерирую JWT
-                let token = match jwt::create_token(&id, &login) {
+                // Генерирую JWT с is_admin
+                let token = match jwt::create_token(&id, &login, is_admin) {
                     Ok(t) => t,
                     Err(e) => {
                         println!("[LOGIN] Ошибка создания токена: {}", e);
@@ -328,7 +338,7 @@ impl AuthApi for AuthApiService {
                     created_at,
                 };
 
-                println!("[LOGIN] Игрок вошёл: {} (токен выдан)", login);
+                println!("[LOGIN] Игрок вошёл: {} (токен выдан, is_admin={})", login, is_admin);
 
                 Ok(Response::new(AuthResponse {
                     success: true,
@@ -396,7 +406,7 @@ impl AuthApi for AuthApiService {
                     success: true,
                     message: "Игрок найден".to_string(),
                     player: Some(player),
-                    token: String::new(), // при get_player токен не выдаю
+                    token: String::new(),
                 }))
             }
             None => Ok(Response::new(AuthResponse {

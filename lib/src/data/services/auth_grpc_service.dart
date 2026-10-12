@@ -1,5 +1,6 @@
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/auth_api.pbgrpc.dart'; // Импорт gRPC-клиента
+import '../../../services/storage_service.dart'; // Импорт StorageService
 
 // Сервис для работы с авторизацией через gRPC
 class AuthGrpcService {
@@ -18,6 +19,17 @@ class AuthGrpcService {
     );
     // Создаю gRPC-клиент
     _client = AuthApiClient(_channel);
+  }
+
+  // Создать метаданные с JWT-токеном (для авторизованных запросов)
+  Future<CallOptions> _getAuthOptions() async {
+    final token = await StorageService.loadToken();
+    if (token.isEmpty) {
+      return CallOptions();
+    }
+    return CallOptions(
+      metadata: {'authorization': 'Bearer $token'},
+    );
   }
 
   // Регистрация
@@ -46,10 +58,11 @@ class AuthGrpcService {
     return await _client.login(request);
   }
 
-  // Получить игрока
+  // Получить игрока (с токеном)
   Future<AuthResponse> getPlayer(String playerId) async {
     final request = GetPlayerRequest(playerId: playerId);
-    return await _client.getPlayer(request);
+    final options = await _getAuthOptions(); // Метаданные с токеном
+    return await _client.getPlayer(request, options: options);
   }
 
   // Закрыть соединение

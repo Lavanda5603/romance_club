@@ -29,19 +29,20 @@ impl AssetApi for AssetApiService {
         &self,
         request: Request<GetAssetsRequest>,
     ) -> Result<Response<GetAssetsResponse>, Status> {
-        let req = request.into_inner();
-        let asset_type = req.r#type;
-        let episode_id = req.episode_id;
+        let req = request.into_inner(); // Достаю данные из запроса
+        let asset_type = req.r#type; // Тип (background, character)
+        let episode_id = req.episode_id; // ID эпизода
 
         println!("[GET_ASSETS] Тип: {}, Эпизод: {}", asset_type, episode_id);
 
-        // Собираю SQL-запрос
+        // Собираю SQL-запрос: с фильтром по эпизоду или без
         let query = if episode_id.is_empty() {
             "SELECT * FROM asset WHERE type = $type ORDER BY display_name".to_string()
         } else {
             "SELECT * FROM asset WHERE type = $type AND (episode_id = type::record($ep_id) OR episode_id = NONE) ORDER BY display_name".to_string()
         };
 
+        // Выполняю запрос
         let mut response = self
             .db
             .query(query)
@@ -66,7 +67,7 @@ impl AssetApi for AssetApiService {
                 let display_name = v.get("display_name").and_then(|s| s.as_str()).unwrap_or("").to_string();
                 let episode_id = v.get("episode_id").and_then(|s| s.as_str()).unwrap_or("").to_string();
 
-                // Читаю байты файла (если есть)
+                // Читаю байты файла (если есть) - декодирую из base64
                 let file_data = v
                     .get("file_data")
                     .and_then(|s| s.as_str())
@@ -96,7 +97,7 @@ impl AssetApi for AssetApiService {
         &self,
         request: Request<UploadAssetRequest>,
     ) -> Result<Response<UploadAssetResponse>, Status> {
-        let req = request.into_inner();
+        let req = request.into_inner(); // Достаю данные из запроса
 
         println!("[UPLOAD_ASSET] Загрузка: type={}, name={}, emotion={}",
             req.r#type, req.name, req.emotion);
@@ -114,10 +115,10 @@ impl AssetApi for AssetApiService {
             return Err(Status::invalid_argument("Файл больше 5 МБ"));
         }
 
-        // Кодирую байты в base64
+        // Кодирую байты в base64 (для хранения в БД)
         let file_base64 = general_purpose::STANDARD.encode(&req.file_data);
 
-        // Собираю url
+        // Собираю url (для совместимости со старым кодом)
         let url = if req.emotion.is_empty() {
             format!("assets/{}/{}", req.r#type, req.name)
         } else {
@@ -145,7 +146,7 @@ impl AssetApi for AssetApiService {
             .take(0)
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // Если запись есть - обновляю её
+        // Если запись уже есть - обновляю её
         if !existing.is_empty() {
             let existing_id = existing[0]
                 .get("id")
@@ -155,6 +156,7 @@ impl AssetApi for AssetApiService {
 
             println!("[UPLOAD_ASSET] Найдена существующая запись: {}", existing_id);
 
+            // Обновляю url, display_name и file_data
             self.db
                 .query("UPDATE type::record($id) SET url = $url, display_name = $display_name, file_data = $file_data")
                 .bind(("id", existing_id.clone()))
@@ -176,6 +178,7 @@ impl AssetApi for AssetApiService {
                 .take(0)
                 .map_err(|e| Status::internal(e.to_string()))?;
 
+            // Собираю Asset из обновлённой записи
             let asset = match updated {
                 Some(v) => {
                     let id = v.get("id").and_then(|s| s.as_str()).unwrap_or("").to_string();
@@ -224,6 +227,7 @@ impl AssetApi for AssetApiService {
             .take(0)
             .map_err(|e| Status::internal(e.to_string()))?;
 
+        // Собираю Asset из созданной записи
         let asset = match created {
             Some(v) => {
                 let id = v.get("id").and_then(|s| s.as_str()).unwrap_or("").to_string();
@@ -250,12 +254,12 @@ impl AssetApi for AssetApiService {
         }))
     }
 
-    // Удалить ассет по ID
+    // Удалить ассет по ID (устаревшее — теперь через AdminApi)
     async fn delete_asset(
         &self,
         request: Request<DeleteAssetRequest>,
     ) -> Result<Response<DeleteAssetResponse>, Status> {
-        let id = request.into_inner().id;
+        let id = request.into_inner().id; // Достаю ID
 
         println!("[DELETE_ASSET] Удаляю ассет: {}", id);
 

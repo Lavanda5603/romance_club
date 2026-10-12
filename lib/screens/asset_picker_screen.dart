@@ -3,7 +3,9 @@ import 'package:file_picker/file_picker.dart'; // Импорт выбора фа
 import 'dart:io'; // Импорт File
 import 'dart:typed_data'; // Импорт Uint8List
 import '../src/data/repositories/asset_repository_remote.dart'; // Импорт репозитория ассетов
-import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса
+import '../src/data/repositories/admin_repository_remote.dart'; // Импорт админ-репозитория
+import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
+import '../src/data/services/admin_grpc_service.dart'; // Импорт админ-сервиса
 import '../src/domain/models/asset_model.dart'; // Импорт доменной модели
 
 // Экран выбора ассета (фона или персонажа)
@@ -20,14 +22,15 @@ class AssetPickerScreen extends StatefulWidget {
     this.episodeId = '',
   });
 
-  // Метод createState (создание объекта состояния)
   @override
   State<AssetPickerScreen> createState() => _AssetPickerScreenState();
 }
 
 class _AssetPickerScreenState extends State<AssetPickerScreen> {
-  late AssetGrpcService _service; // gRPC-сервис
-  late AssetRepositoryRemote _repository; // Репозиторий
+  late AssetGrpcService _service; // gRPC-сервис ассетов
+  late AdminGrpcService _adminService; // gRPC-сервис админа
+  late AssetRepositoryRemote _repository; // Репозиторий ассетов
+  late AdminRepositoryRemote _adminRepository; // Админ-репозиторий
 
   List<AssetModel> _assets = []; // Список ассетов
   bool _isLoading = true; // Флаг загрузки
@@ -37,17 +40,20 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
   @override
   void initState() {
     super.initState();
-    // Создаю сервис и репозиторий
+    // Создаю сервисы и репозитории
     _service = AssetGrpcService();
+    _adminService = AdminGrpcService();
     _repository = AssetRepositoryRemote(_service);
+    _adminRepository = AdminRepositoryRemote(_adminService);
     // Загружаю ассеты
     _loadAssets();
   }
 
   @override
   void dispose() {
-    // Закрываю соединение
+    // Закрываю соединения
     _service.close();
+    _adminService.close();
     super.dispose();
   }
 
@@ -76,7 +82,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
   // Загрузка нового ассета
   Future<void> _uploadNewAsset() async {
-    // Открываю диалог выбора файла
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['png', 'jpg', 'jpeg'],
@@ -87,7 +92,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     final file = result.files.first;
 
-    // Получаю байты
     Uint8List? bytes = file.bytes;
     if (bytes == null && file.path != null) {
       bytes = await File(file.path!).readAsBytes();
@@ -103,7 +107,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     if (!mounted) return;
 
-    // Контроллеры для диалога
     final nameController = TextEditingController();
     final displayController = TextEditingController(text: file.name);
     final emotionController = TextEditingController();
@@ -169,11 +172,10 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       return;
     }
 
-    // Формирую полное имя с префиксом
+    // Проверяю на дубликат
     final fullNameCheck = widget.type == 'background' ? 'ep1/$name' : name;
     final emotionCheck = emotionController.text.trim();
 
-    // Проверяю - есть ли уже такой ассет в списке
     final alreadyExists = _assets.any((a) =>
         a.name == fullNameCheck && a.emotion == emotionCheck);
 
@@ -215,7 +217,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     }
   }
 
-  // Удалить ассет (с подтверждением)
+  // Удалить ассет (через админ-репозиторий)
   Future<void> _deleteAsset(AssetModel asset) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -240,8 +242,8 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     if (confirmed != true) return;
     if (!mounted) return;
 
-    // Отправляю на сервер
-    final success = await _repository.deleteAsset(asset.id);
+    // Вызываю Админ-репозиторий (проверка прав на сервере)
+    final success = await _adminRepository.deleteAsset(asset.id);
 
     if (!mounted) return;
 
@@ -254,7 +256,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ошибка удаления')),
+        const SnackBar(content: Text('Нет прав на удаление')),
       );
     }
   }
@@ -263,7 +265,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
-
       body: Stack(
         children: [
           Positioned.fill(
@@ -275,7 +276,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
               ),
             ),
           ),
-
           SafeArea(
             child: Column(
               children: [
@@ -286,9 +286,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
-                          Navigator.pop(context, null);
-                        },
+                        onPressed: () => Navigator.pop(context, null),
                       ),
                       Text(
                         widget.title,
@@ -301,7 +299,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                     ],
                   ),
                 ),
-
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -321,7 +318,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-
                         if (_isLoading)
                           const Expanded(
                             child: Center(
@@ -363,7 +359,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                   onTap: () => Navigator.pop(context, asset),
                                   child: Stack(
                                     children: [
-                                      // Карточка
                                       Container(
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF3F0404),
@@ -426,7 +421,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                           ],
                                         ),
                                       ),
-                                      // Кнопка удаления (корзина)
                                       Positioned(
                                         top: 4,
                                         right: 4,
@@ -459,7 +453,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
               ],
             ),
           ),
-
           if (_isUploading)
             Positioned.fill(
               child: Container(

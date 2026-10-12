@@ -13,11 +13,12 @@ const TOKEN_LIFETIME_HOURS: i64 = 24 * 7;
 pub struct Claims {
     pub sub: String, // ID игрока
     pub login: String, // Логин
-    pub exp: usize, // Время истечения (Unix timestamp)
+    pub is_admin: bool, // Админ ли
+    pub exp: usize, // Время истечения
 }
 
 // Создать JWT для игрока
-pub fn create_token(player_id: &str, login: &str) -> Result<String, String> {
+pub fn create_token(player_id: &str, login: &str, is_admin: bool) -> Result<String, String> {
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(TOKEN_LIFETIME_HOURS))
         .expect("Неверное время")
@@ -26,6 +27,7 @@ pub fn create_token(player_id: &str, login: &str) -> Result<String, String> {
     let claims = Claims {
         sub: player_id.to_string(),
         login: login.to_string(),
+        is_admin,
         exp: expiration,
     };
 

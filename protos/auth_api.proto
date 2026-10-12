@@ -27,6 +27,7 @@ message AuthResponse {
   bool success = 1; // Успешно ли
   string message = 2; // Сообщение
   Player player = 3; // Игрок (если успешно)
+  string token = 4; // JWT-токен (только при регистрации/входе)
 }
 
 // gRPC-сервис для авторизации

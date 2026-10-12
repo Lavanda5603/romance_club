@@ -3,6 +3,7 @@ mod auth_service;
 mod achievement_service;
 mod shop_service;
 mod asset_service;
+mod admin_service;
 mod jwt;
 
 use tonic::{transport::Server, Request, Response, Status};
@@ -22,6 +23,8 @@ use shop_service::ShopApiService;
 use romance_club::shop_api_server::ShopApiServer;
 use asset_service::AssetApiService;
 use romance_club::asset_api_server::AssetApiServer;
+use admin_service::AdminApiService;
+use romance_club::admin_api_server::AdminApiServer;
 
 // Подключаю сгенерированный код
 pub mod romance_club {
@@ -42,7 +45,6 @@ pub struct AuthInterceptor;
 
 impl Interceptor for AuthInterceptor {
     fn call(&mut self, request: Request<()>) -> Result<Request<()>, Status> {
-        // Список методов, которые не требуют авторизации
         let token = request
             .metadata()
             .get("authorization")
@@ -50,52 +52,45 @@ impl Interceptor for AuthInterceptor {
             .map(|s| s.trim_start_matches("Bearer ").to_string());
 
         match token {
-            Some(t) => {
-                // Проверяю токен
-                match jwt::verify_token(&t) {
-                    Ok(_claims) => Ok(request), // Токен валидный - пропускаю
-                    Err(e) => {
-                        println!("[INTERCEPTOR] Неверный токен: {}", e);
-                        Err(Status::unauthenticated("Неверный токен"))
-                    }
+            Some(t) => match jwt::verify_token(&t) {
+                Ok(_claims) => Ok(request),
+                Err(e) => {
+                    println!("[INTERCEPTOR] Неверный токен: {}", e);
+                    Err(Status::unauthenticated("Неверный токен"))
                 }
-            }
-            None => {
-                // Нет токена - пропускаю (для Register/Login)
-                Ok(request)
-            }
+            },
+            None => Ok(request),
         }
     }
 }
 
-// Структура эпизода (то, что хранится в SurrealDB)
+// Структура эпизода
 #[derive(Debug, SurrealValue)]
 struct EpisodeRecord {
-    title: String, // Название
-    version: i32, // Версия
+    title: String,
+    version: i32,
 }
 
-// Структура действия (то, что хранится в SurrealDB)
+// Структура действия
 #[derive(Debug, SurrealValue)]
 struct ActionRecord {
-    r#type: String, // Тип действия
-    scene_id: Option<i64>, // ID сцены
-    flag_name: Option<String>, // Имя флага
-    flag_value: Option<bool>, // Значение флага
-    counter_name: Option<String>, // Имя счётчика
-    counter_value: Option<i64>, // Значение счётчика
-    sound_path: Option<String>, // Путь к звуку
-    image_path: Option<String>, // Путь к картинке
-    title: String, // Название
+    r#type: String,
+    scene_id: Option<i64>,
+    flag_name: Option<String>,
+    flag_value: Option<bool>,
+    counter_name: Option<String>,
+    counter_value: Option<i64>,
+    sound_path: Option<String>,
+    image_path: Option<String>,
+    title: String,
 }
 
 // Сервис для работы с эпизодами
 pub struct EpisodeApiService {
-    db: Surreal<Client>, // Подключение к SurrealDB
+    db: Surreal<Client>,
 }
 
 impl EpisodeApiService {
-    // Создать новый сервис
     pub fn new(db: Surreal<Client>) -> Self {
         Self { db }
     }
@@ -103,16 +98,13 @@ impl EpisodeApiService {
 
 #[tonic::async_trait]
 impl EpisodeApi for EpisodeApiService {
-    // Получить эпизод по ID (со сценами, выборами, действиями)
     async fn get_episode(
         &self,
         request: Request<GetEpisodeRequest>,
     ) -> Result<Response<Episode>, Status> {
         let id = request.into_inner().id;
-
         println!("[GET_EPISODE] Запрос на эпизод ID: {}", id);
 
-        // 1. Загружаю эпизод
         let episode_record: Option<EpisodeRecord> = self
             .db
             .select(("episode", i64::from(id)))
@@ -124,11 +116,10 @@ impl EpisodeApi for EpisodeApiService {
             None => return Err(Status::not_found("Эпизод не найден")),
         };
 
-        // 2. Загружаю сцены эпизода как Value (чтобы получить id)
         let mut sc_response = self
             .db
             .query("SELECT * FROM scene WHERE episode_id = type::record('episode', $id) ORDER BY order_index")
-            .bind(("id", id))
+            .bind(("id", i64::from(id))) // ← i64
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -138,17 +129,10 @@ impl EpisodeApi for EpisodeApiService {
 
         println!("[GET_EPISODE] Найдено сцен: {}", scene_values.len());
 
-        // 3. Собираю сцены с выборами и действиями
         let mut scenes: Vec<Scene> = Vec::new();
 
         for scene_value in scene_values.iter() {
-            // Извлекаю поля сцены
-            let scene_id_str = scene_value
-                .get("id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("scene:0")
-                .to_string();
-
+            let scene_id_str = scene_value.get("id").and_then(|v| v.as_str()).unwrap_or("scene:0").to_string();
             let title = scene_value.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let background = scene_value.get("background").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let character = scene_value.get("character").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -163,7 +147,6 @@ impl EpisodeApi for EpisodeApiService {
                 .map(|arr| arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
                 .unwrap_or_default();
 
-            // 3.1. Загружаю выборы сцены (по id сцены)
             let mut ch_response = self
                 .db
                 .query("SELECT * FROM choice WHERE scene_id = type::record($scene_id) ORDER BY order_index")
@@ -175,20 +158,13 @@ impl EpisodeApi for EpisodeApiService {
                 .take(0)
                 .map_err(|e| Status::internal(e.to_string()))?;
 
-            // 3.2. Собираю выборы с действиями
             let mut choices: Vec<Choice> = Vec::new();
 
             for choice_value in choice_values.iter() {
-                let choice_id_str = choice_value
-                    .get("id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("choice:0")
-                    .to_string();
-
+                let choice_id_str = choice_value.get("id").and_then(|v| v.as_str()).unwrap_or("choice:0").to_string();
                 let text = choice_value.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
                 let choice_title = choice_value.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
-                // 3.3. Загружаю действия выбора (по id выбора)
                 let mut ac_response = self
                     .db
                     .query("SELECT * FROM action WHERE choice_id = type::record($choice_id)")
@@ -200,7 +176,6 @@ impl EpisodeApi for EpisodeApiService {
                     .take(0)
                     .map_err(|e| Status::internal(e.to_string()))?;
 
-                // Собираю действия
                 let actions = action_records
                     .into_iter()
                     .map(|a| Action {
@@ -216,18 +191,10 @@ impl EpisodeApi for EpisodeApiService {
                     })
                     .collect();
 
-                choices.push(Choice {
-                    text,
-                    title: choice_title,
-                    actions,
-                });
+                choices.push(Choice { text, title: choice_title, actions });
             }
 
-            // Читаю next_scene_id (0 = конец)
-            let next_scene_id = scene_value
-                .get("next_scene_id")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0) as i32;
+            let next_scene_id = scene_value.get("next_scene_id").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
 
             scenes.push(Scene {
                 id: order_index + 1,
@@ -245,7 +212,6 @@ impl EpisodeApi for EpisodeApiService {
             });
         }
 
-        // 4. Собираю финальный эпизод
         let episode = Episode {
             id,
             title: episode_record.title,
@@ -254,11 +220,9 @@ impl EpisodeApi for EpisodeApiService {
         };
 
         println!("[GET_EPISODE] Возвращаю эпизод: {} (сцен: {})", episode.title, episode.scenes.len());
-
         Ok(Response::new(episode))
     }
 
-    // Получить все эпизоды
     async fn get_all_episodes(
         &self,
         _request: Request<GetAllEpisodesRequest>,
@@ -276,78 +240,75 @@ impl EpisodeApi for EpisodeApiService {
         let episodes = records
             .into_iter()
             .map(|v| {
-                let id = v
-                    .get("id")
-                    .and_then(|s| s.as_str())
+                let id = v.get("id").and_then(|s| s.as_str())
                     .and_then(|s| s.strip_prefix("episode:"))
                     .and_then(|s| s.parse::<i32>().ok())
                     .unwrap_or(0);
-
                 let title = v.get("title").and_then(|s| s.as_str()).unwrap_or("").to_string();
                 let version = v.get("version").and_then(|s| s.as_i64()).unwrap_or(1) as i32;
-
-                Episode {
-                    id,
-                    title,
-                    version,
-                    scenes: vec![],
-                }
+                Episode { id, title, version, scenes: vec![] }
             })
             .collect();
 
         Ok(Response::new(GetAllEpisodesResponse { episodes }))
     }
 
-    // Сохранить эпизод (с сценами, выборами, действиями)
     async fn save_episode(
         &self,
         request: Request<SaveEpisodeRequest>,
     ) -> Result<Response<SaveEpisodeResponse>, Status> {
-        let episode = request
-            .into_inner()
-            .episode
+        let episode = request.into_inner().episode
             .ok_or_else(|| Status::invalid_argument("Эпизод не передан"))?;
+
+        // ЛОГ: сохраняю эпизод
+        println!("[SAVE_EPISODE] Сохраняю эпизод ID: {}", episode.id);
+        println!("[SAVE_EPISODE] Название: {}", episode.title);
+        println!("[SAVE_EPISODE] Сцен: {}", episode.scenes.len());
 
         let id = episode.id;
         let title = episode.title.clone();
         let version = episode.version;
+        let id_i64 = i64::from(id);
 
-        // 1. Сохраняю эпизод
+        // Сохраняю эпизод (i64 + type::record)
         self.db
-            .query("UPSERT type::record('episode', $id) CONTENT { title: $title, version: $version }")
-            .bind(("id", id))
+            .query("UPSERT type::record('episode', $id) CONTENT { title: $title, version: $version, created_at: time::now() }")
+            .bind(("id", id_i64)) // ← i64
             .bind(("title", title))
             .bind(("version", version))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 2. Удаляю старые action эпизода (сначала - самые вложенные)
+        // Удаляю старые action
         self.db
             .query("DELETE action WHERE choice_id IN (SELECT id FROM choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id)))")
-            .bind(("id", id))
+            .bind(("id", id_i64))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 3. Удаляю старые choice эпизода
+        // Удаляю старые choice
         self.db
             .query("DELETE choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id))")
-            .bind(("id", id))
+            .bind(("id", id_i64))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 4. Удаляю старые scene эпизода
+        // Удаляю старые scene
         self.db
             .query("DELETE scene WHERE episode_id = type::record('episode', $id)")
-            .bind(("id", id))
+            .bind(("id", id_i64))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 5. Сохраняю сцены
+        // Сохраняю сцены
         for (scene_index, scene) in episode.scenes.iter().enumerate() {
+            println!("[SAVE_EPISODE] Сцена {}: {} (фон: {}, персонаж: {})",
+                scene_index, scene.title, scene.background, scene.character);
+
             let mut sc_response = self
                 .db
                 .query("CREATE scene CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, character_emotion: $char_emotion, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order, next_scene_id: $next_scene } RETURN id")
-                .bind(("ep_id", id))
+                .bind(("ep_id", id_i64)) // ← i64
                 .bind(("title", scene.title.clone()))
                 .bind(("background", scene.background.clone()))
                 .bind(("character", scene.character.clone()))
@@ -361,21 +322,16 @@ impl EpisodeApi for EpisodeApiService {
                 .await
                 .map_err(|e| Status::internal(e.to_string()))?;
 
-            let scene_id_value: Option<Value> = sc_response
-                .take(0)
-                .map_err(|e| Status::internal(e.to_string()))?;
-
+            let scene_id_value: Option<Value> = sc_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
             let scene_id_str = match scene_id_value {
                 Some(v) => v.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()),
                 None => None,
             };
-
             let scene_id_str = match scene_id_str {
                 Some(s) => s,
                 None => continue,
             };
 
-            // 6. Сохраняю выборы
             for (choice_index, choice) in scene.choices.iter().enumerate() {
                 let mut ch_response = self
                     .db
@@ -387,21 +343,16 @@ impl EpisodeApi for EpisodeApiService {
                     .await
                     .map_err(|e| Status::internal(e.to_string()))?;
 
-                let choice_id_value: Option<Value> = ch_response
-                    .take(0)
-                    .map_err(|e| Status::internal(e.to_string()))?;
-
+                let choice_id_value: Option<Value> = ch_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
                 let choice_id_str = match choice_id_value {
                     Some(v) => v.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()),
                     None => None,
                 };
-
                 let choice_id_str = match choice_id_str {
                     Some(s) => s,
                     None => continue,
                 };
 
-                // 7. Сохраняю действия
                 for action in choice.actions.iter() {
                     let _: Option<Value> = self
                         .db
@@ -424,46 +375,44 @@ impl EpisodeApi for EpisodeApiService {
             }
         }
 
+        println!("[SAVE_EPISODE] Эпизод сохранён: {} (сцен: {})", id, episode.scenes.len());
+
         Ok(Response::new(SaveEpisodeResponse {
             success: true,
             message: "Эпизод сохранён".to_string(),
         }))
     }
 
-    // Удалить эпизод (со сценами, выборами, действиями)
     async fn delete_episode(
         &self,
         request: Request<DeleteEpisodeRequest>,
     ) -> Result<Response<DeleteEpisodeResponse>, Status> {
         let id = request.into_inner().id;
-
         println!("[DELETE_EPISODE] Удаляю эпизод ID: {}", id);
 
-        // 1. Удаляю действия
+        let id_i64 = i64::from(id); // ← i64
+
         self.db
             .query("DELETE action WHERE choice_id IN (SELECT id FROM choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id)))")
-            .bind(("id", id))
+            .bind(("id", id_i64))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 2. Удаляю выборы
         self.db
             .query("DELETE choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id))")
-            .bind(("id", id))
+            .bind(("id", id_i64))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 3. Удаляю сцены
         self.db
             .query("DELETE scene WHERE episode_id = type::record('episode', $id)")
-            .bind(("id", id))
+            .bind(("id", id_i64))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 4. Удаляю эпизод
         self.db
             .query("DELETE type::record('episode', $id)")
-            .bind(("id", id))
+            .bind(("id", id_i64))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -476,7 +425,6 @@ impl EpisodeApi for EpisodeApiService {
     }
 }
 
-// Применение миграций из папки migrations/
 async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error::Error>> {
     let migrations_dir = std::path::Path::new("migrations");
 
@@ -487,9 +435,7 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
 
     let mut entries: Vec<_> = std::fs::read_dir(migrations_dir)?
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path().extension().map(|ext| ext == "surql").unwrap_or(false)
-        })
+        .filter(|e| e.path().extension().map(|ext| ext == "surql").unwrap_or(false))
         .collect();
 
     entries.sort_by_key(|e| e.path());
@@ -497,7 +443,6 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
     for entry in entries {
         let path = entry.path();
         let sql = std::fs::read_to_string(&path)?;
-
         println!("Применяю миграцию: {:?}", path);
         db.query(&sql).await?;
     }
@@ -508,22 +453,18 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Подключаюсь к SurrealDB
     let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
 
-    // Авторизуюсь
     db.signin(Root {
         username: "root".to_string(),
         password: "root".to_string(),
     })
     .await?;
 
-    // Использую namespace и database
     db.use_ns("romance_club").use_db("main").await?;
 
     println!("Подключение к SurrealDB установлено");
 
-    // Применяю миграции
     apply_migrations(&db).await?;
 
     let episode_service = EpisodeApiService::new(db.clone());
@@ -531,12 +472,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let auth_service = AuthApiService::new(db.clone());
     let achievement_service = AchievementApiService::new(db.clone());
     let shop_service = ShopApiService::new(db.clone());
-    let asset_service = AssetApiService::new(db);
+    let asset_service = AssetApiService::new(db.clone());
+    let admin_service = AdminApiService::new(db);
     let addr = "0.0.0.0:50051".parse()?;
 
     println!("Сервер запущен на {}", addr);
 
-    // Интерцептор JWT
     let interceptor = AuthInterceptor;
 
     Server::builder()
@@ -545,7 +486,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(AuthApiServer::new(auth_service))
         .add_service(AchievementApiServer::with_interceptor(achievement_service, interceptor.clone()))
         .add_service(ShopApiServer::with_interceptor(shop_service, interceptor.clone()))
-        .add_service(AssetApiServer::with_interceptor(asset_service, interceptor))
+        .add_service(AssetApiServer::with_interceptor(asset_service, interceptor.clone()))
+        .add_service(AdminApiServer::with_interceptor(admin_service, interceptor))
         .serve(addr)
         .await?;
 

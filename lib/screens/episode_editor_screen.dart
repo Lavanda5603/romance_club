@@ -55,8 +55,8 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
       // Добавляю в список
       widget.episode.scenes.add(newScene);
 
-      // ЛОГ: добавил сцену
-      print('[FLUTTER] Добавлена сцена: ${newScene.title}, всего сцен: ${widget.episode.scenes.length}');
+      // Добавила сцену
+      debugPrint('[FLUTTER] Добавлена сцена: ${newScene.title}, всего сцен: ${widget.episode.scenes.length}');
     });
   }
 
@@ -98,8 +98,8 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
     // Обновляю название
     widget.episode.title = _titleController.text;
 
-    // ЛОГ: сохраняю
-    print('[FLUTTER] _saveEpisode: ${widget.episode.title}, сцен: ${widget.episode.scenes.length}');
+    // Сохраняю
+    debugPrint('[FLUTTER] _saveEpisode: ${widget.episode.title}, сцен: ${widget.episode.scenes.length}');
 
     // Вызываю колбэк
     widget.onSave(widget.episode);

@@ -162,8 +162,7 @@ class GameViewModel extends ChangeNotifier {
     }
   }
 
-  // Проверка условия сцены
-  // ignore: unused_element
+  // Проверка условия сцены (flag:имя=true/false, points>=N, points<=N)
   bool _isConditionMet(String condition) {
     // Если условие пустое - показываю сцену
     if (condition.isEmpty) return true;
@@ -201,11 +200,44 @@ class GameViewModel extends ChangeNotifier {
     return true;
   }
 
-  // Переход к сцене по ID
+  // Переход к сцене по ID (с проверкой условия)
   void goToScene(int sceneId) {
     if (_state.data == null) return;
+
+    // Ищу сцену по ID
     for (int i = 0; i < _state.data!.scenes.length; i++) {
       if (_state.data!.scenes[i].id == sceneId) {
+        final scene = _state.data!.scenes[i];
+
+        // Проверяю условие
+        if (!_isConditionMet(scene.condition)) {
+          debugPrint('[GAME] Сцена ${scene.id} пропущена (условие: ${scene.condition})');
+
+          // Условие не выполнено - иду дальше по nextSceneId этой сцены
+          // или к следующей по порядку
+          if (scene.nextSceneId > 0) {
+            goToScene(scene.nextSceneId);
+            return;
+          }
+          // Если nextSceneId == 0 - пробую следующую по индексу
+          for (int j = i + 1; j < _state.data!.scenes.length; j++) {
+            if (_isConditionMet(_state.data!.scenes[j].condition)) {
+              _currentSceneIndex = j;
+              _currentTextIndex = 0;
+              _saveProgress();
+              _checkAchievements();
+              notifyListeners();
+              return;
+            }
+          }
+          // Если не нашли - перехожу на последнюю (или конец)
+          _currentSceneIndex = _state.data!.scenes.length - 1;
+          _currentTextIndex = 0;
+          notifyListeners();
+          return;
+        }
+
+        // Условие выполнено - перехожу
         _currentSceneIndex = i;
         _currentTextIndex = 0;
         _saveProgress();

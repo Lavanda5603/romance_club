@@ -105,8 +105,8 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
           builder: (context) => EpisodeEditorScreen(
             episode: fullEpisode,
             onSave: (newEpisode) async {
-              // ЛОГ: сохраняю эпизод
-              print('[FLUTTER] onSave вызван: ${newEpisode.title}, сцен: ${newEpisode.scenes.length}');
+              // Сохраняю эпизод
+              debugPrint('[FLUTTER] onSave вызван: ${newEpisode.title}, сцен: ${newEpisode.scenes.length}');
 
               setState(() {
                 // Создаю новый список и обновляю элемент
@@ -118,7 +118,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
               try {
                 // Отправляю на сервер
                 final response = await _service.saveEpisode(newEpisode);
-                print('[FLUTTER] saveEpisode ответ: success=${response.success}, message=${response.message}');
+                debugPrint('[FLUTTER] saveEpisode ответ: success=${response.success}, message=${response.message}');
 
                 if (!mounted) return;
                 // ignore: use_build_context_synchronously
@@ -126,7 +126,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                   const SnackBar(content: Text('Эпизод сохранён на сервере')),
                 );
               } catch (e) {
-                print('[FLUTTER] Ошибка saveEpisode: $e');
+                debugPrint('[FLUTTER] Ошибка saveEpisode: $e');
                 if (!mounted) return;
                 // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(

@@ -2,10 +2,18 @@ use tonic::{Request, Response, Status};
 use surrealdb::engine::remote::ws::Client;
 use surrealdb::Surreal;
 use serde_json::Value;
+use argon2::{
+    password_hash::{
+        rand_core::OsRng,
+        PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+    },
+    Argon2,
+};
 use crate::romance_club::auth_api_server::AuthApi;
 use crate::romance_club::{
     AuthResponse, RegisterRequest, LoginRequest, GetPlayerRequest, Player,
 };
+use crate::jwt; // Модуль JWT
 
 // Сервис для работы с авторизацией
 pub struct AuthApiService {
@@ -16,6 +24,27 @@ impl AuthApiService {
     // Создать новый сервис
     pub fn new(db: Surreal<Client>) -> Self {
         Self { db }
+    }
+
+    // Хэшировать пароль через Argon2
+    fn hash_password(password: &str) -> Result<String, String> {
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+        argon2
+            .hash_password(password.as_bytes(), &salt)
+            .map(|hash| hash.to_string())
+            .map_err(|e| format!("Ошибка хэширования: {}", e))
+    }
+
+    // Проверить пароль против хэша
+    fn verify_password(password: &str, hash: &str) -> bool {
+        let parsed_hash = match PasswordHash::new(hash) {
+            Ok(h) => h,
+            Err(_) => return false,
+        };
+        Argon2::default()
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .is_ok()
     }
 
     // Проверка логина
@@ -92,6 +121,7 @@ impl AuthApi for AuthApiService {
                 success: false,
                 message: err,
                 player: None,
+                token: String::new(),
             }));
         }
         if let Some(err) = Self::validate_email(&email) {
@@ -99,6 +129,7 @@ impl AuthApi for AuthApiService {
                 success: false,
                 message: err,
                 player: None,
+                token: String::new(),
             }));
         }
         if let Some(err) = Self::validate_password(&password) {
@@ -106,6 +137,7 @@ impl AuthApi for AuthApiService {
                 success: false,
                 message: err,
                 player: None,
+                token: String::new(),
             }));
         }
 
@@ -126,16 +158,31 @@ impl AuthApi for AuthApiService {
                 success: false,
                 message: "Игрок с таким логином уже существует".to_string(),
                 player: None,
+                token: String::new(),
             }));
         }
 
-        // Создаю игрока
+        // Хэширую пароль
+        let password_hash = match Self::hash_password(&password) {
+            Ok(h) => h,
+            Err(e) => {
+                println!("[REGISTER] Ошибка хэширования: {}", e);
+                return Ok(Response::new(AuthResponse {
+                    success: false,
+                    message: "Ошибка сервера при регистрации".to_string(),
+                    player: None,
+                    token: String::new(),
+                }));
+            }
+        };
+
+        // Создаю игрока (с хэшем пароля)
         let mut create_response = self
             .db
-            .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password, created_at: time::now() } RETURN id, login, email, created_at")
+            .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password_hash, created_at: time::now() } RETURN id, login, email, created_at")
             .bind(("login", login.clone()))
             .bind(("email", email.clone()))
-            .bind(("password", password))
+            .bind(("password_hash", password_hash))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -157,6 +204,15 @@ impl AuthApi for AuthApiService {
                     .map(|s| s.to_string())
                     .unwrap_or_default();
 
+                // Генерирую JWT
+                let token = match jwt::create_token(&id, &login) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        println!("[REGISTER] Ошибка создания токена: {}", e);
+                        String::new()
+                    }
+                };
+
                 let player = Player {
                     id,
                     login: login.clone(),
@@ -164,18 +220,20 @@ impl AuthApi for AuthApiService {
                     created_at,
                 };
 
-                println!("[REGISTER] Игрок создан: {}", login);
+                println!("[REGISTER] Игрок создан: {} (токен выдан)", login);
 
                 Ok(Response::new(AuthResponse {
                     success: true,
                     message: "Регистрация успешна".to_string(),
                     player: Some(player),
+                    token,
                 }))
             }
             None => Ok(Response::new(AuthResponse {
                 success: false,
                 message: "Ошибка создания игрока".to_string(),
                 player: None,
+                token: String::new(),
             })),
         }
     }
@@ -197,6 +255,7 @@ impl AuthApi for AuthApiService {
                 success: false,
                 message: err,
                 player: None,
+                token: String::new(),
             }));
         }
         if let Some(err) = Self::validate_password(&password) {
@@ -204,15 +263,15 @@ impl AuthApi for AuthApiService {
                 success: false,
                 message: err,
                 player: None,
+                token: String::new(),
             }));
         }
 
-        // Ищу игрока
+        // Ищу игрока по логину
         let mut response = self
             .db
-            .query("SELECT * FROM player WHERE login = $login AND password_hash = $password LIMIT 1")
+            .query("SELECT * FROM player WHERE login = $login LIMIT 1")
             .bind(("login", login.clone()))
-            .bind(("password", password))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -230,11 +289,37 @@ impl AuthApi for AuthApiService {
 
                 let email = v.get("email").and_then(|s| s.as_str()).unwrap_or("").to_string();
 
+                let password_hash = v
+                    .get("password_hash")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
                 let created_at = v
                     .get("created_at")
                     .and_then(|s| s.as_str())
                     .map(|s| s.to_string())
                     .unwrap_or_default();
+
+                // Проверяю пароль
+                if !Self::verify_password(&password, &password_hash) {
+                    println!("[LOGIN] Неверный пароль для: {}", login);
+                    return Ok(Response::new(AuthResponse {
+                        success: false,
+                        message: "Неверный логин или пароль".to_string(),
+                        player: None,
+                        token: String::new(),
+                    }));
+                }
+
+                // Генерирую JWT
+                let token = match jwt::create_token(&id, &login) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        println!("[LOGIN] Ошибка создания токена: {}", e);
+                        String::new()
+                    }
+                };
 
                 let player = Player {
                     id,
@@ -243,18 +328,20 @@ impl AuthApi for AuthApiService {
                     created_at,
                 };
 
-                println!("[LOGIN] Игрок найден: {}", login);
+                println!("[LOGIN] Игрок вошёл: {} (токен выдан)", login);
 
                 Ok(Response::new(AuthResponse {
                     success: true,
                     message: "Вход успешен".to_string(),
                     player: Some(player),
+                    token,
                 }))
             }
             None => Ok(Response::new(AuthResponse {
                 success: false,
                 message: "Неверный логин или пароль".to_string(),
                 player: None,
+                token: String::new(),
             })),
         }
     }
@@ -309,12 +396,14 @@ impl AuthApi for AuthApiService {
                     success: true,
                     message: "Игрок найден".to_string(),
                     player: Some(player),
+                    token: String::new(), // при get_player токен не выдаю
                 }))
             }
             None => Ok(Response::new(AuthResponse {
                 success: false,
                 message: "Игрок не найден".to_string(),
                 player: None,
+                token: String::new(),
             })),
         }
     }

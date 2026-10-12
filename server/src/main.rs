@@ -3,8 +3,10 @@ mod auth_service;
 mod achievement_service;
 mod shop_service;
 mod asset_service;
+mod jwt;
 
 use tonic::{transport::Server, Request, Response, Status};
+use tonic::service::Interceptor;
 use surrealdb::engine::remote::ws::{Client, Ws};
 use surrealdb::opt::auth::Root;
 use surrealdb::Surreal;
@@ -33,6 +35,38 @@ use romance_club::{
     DeleteEpisodeRequest, DeleteEpisodeResponse,
     Scene, Choice, Action,
 };
+
+// Интерцептор для проверки JWT
+#[derive(Clone)]
+pub struct AuthInterceptor;
+
+impl Interceptor for AuthInterceptor {
+    fn call(&mut self, request: Request<()>) -> Result<Request<()>, Status> {
+        // Список методов, которые не требуют авторизации
+        let token = request
+            .metadata()
+            .get("authorization")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.trim_start_matches("Bearer ").to_string());
+
+        match token {
+            Some(t) => {
+                // Проверяю токен
+                match jwt::verify_token(&t) {
+                    Ok(_claims) => Ok(request), // Токен валидный - пропускаю
+                    Err(e) => {
+                        println!("[INTERCEPTOR] Неверный токен: {}", e);
+                        Err(Status::unauthenticated("Неверный токен"))
+                    }
+                }
+            }
+            None => {
+                // Нет токена - пропускаю (для Register/Login)
+                Ok(request)
+            }
+        }
+    }
+}
 
 // Структура эпизода (то, что хранится в SurrealDB)
 #[derive(Debug, SurrealValue)]
@@ -308,7 +342,7 @@ impl EpisodeApi for EpisodeApiService {
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 5. Сохраняю сцены (CREATE с type::record)
+        // 5. Сохраняю сцены
         for (scene_index, scene) in episode.scenes.iter().enumerate() {
             let mut sc_response = self
                 .db
@@ -502,13 +536,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Сервер запущен на {}", addr);
 
+    // Интерцептор JWT
+    let interceptor = AuthInterceptor;
+
     Server::builder()
-        .add_service(EpisodeApiServer::new(episode_service))
-        .add_service(ProgressApiServer::new(progress_service))
+        .add_service(EpisodeApiServer::with_interceptor(episode_service, interceptor.clone()))
+        .add_service(ProgressApiServer::with_interceptor(progress_service, interceptor.clone()))
         .add_service(AuthApiServer::new(auth_service))
-        .add_service(AchievementApiServer::new(achievement_service))
-        .add_service(ShopApiServer::new(shop_service))
-        .add_service(AssetApiServer::new(asset_service))
+        .add_service(AchievementApiServer::with_interceptor(achievement_service, interceptor.clone()))
+        .add_service(ShopApiServer::with_interceptor(shop_service, interceptor.clone()))
+        .add_service(AssetApiServer::with_interceptor(asset_service, interceptor))
         .serve(addr)
         .await?;
 

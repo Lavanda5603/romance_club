@@ -428,7 +428,7 @@ class GameViewModel extends ChangeNotifier {
     final max = [adrian, cat, luka, lbAdrian, lbCat].reduce((a, b) => a > b ? a : b);
 
     // Порядок проверки - чтобы не было случайных совпадений
-    if (adrian == max) return 'МариКот';
+    if (adrian == max) return 'МариАдриан';
     if (cat == max) return 'МариКот';
     if (luka == max) return 'Лука';
     if (lbAdrian == max) return 'АдриБаг';

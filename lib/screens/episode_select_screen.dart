@@ -115,6 +115,10 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
         _error = e.toString(); // Сохраняю ошибку
         _isLoading = false; // Загрузка завершена
       });
+      // Показываю SnackBar с ошибкой
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка загрузки эпизодов: $e')),
+      );
     }
   }
 

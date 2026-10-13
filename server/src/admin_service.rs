@@ -1,6 +1,7 @@
 use tonic::{Request, Response, Status}; // Импорт tonic
 use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
 use surrealdb::Surreal; // Импорт Surreal
+use serde_json::Value; // Импорт Value
 use crate::jwt; // Модуль JWT
 use crate::romance_club::admin_api_server::AdminApi; // Импорт трейта AdminApi
 use crate::romance_club::{
@@ -98,26 +99,65 @@ impl AdminApi for AdminApiService {
 
         println!("[ADMIN_DELETE_EPISODE] Удаляю эпизод ID: {}", id);
 
-        // 1. Удаляю действия
-        self.db
-            .query("DELETE action WHERE choice_id IN (SELECT id FROM choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id)))")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        // 1. Удаляю действия (в два шага)
+        {
+            let mut ids_response = self
+                .db
+                .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)))")
+                .bind(("id", id_i64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 2. Удаляю выборы
-        self.db
-            .query("DELETE choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id))")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
 
-        // 3. Удаляю сцены
-        self.db
-            .query("DELETE scene WHERE episode_id = type::record('episode', $id)")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            if !ids.is_empty() {
+                self.db
+                    .query("DELETE $ids")
+                    .bind(("ids", ids))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+            }
+        }
+
+        // 2. Удаляю выборы (в два шага)
+        {
+            let mut ids_response = self
+                .db
+                .query("SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id))")
+                .bind(("id", id_i64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+            if !ids.is_empty() {
+                self.db
+                    .query("DELETE $ids")
+                    .bind(("ids", ids))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+            }
+        }
+
+        // 3. Удаляю сцены (в два шага)
+        {
+            let mut ids_response = self
+                .db
+                .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
+                .bind(("id", id_i64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+            if !ids.is_empty() {
+                self.db
+                    .query("DELETE $ids")
+                    .bind(("ids", ids))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+            }
+        }
 
         // 4. Удаляю эпизод
         self.db

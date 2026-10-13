@@ -55,6 +55,11 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
         _error = e.toString();
         _isLoading = false;
       });
+      // Показываю SnackBar с ошибкой
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка загрузки эпизодов: $e')),
+      );
     }
   }
 

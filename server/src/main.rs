@@ -296,26 +296,65 @@ impl EpisodeApi for EpisodeApiService {
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 2. Удаляю старые action эпизода
-        self.db
-            .query("DELETE action WHERE choice_id IN (SELECT id FROM choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id)))")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        // 2. Удаляю старые action эпизода (в два шага)
+        {
+            let mut ids_response = self
+                .db
+                .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)))")
+                .bind(("id", id_i64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 3. Удаляю старые choice эпизода
-        self.db
-            .query("DELETE choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id))")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
 
-        // 4. Удаляю старые scene эпизода
-        self.db
-            .query("DELETE scene WHERE episode_id = type::record('episode', $id)")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            if !ids.is_empty() {
+                self.db
+                    .query("DELETE $ids")
+                    .bind(("ids", ids))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+            }
+        }
+
+        // 3. Удаляю старые choice эпизода (в два шага)
+        {
+            let mut ids_response = self
+                .db
+                .query("SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id))")
+                .bind(("id", id_i64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+            if !ids.is_empty() {
+                self.db
+                    .query("DELETE $ids")
+                    .bind(("ids", ids))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+            }
+        }
+
+        // 4. Удаляю старые scene эпизода (в два шага)
+        {
+            let mut ids_response = self
+                .db
+                .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
+                .bind(("id", id_i64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+            if !ids.is_empty() {
+                self.db
+                    .query("DELETE $ids")
+                    .bind(("ids", ids))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+            }
+        }
 
         // 5. Сохраняю сцены
         for (scene_index, scene) in episode.scenes.iter().enumerate() {
@@ -341,15 +380,21 @@ impl EpisodeApi for EpisodeApiService {
                 .await
                 .map_err(|e| Status::internal(e.to_string()))?;
 
-            // Извлекаю id созданной сцены
-            let scene_id_value: Option<Value> = sc_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-            let scene_id_str = match scene_id_value {
+            // Извлекаю id созданной сцены (результат - массив с одним элементом)
+            let scene_rows: Vec<Value> = sc_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            let scene_id_str = match scene_rows.first() {
                 Some(v) => v.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()),
                 None => None,
             };
             let scene_id_str = match scene_id_str {
-                Some(s) => s,
-                None => continue,
+                Some(s) => {
+                    println!("[SAVE_EPISODE] Создана сцена: {}", s);
+                    s
+                }
+                None => {
+                    println!("[SAVE_EPISODE] ОШИБКА: сцена не создана (нет id)");
+                    continue;
+                }
             };
 
             // 6. Сохраняю выборы
@@ -364,19 +409,26 @@ impl EpisodeApi for EpisodeApiService {
                     .await
                     .map_err(|e| Status::internal(e.to_string()))?;
 
-                let choice_id_value: Option<Value> = ch_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-                let choice_id_str = match choice_id_value {
+                // Извлекаю id созданного выбора (результат - массив с одним элементом)
+                let choice_rows: Vec<Value> = ch_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+                let choice_id_str = match choice_rows.first() {
                     Some(v) => v.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()),
                     None => None,
                 };
                 let choice_id_str = match choice_id_str {
-                    Some(s) => s,
-                    None => continue,
+                    Some(s) => {
+                        println!("[SAVE_EPISODE] Создан выбор: {}", s);
+                        s
+                    }
+                    None => {
+                        println!("[SAVE_EPISODE] ОШИБКА: выбор не создан (нет id)");
+                        continue;
+                    }
                 };
 
                 // 7. Сохраняю действия
                 for action in choice.actions.iter() {
-                    let _: Option<Value> = self
+                    let mut ac_response = self
                         .db
                         .query("CREATE action CONTENT { choice_id: type::record($choice_id), type: $type, scene_id: $scene_id, flag_name: $flag_name, flag_value: $flag_value, counter_name: $counter_name, counter_value: $counter_value, sound_path: $sound, image_path: $image, title: $title } RETURN id")
                         .bind(("choice_id", choice_id_str.clone()))
@@ -390,9 +442,14 @@ impl EpisodeApi for EpisodeApiService {
                         .bind(("image", action.image_path.clone()))
                         .bind(("title", action.title.clone()))
                         .await
-                        .map_err(|e| Status::internal(e.to_string()))?
-                        .take(0)
                         .map_err(|e| Status::internal(e.to_string()))?;
+
+                    let action_rows: Vec<Value> = ac_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+                    if let Some(v) = action_rows.first() {
+                        if let Some(id) = v.get("id").and_then(|id| id.as_str()) {
+                            println!("[SAVE_EPISODE] Создано действие: {}", id);
+                        }
+                    }
                 }
             }
         }
@@ -415,26 +472,65 @@ impl EpisodeApi for EpisodeApiService {
 
         let id_i64 = i64::from(id);
 
-        // 1. Удаляю действия
-        self.db
-            .query("DELETE action WHERE choice_id IN (SELECT id FROM choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id)))")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        // 1. Удаляю действия (в два шага)
+        {
+            let mut ids_response = self
+                .db
+                .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)))")
+                .bind(("id", id_i64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 2. Удаляю выборы
-        self.db
-            .query("DELETE choice WHERE scene_id IN (SELECT id FROM scene WHERE episode_id = type::record('episode', $id))")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
 
-        // 3. Удаляю сцены
-        self.db
-            .query("DELETE scene WHERE episode_id = type::record('episode', $id)")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            if !ids.is_empty() {
+                self.db
+                    .query("DELETE $ids")
+                    .bind(("ids", ids))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+            }
+        }
+
+        // 2. Удаляю выборы (в два шага)
+        {
+            let mut ids_response = self
+                .db
+                .query("SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id))")
+                .bind(("id", id_i64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+            if !ids.is_empty() {
+                self.db
+                    .query("DELETE $ids")
+                    .bind(("ids", ids))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+            }
+        }
+
+        // 3. Удаляю сцены (в два шага)
+        {
+            let mut ids_response = self
+                .db
+                .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
+                .bind(("id", id_i64))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+            if !ids.is_empty() {
+                self.db
+                    .query("DELETE $ids")
+                    .bind(("ids", ids))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+            }
+        }
 
         // 4. Удаляю эпизод
         self.db

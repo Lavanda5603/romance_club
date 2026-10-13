@@ -99,6 +99,10 @@ class _GameScreenState extends State<GameScreen> {
       setState(() {
         _assetsLoaded = true;
       });
+      // Показываю SnackBar с ошибкой
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка загрузки ассетов: $e')),
+      );
     }
   }
 

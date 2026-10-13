@@ -1,18 +1,21 @@
-use tonic::{Request, Response, Status};
-use surrealdb::engine::remote::ws::Client;
-use surrealdb::Surreal;
-use serde_json::Value;
+use tonic::{Request, Response, Status}; // Импорт tonic
+use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
+use surrealdb::Surreal; // Импорт Surreal
+use serde_json::Value; // Импорт Value
 use argon2::{
     password_hash::{
-        rand_core::OsRng,
-        PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
+        rand_core::OsRng, // Генератор случайных чисел для соли
+        PasswordHash, // Для чтения хэша из строки
+        PasswordHasher, // Для хэширования пароля
+        PasswordVerifier, // Для проверки пароля
+        SaltString, // Соль для хэша
     },
-    Argon2,
+    Argon2, // Алгоритм хэширования
 };
-use crate::romance_club::auth_api_server::AuthApi;
+use crate::romance_club::auth_api_server::AuthApi; // Импорт трейта
 use crate::romance_club::{
     AuthResponse, RegisterRequest, LoginRequest, GetPlayerRequest, Player,
-};
+}; // Импорт структур
 use crate::jwt; // Модуль JWT
 
 // Сервис для работы с авторизацией
@@ -122,6 +125,7 @@ impl AuthApi for AuthApiService {
                 message: err,
                 player: None,
                 token: String::new(),
+                is_admin: false,
             }));
         }
         if let Some(err) = Self::validate_email(&email) {
@@ -130,6 +134,7 @@ impl AuthApi for AuthApiService {
                 message: err,
                 player: None,
                 token: String::new(),
+                is_admin: false,
             }));
         }
         if let Some(err) = Self::validate_password(&password) {
@@ -138,6 +143,7 @@ impl AuthApi for AuthApiService {
                 message: err,
                 player: None,
                 token: String::new(),
+                is_admin: false,
             }));
         }
 
@@ -159,6 +165,7 @@ impl AuthApi for AuthApiService {
                 message: "Игрок с таким логином уже существует".to_string(),
                 player: None,
                 token: String::new(),
+                is_admin: false,
             }));
         }
 
@@ -172,6 +179,7 @@ impl AuthApi for AuthApiService {
                     message: "Ошибка сервера при регистрации".to_string(),
                     player: None,
                     token: String::new(),
+                    is_admin: false,
                 }));
             }
         };
@@ -223,6 +231,7 @@ impl AuthApi for AuthApiService {
                     login: login.clone(),
                     email: email.clone(),
                     created_at,
+                    is_admin,
                 };
 
                 println!("[REGISTER] Игрок создан: {} (токен выдан)", login);
@@ -232,6 +241,7 @@ impl AuthApi for AuthApiService {
                     message: "Регистрация успешна".to_string(),
                     player: Some(player),
                     token,
+                    is_admin,
                 }))
             }
             None => Ok(Response::new(AuthResponse {
@@ -239,6 +249,7 @@ impl AuthApi for AuthApiService {
                 message: "Ошибка создания игрока".to_string(),
                 player: None,
                 token: String::new(),
+                is_admin: false,
             })),
         }
     }
@@ -261,6 +272,7 @@ impl AuthApi for AuthApiService {
                 message: err,
                 player: None,
                 token: String::new(),
+                is_admin: false,
             }));
         }
         if let Some(err) = Self::validate_password(&password) {
@@ -269,6 +281,7 @@ impl AuthApi for AuthApiService {
                 message: err,
                 player: None,
                 token: String::new(),
+                is_admin: false,
             }));
         }
 
@@ -319,6 +332,7 @@ impl AuthApi for AuthApiService {
                         message: "Неверный логин или пароль".to_string(),
                         player: None,
                         token: String::new(),
+                        is_admin: false,
                     }));
                 }
 
@@ -336,6 +350,7 @@ impl AuthApi for AuthApiService {
                     login: login.clone(),
                     email,
                     created_at,
+                    is_admin,
                 };
 
                 println!("[LOGIN] Игрок вошёл: {} (токен выдан, is_admin={})", login, is_admin);
@@ -345,6 +360,7 @@ impl AuthApi for AuthApiService {
                     message: "Вход успешен".to_string(),
                     player: Some(player),
                     token,
+                    is_admin,
                 }))
             }
             None => Ok(Response::new(AuthResponse {
@@ -352,6 +368,7 @@ impl AuthApi for AuthApiService {
                 message: "Неверный логин или пароль".to_string(),
                 player: None,
                 token: String::new(),
+                is_admin: false,
             })),
         }
     }
@@ -395,11 +412,17 @@ impl AuthApi for AuthApiService {
                     .map(|s| s.to_string())
                     .unwrap_or_default();
 
+                let is_admin = v
+                    .get("is_admin")
+                    .and_then(|s| s.as_bool())
+                    .unwrap_or(false);
+
                 let player = Player {
                     id,
                     login,
                     email,
                     created_at,
+                    is_admin,
                 };
 
                 Ok(Response::new(AuthResponse {
@@ -407,6 +430,7 @@ impl AuthApi for AuthApiService {
                     message: "Игрок найден".to_string(),
                     player: Some(player),
                     token: String::new(),
+                    is_admin,
                 }))
             }
             None => Ok(Response::new(AuthResponse {
@@ -414,6 +438,7 @@ impl AuthApi for AuthApiService {
                 message: "Игрок не найден".to_string(),
                 player: None,
                 token: String::new(),
+                is_admin: false,
             })),
         }
     }

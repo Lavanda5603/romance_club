@@ -1,11 +1,11 @@
-use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey};
-use serde::{Deserialize, Serialize};
-use chrono::{Utc, Duration};
+use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey}; // Импорт JWT-функций
+use serde::{Deserialize, Serialize}; // Импорт сериализации
+use chrono::{Utc, Duration}; // Импорт работы со временем
 
-// Секретный ключ (в продакшене — в .env!)
+// Секретный ключ
 const SECRET_KEY: &[u8] = b"romance_club_secret_key_2026_super_secret_do_not_share";
 
-// Время жизни токена — 7 дней
+// Время жизни токена - 7 дней
 const TOKEN_LIFETIME_HOURS: i64 = 24 * 7;
 
 // Claims (данные внутри токена)

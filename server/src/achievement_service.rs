@@ -1,12 +1,12 @@
-use tonic::{Request, Response, Status};
-use surrealdb::engine::remote::ws::Client;
-use surrealdb::Surreal;
-use serde_json::Value;
-use crate::romance_club::achievement_api_server::AchievementApi;
+use tonic::{Request, Response, Status}; // Импорт tonic
+use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
+use surrealdb::Surreal; // Импорт Surreal
+use serde_json::Value; // Импорт Value
+use crate::romance_club::achievement_api_server::AchievementApi; // Импорт трейта
 use crate::romance_club::{
     Achievement, GetAchievementsRequest, GetAchievementsResponse,
     UnlockAchievementRequest, UnlockAchievementResponse,
-};
+}; // Импорт структур
 
 // Сервис для работы с достижениями
 pub struct AchievementApiService {

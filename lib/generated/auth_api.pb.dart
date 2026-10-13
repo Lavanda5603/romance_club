@@ -235,12 +235,14 @@ class AuthResponse extends $pb.GeneratedMessage {
     $core.String? message,
     $1.Player? player,
     $core.String? token,
+    $core.bool? isAdmin,
   }) {
     final result = AuthResponse._();
     if (success != null) result.success = success;
     if (message != null) result.message = message;
     if (player != null) result.player = player;
     if (token != null) result.token = token;
+    if (isAdmin != null) result.isAdmin = isAdmin;
     return result;
   }
 
@@ -262,6 +264,7 @@ class AuthResponse extends $pb.GeneratedMessage {
     ..aOM<$1.Player>(3, _omitFieldNames ? '' : 'player',
         subBuilder: $1.Player.$_createMessage)
     ..aOS(4, _omitFieldNames ? '' : 'token')
+    ..aOB(5, _omitFieldNames ? '' : 'isAdmin')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -323,6 +326,15 @@ class AuthResponse extends $pb.GeneratedMessage {
   $core.bool hasToken() => $_has(3);
   @$pb.TagNumber(4)
   void clearToken() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.bool get isAdmin => $_getBF(4);
+  @$pb.TagNumber(5)
+  set isAdmin($core.bool value) => $_setBool(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasIsAdmin() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearIsAdmin() => $_clearField(5);
 }
 
 const $core.bool _omitFieldNames =

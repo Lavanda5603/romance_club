@@ -1,12 +1,12 @@
-use tonic::{Request, Response, Status};
-use surrealdb::engine::remote::ws::Client;
-use surrealdb::Surreal;
-use serde_json::Value;
-use crate::romance_club::progress_api_server::ProgressApi;
+use tonic::{Request, Response, Status}; // Импорт tonic
+use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
+use surrealdb::Surreal; // Импорт Surreal
+use serde_json::Value; // Импорт Value
+use crate::romance_club::progress_api_server::ProgressApi; // Импорт трейта
 use crate::romance_club::{
     Progress, GetProgressRequest, SaveProgressRequest, SaveProgressResponse,
     ResetProgressRequest, ResetProgressResponse,
-};
+}; // Импорт структур
 
 // Сервис для работы с прогрессом
 pub struct ProgressApiService {

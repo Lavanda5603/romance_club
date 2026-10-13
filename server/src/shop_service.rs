@@ -1,12 +1,12 @@
-use tonic::{Request, Response, Status};
-use surrealdb::engine::remote::ws::Client;
-use surrealdb::Surreal;
-use serde_json::Value;
-use crate::romance_club::shop_api_server::ShopApi;
+use tonic::{Request, Response, Status}; // Импорт tonic
+use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
+use surrealdb::Surreal; // Импорт Surreal
+use serde_json::Value; // Импорт Value
+use crate::romance_club::shop_api_server::ShopApi; // Импорт трейта
 use crate::romance_club::{
     Purchase, Currency, GetPurchasesRequest, GetPurchasesResponse,
     PurchaseRequest, PurchaseResponse, GetCurrencyRequest,
-};
+}; // Импорт структур
 
 // Цены (в алмазах)
 const EPISODE_PRICE: i32 = 100; // Эпизод

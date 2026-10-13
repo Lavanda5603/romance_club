@@ -23,10 +23,12 @@ const Player$json = {
     {'1': 'login', '3': 2, '4': 1, '5': 9, '10': 'login'},
     {'1': 'email', '3': 3, '4': 1, '5': 9, '10': 'email'},
     {'1': 'created_at', '3': 4, '4': 1, '5': 9, '10': 'createdAt'},
+    {'1': 'is_admin', '3': 5, '4': 1, '5': 8, '10': 'isAdmin'},
   ],
 };
 
 /// Descriptor for `Player`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List playerDescriptor = $convert.base64Decode(
     'CgZQbGF5ZXISDgoCaWQYASABKAlSAmlkEhQKBWxvZ2luGAIgASgJUgVsb2dpbhIUCgVlbWFpbB'
-    'gDIAEoCVIFZW1haWwSHQoKY3JlYXRlZF9hdBgEIAEoCVIJY3JlYXRlZEF0');
+    'gDIAEoCVIFZW1haWwSHQoKY3JlYXRlZF9hdBgEIAEoCVIJY3JlYXRlZEF0EhkKCGlzX2FkbWlu'
+    'GAUgASgIUgdpc0FkbWlu');

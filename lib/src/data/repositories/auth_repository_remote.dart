@@ -55,7 +55,8 @@ class AuthRepositoryRemote implements AuthRepository {
         login: response.player.login,
         email: response.player.email,
         createdAt: response.player.createdAt,
-        token: response.token, // JWT-токен
+        token: response.token,
+        isAdmin: response.player.isAdmin,
       );
     }
     return AuthModel(
@@ -66,6 +67,7 @@ class AuthRepositoryRemote implements AuthRepository {
       email: '',
       createdAt: '',
       token: response.token,
+      isAdmin: false,
     );
   }
 }

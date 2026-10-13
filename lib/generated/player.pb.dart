@@ -23,12 +23,14 @@ class Player extends $pb.GeneratedMessage {
     $core.String? login,
     $core.String? email,
     $core.String? createdAt,
+    $core.bool? isAdmin,
   }) {
     final result = Player._();
     if (id != null) result.id = id;
     if (login != null) result.login = login;
     if (email != null) result.email = email;
     if (createdAt != null) result.createdAt = createdAt;
+    if (isAdmin != null) result.isAdmin = isAdmin;
     return result;
   }
 
@@ -49,6 +51,7 @@ class Player extends $pb.GeneratedMessage {
     ..aOS(2, _omitFieldNames ? '' : 'login')
     ..aOS(3, _omitFieldNames ? '' : 'email')
     ..aOS(4, _omitFieldNames ? '' : 'createdAt')
+    ..aOB(5, _omitFieldNames ? '' : 'isAdmin')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -106,6 +109,15 @@ class Player extends $pb.GeneratedMessage {
   $core.bool hasCreatedAt() => $_has(3);
   @$pb.TagNumber(4)
   void clearCreatedAt() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.bool get isAdmin => $_getBF(4);
+  @$pb.TagNumber(5)
+  set isAdmin($core.bool value) => $_setBool(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasIsAdmin() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearIsAdmin() => $_clearField(5);
 }
 
 const $core.bool _omitFieldNames =

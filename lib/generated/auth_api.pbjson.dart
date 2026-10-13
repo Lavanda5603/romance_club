@@ -71,6 +71,7 @@ const AuthResponse$json = {
       '10': 'player'
     },
     {'1': 'token', '3': 4, '4': 1, '5': 9, '10': 'token'},
+    {'1': 'is_admin', '3': 5, '4': 1, '5': 8, '10': 'isAdmin'},
   ],
 };
 
@@ -78,4 +79,4 @@ const AuthResponse$json = {
 final $typed_data.Uint8List authResponseDescriptor = $convert.base64Decode(
     'CgxBdXRoUmVzcG9uc2USGAoHc3VjY2VzcxgBIAEoCFIHc3VjY2VzcxIYCgdtZXNzYWdlGAIgAS'
     'gJUgdtZXNzYWdlEiwKBnBsYXllchgDIAEoCzIULnJvbWFuY2VfY2x1Yi5QbGF5ZXJSBnBsYXll'
-    'chIUCgV0b2tlbhgEIAEoCVIFdG9rZW4=');
+    'chIUCgV0b2tlbhgEIAEoCVIFdG9rZW4SGQoIaXNfYWRtaW4YBSABKAhSB2lzQWRtaW4=');

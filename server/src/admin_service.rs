@@ -1,11 +1,11 @@
-use tonic::{Request, Response, Status};
-use surrealdb::engine::remote::ws::Client;
-use surrealdb::Surreal;
-use crate::jwt;
-use crate::romance_club::admin_api_server::AdminApi;
+use tonic::{Request, Response, Status}; // Импорт tonic
+use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
+use surrealdb::Surreal; // Импорт Surreal
+use crate::jwt; // Модуль JWT
+use crate::romance_club::admin_api_server::AdminApi; // Импорт трейта AdminApi
 use crate::romance_club::{
     AdminDeleteAssetRequest, AdminDeleteEpisodeRequest, AdminResponse,
-};
+}; // Импорт структур
 
 // Сервис для админ-операций
 pub struct AdminApiService {
@@ -67,7 +67,7 @@ impl AdminApi for AdminApiService {
             return Err(Status::invalid_argument("ID обязателен"));
         }
 
-        // Удаляю (DELETE $id — принимает строку "asset:xyz" напрямую)
+        // Удаляю (DELETE $id - принимает строку напрямую)
         self.db
             .query("DELETE $id")
             .bind(("id", id.clone()))
@@ -94,7 +94,7 @@ impl AdminApi for AdminApiService {
         Self::check_admin(&request)?;
 
         let id = request.into_inner().episode_id;
-        let id_i64 = id as i64; // ← Явно в i64
+        let id_i64 = id as i64;
 
         println!("[ADMIN_DELETE_EPISODE] Удаляю эпизод ID: {}", id);
 

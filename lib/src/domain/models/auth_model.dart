@@ -7,6 +7,7 @@ class AuthModel {
   final String email; // Email
   final String createdAt; // Дата регистрации
   final String token; // JWT-токен
+  final bool isAdmin; // Админ ли
 
   // Конструктор класса AuthModel
   const AuthModel({
@@ -17,6 +18,7 @@ class AuthModel {
     required this.email,
     required this.createdAt,
     required this.token,
+    required this.isAdmin,
   });
 
   // Пустой результат
@@ -28,5 +30,6 @@ class AuthModel {
         email: '',
         createdAt: '',
         token: '',
+        isAdmin: false,
       );
 }

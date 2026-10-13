@@ -297,6 +297,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                                     ),
                                                     child: Text(
                                                       episode.title, // Название эпизода
+                                                      textAlign: TextAlign.center,
                                                       style: const TextStyle(
                                                         color: Color(0xFF3F0404), 
                                                         fontSize: 18, 

@@ -12,6 +12,7 @@ class SceneEditorScreen extends StatefulWidget {
   final Scene scene; // Сцена
   final Function(Scene) onSave; // Функция, вызывается при сохранении
   final String episodeId; // ID эпизода (для фильтра ассетов)
+  final List<Scene> allScenes; // Все сцены эпизода (для выбора следующей)
 
   // Конструктор класса SceneEditorScreen
   const SceneEditorScreen({
@@ -19,6 +20,7 @@ class SceneEditorScreen extends StatefulWidget {
     required this.scene,
     required this.onSave,
     this.episodeId = '',
+    this.allScenes = const [],
   });
 
   @override
@@ -26,23 +28,25 @@ class SceneEditorScreen extends StatefulWidget {
 }
 
 class _SceneEditorScreenState extends State<SceneEditorScreen> {
-  late TextEditingController _titleController;
-  late TextEditingController _conditionController;
-  late TextEditingController _musicController;
+  late TextEditingController _titleController; // Контроллер названия сцены
+  late TextEditingController _conditionController; // Контроллер условия
+  late TextEditingController _musicController; // Контроллер музыки
 
-  late List<TextEditingController> _textControllers;
+  late List<TextEditingController> _textControllers; // Контроллеры текстов сцены
 
-  late AssetGrpcService _assetService;
-  late AssetRepositoryRemote _assetRepository;
+  late AssetGrpcService _assetService; // gRPC-сервис ассетов
+  late AssetRepositoryRemote _assetRepository; // Репозиторий ассетов
 
-  String _selectedBackground = '';
-  Uint8List? _selectedBackgroundBytes;
-  String _selectedCharacter = '';
-  String _selectedEmotion = '';
-  Uint8List? _selectedCharacterBytes;
+  String _selectedBackground = ''; // Выбранный фон
+  Uint8List? _selectedBackgroundBytes; // Байты фона (для предпросмотра)
+  String _selectedCharacter = ''; // Выбранный персонаж
+  String _selectedEmotion = ''; // Эмоция персонажа
+  Uint8List? _selectedCharacterBytes; // Байты персонажа (для предпросмотра)
 
-  String _selectedCharacterPosition = 'center';
-  String _selectedTextPosition = 'bottom_center';
+  String _selectedCharacterPosition = 'center'; // Позиция персонажа
+  String _selectedTextPosition = 'bottom_center'; // Позиция текста
+
+  int _selectedNextSceneId = 0; // ID следующей сцены (0 = конец эпизода)
 
   // Список позиций персонажа (9 вариантов)
   final List<String> _characterPositions = [
@@ -80,18 +84,22 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   void initState() {
     super.initState();
 
+    // Создаю контроллеры
     _titleController = TextEditingController(text: widget.scene.title);
     _conditionController = TextEditingController(text: widget.scene.condition);
     _musicController = TextEditingController();
 
+    // Создаю контроллеры для текстов сцены
     _textControllers = widget.scene.texts
         .map((t) => TextEditingController(text: t))
         .toList();
 
+    // Если текстов нет - добавляю пустой
     if (_textControllers.isEmpty) {
       _textControllers.add(TextEditingController());
     }
 
+    // Заполняю выбранные значения из сцены
     _selectedBackground = widget.scene.background;
     _selectedCharacter = widget.scene.character;
     _selectedEmotion = widget.scene.characterEmotion;
@@ -102,7 +110,10 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         ? widget.scene.textPosition
         : 'bottom_center';
 
-    // Для совместимости
+    // Начальное значение для следующей сцены
+    _selectedNextSceneId = widget.scene.nextSceneId;
+
+    // Для совместимости (если старая позиция не входит в список)
     if (!_textPositions.contains(_selectedTextPosition)) {
       if (_selectedTextPosition.startsWith('top')) {
         _selectedTextPosition = 'top_center';
@@ -112,14 +123,18 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         _selectedTextPosition = 'center';
       }
     }
+
+    // Создаю сервисы
     _assetService = AssetGrpcService();
     _assetRepository = AssetRepositoryRemote(_assetService);
 
+    // Загружаю выбранные ассеты
     _loadSelectedAssets();
   }
 
   @override
   void dispose() {
+    // Освобождаю контроллеры
     _titleController.dispose();
     _conditionController.dispose();
     _musicController.dispose();
@@ -130,6 +145,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     super.dispose();
   }
 
+  // Загрузка выбранных ассетов (фон, персонаж)
   Future<void> _loadSelectedAssets() async {
     try {
       final backgrounds = await _assetRepository.getAssets('background');
@@ -157,12 +173,14 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
+  // Добавить текстовое поле
   void _addTextField() {
     setState(() {
       _textControllers.add(TextEditingController());
     });
   }
 
+  // Удалить текстовое поле
   void _removeTextField(int index) {
     setState(() {
       _textControllers[index].dispose();
@@ -170,6 +188,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     });
   }
 
+  // Выбор фона
   Future<void> _pickBackground() async {
     final result = await Navigator.push<AssetModel>(
       context,
@@ -192,6 +211,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
+  // Выбор персонажа
   Future<void> _pickCharacter() async {
     final result = await Navigator.push<AssetModel>(
       context,
@@ -214,6 +234,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
+  // Удалить персонажа
   void _removeCharacter() {
     setState(() {
       _selectedCharacter = '';
@@ -222,6 +243,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     });
   }
 
+  // Сохранить сцену
   void _saveScene() {
     final newScene = Scene(
       id: widget.scene.id,
@@ -233,8 +255,10 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       sceneKey: widget.scene.sceneKey,
       characterPosition: _selectedCharacterPosition,
       textPosition: _selectedTextPosition,
+      nextSceneId: _selectedNextSceneId,
     );
 
+    // Добавляю тексты
     for (final c in _textControllers) {
       if (c.text.trim().isNotEmpty) {
         newScene.texts.add(c.text.trim());
@@ -252,6 +276,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     Navigator.pop(context);
   }
 
+  // Добавить выбор
   void _addChoice() {
     Navigator.push(
       context,
@@ -269,6 +294,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
+  // Редактировать выбор
   void _editChoice(int index) {
     Navigator.push(
       context,
@@ -285,6 +311,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
+  // Удалить выбор
   Future<void> _deleteChoice(int index) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -315,6 +342,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
+  // Поле ввода с подписью
   Widget _buildField(String label, TextEditingController controller,
       {int maxLines = 1, TextInputType? keyboardType}) {
     return Column(
@@ -349,7 +377,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
-  // Выпадающий список позиций (принимает список и словарь названий)
+  // Выпадающий список позиций
   Widget _buildDropdown(
     String label,
     String value,
@@ -393,6 +421,71 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     );
   }
 
+  // Выпадающий список Следующая сцена
+  Widget _buildNextSceneDropdown() {
+    // Собираю пункты: все сцены эпизода и Конец эпизода
+    final items = <int>[0];
+    for (final s in widget.allScenes) {
+      items.add(s.id);
+    }
+
+    // Текущее значение (если не найдено - 0)
+    final safeValue = items.contains(_selectedNextSceneId)
+        ? _selectedNextSceneId
+        : 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'следующая сцена',
+          style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: DropdownButton<int>(
+            value: safeValue,
+            isExpanded: true,
+            dropdownColor: const Color(0xFF3F0404),
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+            underline: const SizedBox(),
+            items: items.map((id) {
+              String label;
+              if (id == 0) {
+                label = 'Конец эпизода';
+              } else {
+                // Ищу сцену по id
+                final scene = widget.allScenes.firstWhere(
+                  (s) => s.id == id,
+                  orElse: () => Scene(id: id, title: 'сцена $id'),
+                );
+                label = scene.title.isNotEmpty
+                    ? '${scene.title} (id $id)'
+                    : 'сцена $id';
+              }
+              return DropdownMenuItem<int>(
+                value: id,
+                child: Text(label),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _selectedNextSceneId = value);
+              }
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  // Предпросмотр сцены
   Widget _buildPreview() {
     Alignment getAlign(String pos) {
       switch (pos) {
@@ -427,6 +520,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             borderRadius: BorderRadius.circular(11),
             child: Stack(
               children: [
+                // Фон
                 Positioned.fill(
                   child: _selectedBackgroundBytes == null
                       ? Container(color: const Color(0xFF333333))
@@ -438,6 +532,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           },
                         ),
                 ),
+                // Персонаж
                 if (_selectedCharacterBytes != null)
                   Positioned(
                     top: 20,
@@ -463,6 +558,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                       ),
                     ),
                   ),
+                // Текст
                 Align(
                   alignment: getAlign(_selectedTextPosition),
                   child: Padding(
@@ -501,6 +597,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
       body: Stack(
         children: [
+          // Фон
           Positioned.fill(
             child: Container(
               color: const Color(0xFF1A1A1A),
@@ -511,9 +608,11 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             ),
           ),
 
+          // Основной контент
           SafeArea(
             child: Column(
               children: [
+                // Верхняя панель
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   child: Row(
@@ -538,6 +637,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Заголовок
                         const Center(
                           child: Text(
                             'РЕДАКТИРОВАНИЕ\nСЦЕНЫ',
@@ -552,6 +652,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         ),
                         const SizedBox(height: 20),
 
+                        // Название сцены
                         const Text(
                           'название сцены',
                           style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 16),
@@ -567,6 +668,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         ),
                         const SizedBox(height: 16),
 
+                        // Фон
                         const Text(
                           'фон',
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
@@ -597,6 +699,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         ),
                         const SizedBox(height: 16),
 
+                        // Персонаж
                         const Text(
                           'персонаж',
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
@@ -641,7 +744,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Позиция персонажа (9 вариантов)
+                        // Позиция персонажа
                         _buildDropdown(
                           'позиция персонажа',
                           _selectedCharacterPosition,
@@ -654,7 +757,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           },
                         ),
 
-                        // Позиция текста (3 варианта)
+                        // Позиция текста
                         _buildDropdown(
                           'позиция текста',
                           _selectedTextPosition,
@@ -669,6 +772,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
                         _buildPreview(),
 
+                        // Тексты сцены
                         const Text(
                           'тексты сцены:',
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
@@ -716,9 +820,22 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           ),
                         ),
 
+                        // Условие
                         _buildField('условие', _conditionController),
+                        // Подсказка по формату условия
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4, bottom: 8),
+                          child: Text(
+                            'Формат: flag:имя=true, flag:имя=false, points>=5, points<=3',
+                            style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 12),
+                          ),
+                        ),
                         const SizedBox(height: 8),
 
+                        // Следующая сцена
+                        _buildNextSceneDropdown(),
+
+                        // Выборы
                         const Text(
                           'выбор',
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
@@ -794,9 +911,11 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         ),
                         const SizedBox(height: 8),
 
+                        // Музыка
                         _buildField('музыка', _musicController),
                         const SizedBox(height: 8),
 
+                        // Кнопка сохранить
                         SizedBox(
                           width: 200,
                           height: 55,

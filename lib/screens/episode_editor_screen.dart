@@ -222,6 +222,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                                   builder: (context) => SceneEditorScreen(
                                                     scene: scene,
                                                     episodeId: 'episode:${widget.episode.id}',
+                                                    allScenes: widget.episode.scenes, // Передаю все сцены эпизода
                                                     onSave: (newScene) {
                                                       setState(() {
                                                         widget.episode.scenes[index] = newScene;

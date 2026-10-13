@@ -284,9 +284,10 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       ),
                       const Spacer(),
+                      // Любовь
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
+                          horizontal: 10,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
@@ -294,7 +295,27 @@ class _GameScreenState extends State<GameScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'Баллы: ${_viewModel.points}',
+                          '❤️ ${_viewModel.lovePoints}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Дружба
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3F0404).withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '💌 ${_viewModel.friendshipPoints}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,

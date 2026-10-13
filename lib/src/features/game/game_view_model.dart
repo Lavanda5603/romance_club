@@ -22,8 +22,18 @@ class GameViewModel extends ChangeNotifier {
   // Текущая реплика (индекс внутри сцены)
   int _currentTextIndex = 0;
 
-  // Текущие баллы
+  // Общие баллы (points)
   int _points = 0;
+
+  // Счётчики (6 штук: 5 романтики + дружба)
+  final Map<String, int> _counters = {
+    'romance_adrian': 0, // Маринетт + Адриан
+    'romance_cat': 0, // Маринетт + Супер-Кот
+    'romance_ladybug_adrian': 0, // Леди Баг + Адриан
+    'romance_ladybug_cat': 0, // Леди Баг + Супер-Кот
+    'romance_luka': 0, // Маринетт + Лука
+    'friendship': 0, // Дружба
+  };
 
   // Текущие флаги (имя - значение)
   final Map<String, bool> _flags = {};
@@ -67,8 +77,23 @@ class GameViewModel extends ChangeNotifier {
     return _currentTextIndex >= currentScene!.texts.length - 1;
   }
 
-  // Геттер для баллов
+  // Геттер для баллов (общих)
   int get points => _points;
+
+  // Геттер для счётчиков
+  Map<String, int> get counters => _counters;
+
+  // Геттер: баллы любви (сумма 5 романтики)
+  int get lovePoints {
+    return _counters['romance_adrian']! +
+        _counters['romance_cat']! +
+        _counters['romance_ladybug_adrian']! +
+        _counters['romance_ladybug_cat']! +
+        _counters['romance_luka']!;
+  }
+
+  // Геттер: баллы дружбы
+  int get friendshipPoints => _counters['friendship']!;
 
   // Геттер для флагов
   Map<String, bool> get flags => _flags;
@@ -114,6 +139,7 @@ class GameViewModel extends ChangeNotifier {
         _currentSceneIndex = 0;
         _currentTextIndex = 0;
         _points = 0;
+        _resetCounters();
         _flags.clear();
         notifyListeners();
         return;
@@ -132,17 +158,21 @@ class GameViewModel extends ChangeNotifier {
                 break;
               }
             }
-            _points = progress.counters.values.fold(0, (a, b) => a + b);
+            // Загружаю баллы и счётчики
+            _points = progress.counters['points'] ?? 0;
+            _loadCounters(progress.counters);
             _flags.addAll(progress.flags);
           } else {
             _currentSceneIndex = 0;
             _points = 0;
+            _resetCounters();
             _flags.clear();
           }
         } catch (e) {
           debugPrint('Ошибка загрузки прогресса: $e');
           _currentSceneIndex = 0;
           _points = 0;
+          _resetCounters();
           _flags.clear();
         }
       }
@@ -152,6 +182,26 @@ class GameViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  // Сбросить счётчики
+  void _resetCounters() {
+    _counters['romance_adrian'] = 0;
+    _counters['romance_cat'] = 0;
+    _counters['romance_ladybug_adrian'] = 0;
+    _counters['romance_ladybug_cat'] = 0;
+    _counters['romance_luka'] = 0;
+    _counters['friendship'] = 0;
+  }
+
+  // Загрузить счётчики из progress.counters
+  void _loadCounters(Map<String, int> saved) {
+    _counters['romance_adrian'] = saved['romance_adrian'] ?? 0;
+    _counters['romance_cat'] = saved['romance_cat'] ?? 0;
+    _counters['romance_ladybug_adrian'] = saved['romance_ladybug_adrian'] ?? 0;
+    _counters['romance_ladybug_cat'] = saved['romance_ladybug_cat'] ?? 0;
+    _counters['romance_luka'] = saved['romance_luka'] ?? 0;
+    _counters['friendship'] = saved['friendship'] ?? 0;
   }
 
   // Следующая реплика (если есть)
@@ -200,21 +250,23 @@ class GameViewModel extends ChangeNotifier {
     return true;
   }
 
-  // Переход к сцене по ID (с проверкой условия)
+  // Переход к сцене по SurrealDB-id (с проверкой условия)
   void goToScene(int sceneId) {
     if (_state.data == null) return;
 
-    // Ищу сцену по ID
+    // Формирую sceneKey из sceneId
+    final sceneKey = 'scene:$sceneId';
+
+    // Ищу сцену по sceneKey (SurrealDB-id)
     for (int i = 0; i < _state.data!.scenes.length; i++) {
-      if (_state.data!.scenes[i].id == sceneId) {
+      if (_state.data!.scenes[i].sceneKey == sceneKey) {
         final scene = _state.data!.scenes[i];
 
         // Проверяю условие
         if (!_isConditionMet(scene.condition)) {
-          debugPrint('[GAME] Сцена ${scene.id} пропущена (условие: ${scene.condition})');
+          debugPrint('[GAME] Сцена ${scene.sceneKey} пропущена (условие: ${scene.condition})');
 
           // Условие не выполнено - иду дальше по nextSceneId этой сцены
-          // или к следующей по порядку
           if (scene.nextSceneId > 0) {
             goToScene(scene.nextSceneId);
             return;
@@ -248,10 +300,66 @@ class GameViewModel extends ChangeNotifier {
     }
   }
 
+  // Выбрать следующую сцену по счётчикам (для автовыбора)
+  int _pickSceneByCounters(int episodeId) {
+    // Для эпизода 4: выбираю между 221 (Адриан), 226 (Кот), 231 (МариНет+Кот), 236 (ЛБ+Адриан)
+    if (episodeId == 4) {
+      // Считаю максимум среди romance_adrian, romance_cat, romance_ladybug_adrian, romance_ladybug_cat
+      final adrian = _counters['romance_adrian']!;
+      final cat = _counters['romance_cat']!;
+      final lbAdrian = _counters['romance_ladybug_adrian']!;
+      final lbCat = _counters['romance_ladybug_cat']!;
+
+      final max = [adrian, cat, lbAdrian, lbCat].reduce((a, b) => a > b ? a : b);
+
+      // Порядок проверки
+      if (adrian == max && adrian > 0) return 221;
+      if (cat == max && cat > 0) return 226;
+      if (lbAdrian == max && lbAdrian > 0) return 236;
+      if (lbCat == max && lbCat > 0) return 231;
+      return 221; // По умолчанию Адриан
+    }
+
+    // Для эпизода 5: 5 веток - 308 (Адриан), 314 (Кот), 320 (Лука), 328 (МариНет+Кот), 334 (ЛБ+Адриан)
+    if (episodeId == 5) {
+      final adrian = _counters['romance_adrian']!;
+      final cat = _counters['romance_cat']!;
+      final luka = _counters['romance_luka']!;
+      final lbAdrian = _counters['romance_ladybug_adrian']!;
+      final lbCat = _counters['romance_ladybug_cat']!;
+
+      final max = [adrian, cat, luka, lbAdrian, lbCat].reduce((a, b) => a > b ? a : b);
+
+      if (adrian == max && adrian > 0) return 308;
+      if (cat == max && cat > 0) return 314;
+      if (luka == max && luka > 0) return 320;
+      if (lbAdrian == max && lbAdrian > 0) return 334;
+      if (lbCat == max && lbCat > 0) return 328;
+      return 308; // По умолчанию Адриан
+    }
+
+    return 0;
+  }
+
   // Переход к следующей сцене (по next_scene_id или по порядку)
   void nextScene() {
     if (_state.data == null) return;
     if (currentScene == null) return;
+
+    // Проверяю: если это сцена 220 (эп 4) или 307 (эп 5) - автовыбор по счётчикам
+    // Сравниваю по sceneKey (SurrealDB-id)
+    final sceneKey = currentScene!.sceneKey;
+    final episodeId = _state.data!.id;
+
+    if ((episodeId == 4 && sceneKey == 'scene:220') ||
+        (episodeId == 5 && sceneKey == 'scene:307')) {
+      final picked = _pickSceneByCounters(episodeId);
+      if (picked > 0) {
+        debugPrint('[GAME] Автовыбор сцены по счётчикам: $picked');
+        goToScene(picked);
+        return;
+      }
+    }
 
     // Если у сцены задан nextSceneId - иду на него
     final nextId = currentScene!.nextSceneId;
@@ -269,14 +377,29 @@ class GameViewModel extends ChangeNotifier {
     if (currentScene == null) return;
     final choice = currentScene!.choices[choiceIndex];
     for (final action in choice.actions) {
+      // Переход на сцену (если тип nextScene)
       if (action.type == 'nextScene') {
         goToScene(action.sceneId);
-      } else if (action.type == 'changeCounter') {
+      }
+
+      // Счётчик (работает и для nextScene, и для changeCounter)
+      if (action.counterName.isNotEmpty && action.counterName != 'points') {
+        // Конкретный счётчик (romance_adrian, friendship, ...)
+        final current = _counters[action.counterName] ?? 0;
+        _counters[action.counterName] = current + action.counterValue;
+        debugPrint('[GAME] Счётчик ${action.counterName}: $current → ${_counters[action.counterName]}');
+      } else if (action.counterName == 'points') {
+        // Общие баллы
         _points += action.counterValue;
-      } else if (action.type == 'changeFlag') {
+      }
+
+      // Флаг (если задан)
+      if (action.flagName.isNotEmpty) {
         _flags[action.flagName] = action.flagValue;
-      } else if (action.type == 'ending') {
-        // Установка концовки
+      }
+
+      // Концовка (если тип ending)
+      if (action.type == 'ending') {
         _ending = action.title;
       }
     }
@@ -285,30 +408,32 @@ class GameViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Определить концовку по флагам и баллам
+  // Определить концовку по счётчикам (5 концовок)
   String determineEnding() {
-    // Если концовка уже установлена - возвращаю её
+    // Если концовка уже установлена вручную - возвращаю её
     if (_ending.isNotEmpty) return _ending;
 
-    // Логика концовок
+    // Считаю максимум по 5 романтическим линиям
+    final adrian = _counters['romance_adrian']!;
+    final cat = _counters['romance_cat']!;
+    final luka = _counters['romance_luka']!;
+    final lbAdrian = _counters['romance_ladybug_adrian']!;
+    final lbCat = _counters['romance_ladybug_cat']!;
 
-    // Маринетт + Лука
-    if (_flags['выбрал_луку'] == true) {
-      return 'Лука';
+    // Если всё по нулям - по умолчанию
+    if (adrian == 0 && cat == 0 && luka == 0 && lbAdrian == 0 && lbCat == 0) {
+      return 'МариКот';
     }
-    // Леди Баг + Адриан
-    if (_flags['выбрал_адрибаг'] == true) {
-      return 'АдриБаг';
-    }
-    // Леди Баг + Супер-Кот
-    if (_flags['выбрал_супербаг'] == true) {
-      return 'СуперБаг';
-    }
-    // Маринетт + Адриан
-    if (_flags['выбрал_адринетт'] == true) {
-      return 'АдриНетт';
-    }
-    // По умолчанию
+
+    final max = [adrian, cat, luka, lbAdrian, lbCat].reduce((a, b) => a > b ? a : b);
+
+    // Порядок проверки - чтобы не было случайных совпадений
+    if (adrian == max) return 'МариКот';
+    if (cat == max) return 'МариКот';
+    if (luka == max) return 'Лука';
+    if (lbAdrian == max) return 'АдриБаг';
+    if (lbCat == max) return 'СуперБаг';
+
     return 'МариКот';
   }
 
@@ -353,12 +478,23 @@ class GameViewModel extends ChangeNotifier {
     if (_state.data == null) return;
 
     try {
+      // Собираю все счётчики и points
+      final countersToSave = <String, int>{
+        'points': _points,
+        'romance_adrian': _counters['romance_adrian']!,
+        'romance_cat': _counters['romance_cat']!,
+        'romance_ladybug_adrian': _counters['romance_ladybug_adrian']!,
+        'romance_ladybug_cat': _counters['romance_ladybug_cat']!,
+        'romance_luka': _counters['romance_luka']!,
+        'friendship': _counters['friendship']!,
+      };
+
       final progress = ProgressModel(
         playerId: _playerId,
         episodeId: _state.data!.id,
         sceneId: _currentSceneIdStr,
         flags: _flags,
-        counters: {'points': _points},
+        counters: countersToSave,
       );
       await _progressRepository.saveProgress(progress);
     } catch (e) {

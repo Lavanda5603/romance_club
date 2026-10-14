@@ -65,7 +65,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
     super.dispose();
   }
 
-  // Загрузка эпизодов с сервера
+  // Загрузка эпизодов с сервера (параллельно)
   Future<void> _loadEpisodes() async {
     try {
       // Загружаю player_id из Storage
@@ -74,48 +74,52 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
       // Запрашиваю эпизоды с сервера
       final episodes = await _episodeService.getAllEpisodes();
 
-      // Проверяю прогресс для каждого эпизода
-      final passed = <int>{};
-      if (_playerId.isNotEmpty) {
-        for (final ep in episodes) {
-          try {
-            final progress = await _progressRepository.getProgress(_playerId, ep.id);
-            // Если сцена есть - эпизод пройден
-            if (progress.sceneId.isNotEmpty) {
-              passed.add(ep.id);
-            }
-          } catch (e) {
-            // Игнорирую ошибку отдельного эпизода
-          }
-        }
-      }
-
       if (!mounted) return;
 
+      // Сразу показываю список (без статусов)
       setState(() {
-        _episodes.clear(); // Очищаю текущий список
-        _episodes.addAll(episodes); // Добавляю загруженные эпизоды
-        _passedEpisodes.clear();
-        _passedEpisodes.addAll(passed);
-        
-        // Автовыбор первого непройденного эпизода
-        _selectedIndex = 0;
-        for (int i = 0; i < episodes.length; i++) {
-          if (!passed.contains(episodes[i].id)) {
-            _selectedIndex = i;
-            break;
-          }
-        }
-
-        _isLoading = false; // Загрузка завершена
+        _episodes.clear();
+        _episodes.addAll(episodes);
+        _isLoading = false; // Список видно
       });
+
+      // Проверяю прогресс параллельно
+      if (_playerId.isNotEmpty) {
+        final results = await Future.wait(
+          episodes.map((ep) async {
+            try {
+              final progress = await _progressRepository.getProgress(_playerId, ep.id);
+              return MapEntry(ep.id, progress.sceneId.isNotEmpty);
+            } catch (e) {
+              return MapEntry(ep.id, false);
+            }
+          }),
+        );
+
+        if (!mounted) return;
+
+        setState(() {
+          _passedEpisodes.clear();
+          for (final r in results) {
+            if (r.value) _passedEpisodes.add(r.key);
+          }
+
+          // Автовыбор первого непройденного
+          _selectedIndex = 0;
+          for (int i = 0; i < episodes.length; i++) {
+            if (!_passedEpisodes.contains(episodes[i].id)) {
+              _selectedIndex = i;
+              break;
+            }
+          }
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString(); // Сохраняю ошибку
-        _isLoading = false; // Загрузка завершена
+        _error = e.toString();
+        _isLoading = false;
       });
-      // Показываю SnackBar с ошибкой
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ошибка загрузки эпизодов: $e')),
       );

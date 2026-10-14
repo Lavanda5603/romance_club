@@ -82,10 +82,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  // Загрузка профиля
+    // Загрузка профиля (параллельно)
   Future<void> _loadProfile() async {
     try {
-      // Загружаю player_id из Storage
       _playerId = await StorageService.loadPlayerId();
 
       if (_playerId.isEmpty) {
@@ -96,27 +95,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      // Загружаю игрока с сервера
-      final authModel = await _authRepository.getPlayer(_playerId);
+      // Загружаю игрока, эпизоды и достижения параллельно
+      final authFuture = _authRepository.getPlayer(_playerId);
+      final episodesFuture = _episodeService.getAllEpisodes();
+      final achievementsFuture = _achievementRepository.getAchievements(_playerId);
 
-      // Загружаю все эпизоды
-      final episodes = await _episodeService.getAllEpisodes();
+      final authModel = await authFuture;
+      final episodes = await episodesFuture;
+      final achievements = await achievementsFuture;
 
-      // Считаю пройденные эпизоды
-      int completed = 0;
-      for (final ep in episodes) {
-        try {
-          final progress = await _progressRepository.getProgress(_playerId, ep.id);
-          if (progress.sceneId.isNotEmpty) {
-            completed++;
+      // Проверяю прогресс параллельно
+      final progressResults = await Future.wait(
+        episodes.map((ep) async {
+          try {
+            final progress = await _progressRepository.getProgress(_playerId, ep.id);
+            return progress.sceneId.isNotEmpty ? 1 : 0;
+          } catch (e) {
+            return 0;
           }
-        } catch (e) {
-          // Игнорирую
-        }
-      }
+        }),
+      );
 
-      // Загружаю достижения
-      final achievements = await _achievementRepository.getAchievements(_playerId);
+      final completed = progressResults.where((x) => x == 1).length;
+
       final unlocked = <String>{};
       for (final a in achievements) {
         if (a.isUnlocked) unlocked.add(a.name);

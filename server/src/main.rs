@@ -302,111 +302,194 @@ impl EpisodeApi for EpisodeApiService {
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        // 2. Удаляю старые action эпизода (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)))")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
+        // 2. Собираю ключи присланных сцен (непустые)
+        let incoming_keys: Vec<String> = episode.scenes.iter()
+            .filter(|s| !s.scene_key.is_empty())
+            .map(|s| s.scene_key.clone())
+            .collect();
 
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+        println!("[SAVE_EPISODE] Присланных ключей: {}", incoming_keys.len());
 
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
+        // 3. Нахожу все id сцен эпизода в БД
+        let mut existing_response = self.db
+            .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
+            .bind(("id", id_i64))
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        let existing_values: Vec<Value> = existing_response
+            .take(0)
+            .map_err(|e| Status::internal(e.to_string()))?;
+
+        // 4. Определяю, какие сцены надо удалить (есть в БД, но нет в присланных)
+        let keys_to_delete: Vec<Value> = existing_values
+            .into_iter()
+            .filter(|v| {
+                let key = v.as_str().unwrap_or("");
+                !incoming_keys.iter().any(|k| k == key)
+            })
+            .collect();
+
+        println!("[SAVE_EPISODE] К удалению сцен: {}", keys_to_delete.len());
+
+        // 5. Удаляю action, choice и scene для удаляемых сцен
+        for scene_key_value in keys_to_delete.iter() {
+            let scene_key_str = scene_key_value.as_str().unwrap_or("").to_string();
+            if scene_key_str.is_empty() {
+                continue;
+            }
+
+            println!("[SAVE_EPISODE] Удаляю сцену: {}", scene_key_str);
+
+            // Удаляю action удаляемой сцены
+            {
+                let mut ids_response = self.db
+                    .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id = type::record($scene_key))")
+                    .bind(("scene_key", scene_key_str.clone()))
                     .await
                     .map_err(|e| Status::internal(e.to_string()))?;
+
+                let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+                if !ids.is_empty() {
+                    self.db
+                        .query("DELETE $ids")
+                        .bind(("ids", ids))
+                        .await
+                        .map_err(|e| Status::internal(e.to_string()))?;
+                }
             }
-        }
 
-        // 3. Удаляю старые choice эпизода (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id))")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
+            // Удаляю choice удаляемой сцены
+            {
+                let mut ids_response = self.db
+                    .query("SELECT VALUE id FROM choice WHERE scene_id = type::record($scene_key)")
+                    .bind(("scene_key", scene_key_str.clone()))
                     .await
                     .map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
 
-        // 4. Удаляю старые scene эпизода (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
-                .bind(("id", id_i64))
+                let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+                if !ids.is_empty() {
+                    self.db
+                        .query("DELETE $ids")
+                        .bind(("ids", ids))
+                        .await
+                        .map_err(|e| Status::internal(e.to_string()))?;
+                }
+            }
+
+            // Удаляю саму сцену
+            self.db
+                .query("DELETE type::record($scene_key)")
+                .bind(("scene_key", scene_key_str.clone()))
                 .await
                 .map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-            }
         }
 
-        // 5. Сохраняю сцены
+        // 6. Сохраняю сцены (UPDATE существующих, CREATE новых)
         for (scene_index, scene) in episode.scenes.iter().enumerate() {
-            // Сохраняю сцену
-            println!("[SAVE_EPISODE] Сцена {}: {} (фон: {}, персонаж: {})",
-                scene_index, scene.title, scene.background, scene.character);
+            println!("[SAVE_EPISODE] Сцена {}: {} (key: {})",
+                scene_index, scene.title, scene.scene_key);
 
-            // Создаю сцену
-            let mut sc_response = self
-                .db
-                .query("CREATE scene CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, character_emotion: $char_emotion, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order, next_scene_id: $next_scene } RETURN id")
-                .bind(("ep_id", id_i64)) // i64
-                .bind(("title", scene.title.clone()))
-                .bind(("background", scene.background.clone()))
-                .bind(("character", scene.character.clone()))
-                .bind(("char_emotion", scene.character_emotion.clone()))
-                .bind(("texts", scene.texts.clone()))
-                .bind(("condition", scene.condition.clone()))
-                .bind(("text_pos", scene.text_position.clone()))
-                .bind(("char_pos", scene.character_position.clone()))
-                .bind(("order", scene_index as i32))
-                .bind(("next_scene", scene.next_scene_id.clone()))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
+            // Определяю id сцены: UPDATE или CREATE
+            let scene_id_str: String;
 
-            // Извлекаю id созданной сцены (результат - массив с одним элементом)
-            let scene_rows: Vec<Value> = sc_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-            let scene_id_str = match scene_rows.first() {
-                Some(v) => v.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()),
-                None => None,
-            };
-            let scene_id_str = match scene_id_str {
-                Some(s) => {
-                    println!("[SAVE_EPISODE] Создана сцена: {}", s);
-                    s
+            if scene.scene_key.is_empty() {
+                // Новая сцена - CREATE
+                let mut sc_response = self.db
+                    .query("CREATE scene CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, character_emotion: $char_emotion, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order, next_scene_id: $next_scene } RETURN id")
+                    .bind(("ep_id", id_i64))
+                    .bind(("title", scene.title.clone()))
+                    .bind(("background", scene.background.clone()))
+                    .bind(("character", scene.character.clone()))
+                    .bind(("char_emotion", scene.character_emotion.clone()))
+                    .bind(("texts", scene.texts.clone()))
+                    .bind(("condition", scene.condition.clone()))
+                    .bind(("text_pos", scene.text_position.clone()))
+                    .bind(("char_pos", scene.character_position.clone()))
+                    .bind(("order", scene_index as i32))
+                    .bind(("next_scene", scene.next_scene_id.clone()))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+
+                let scene_rows: Vec<Value> = sc_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+                let scene_id_opt = match scene_rows.first() {
+                    Some(v) => v.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()),
+                    None => None,
+                };
+                scene_id_str = match scene_id_opt {
+                    Some(s) => {
+                        println!("[SAVE_EPISODE] Создана сцена: {}", s);
+                        s
+                    }
+                    None => {
+                        println!("[SAVE_EPISODE] ОШИБКА: сцена не создана");
+                        continue;
+                    }
+                };
+            } else {
+                // Существующая сцена - UPDATE по scene_key
+                self.db
+                    .query("UPDATE type::record($scene_key) CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, character_emotion: $char_emotion, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order, next_scene_id: $next_scene }")
+                    .bind(("scene_key", scene.scene_key.clone()))
+                    .bind(("ep_id", id_i64))
+                    .bind(("title", scene.title.clone()))
+                    .bind(("background", scene.background.clone()))
+                    .bind(("character", scene.character.clone()))
+                    .bind(("char_emotion", scene.character_emotion.clone()))
+                    .bind(("texts", scene.texts.clone()))
+                    .bind(("condition", scene.condition.clone()))
+                    .bind(("text_pos", scene.text_position.clone()))
+                    .bind(("char_pos", scene.character_position.clone()))
+                    .bind(("order", scene_index as i32))
+                    .bind(("next_scene", scene.next_scene_id.clone()))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+
+                scene_id_str = scene.scene_key.clone();
+                println!("[SAVE_EPISODE] Обновлена сцена: {}", scene_id_str);
+            }
+
+            // 7. Удаляю старые action и choice этой сцены
+            {
+                let mut ids_response = self.db
+                    .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id = type::record($scene_key))")
+                    .bind(("scene_key", scene_id_str.clone()))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
+
+                let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+                if !ids.is_empty() {
+                    self.db
+                        .query("DELETE $ids")
+                        .bind(("ids", ids))
+                        .await
+                        .map_err(|e| Status::internal(e.to_string()))?;
                 }
-                None => {
-                    println!("[SAVE_EPISODE] ОШИБКА: сцена не создана (нет id)");
-                    continue;
-                }
-            };
+            }
+            {
+                let mut ids_response = self.db
+                    .query("SELECT VALUE id FROM choice WHERE scene_id = type::record($scene_key)")
+                    .bind(("scene_key", scene_id_str.clone()))
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
 
-            // 6. Сохраняю выборы
+                let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+
+                if !ids.is_empty() {
+                    self.db
+                        .query("DELETE $ids")
+                        .bind(("ids", ids))
+                        .await
+                        .map_err(|e| Status::internal(e.to_string()))?;
+                }
+            }
+
+            // 8. Создаю выборы и действия заново
             for (choice_index, choice) in scene.choices.iter().enumerate() {
-                let mut ch_response = self
-                    .db
+                let mut ch_response = self.db
                     .query("CREATE choice CONTENT { scene_id: type::record($scene_id), text: $text, title: $title, order_index: $order } RETURN id")
                     .bind(("scene_id", scene_id_str.clone()))
                     .bind(("text", choice.text.clone()))
@@ -415,27 +498,21 @@ impl EpisodeApi for EpisodeApiService {
                     .await
                     .map_err(|e| Status::internal(e.to_string()))?;
 
-                // Извлекаю id созданного выбора (результат - массив с одним элементом)
                 let choice_rows: Vec<Value> = ch_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-                let choice_id_str = match choice_rows.first() {
+                let choice_id_opt = match choice_rows.first() {
                     Some(v) => v.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()),
                     None => None,
                 };
-                let choice_id_str = match choice_id_str {
-                    Some(s) => {
-                        println!("[SAVE_EPISODE] Создан выбор: {}", s);
-                        s
-                    }
+                let choice_id_str = match choice_id_opt {
+                    Some(s) => s,
                     None => {
-                        println!("[SAVE_EPISODE] ОШИБКА: выбор не создан (нет id)");
+                        println!("[SAVE_EPISODE] ОШИБКА: выбор не создан");
                         continue;
                     }
                 };
 
-                // 7. Сохраняю действия
                 for action in choice.actions.iter() {
-                    let mut ac_response = self
-                        .db
+                    let mut ac_response = self.db
                         .query("CREATE action CONTENT { choice_id: type::record($choice_id), type: $type, scene_id: $scene_id, flag_name: $flag_name, flag_value: $flag_value, counter_name: $counter_name, counter_value: $counter_value, sound_path: $sound, image_path: $image, title: $title } RETURN id")
                         .bind(("choice_id", choice_id_str.clone()))
                         .bind(("type", action.r#type.clone()))

@@ -63,11 +63,11 @@ impl AssetApi for AssetApiService {
 
         println!("[GET_ASSETS] Тип: {}, Эпизод: {}", asset_type, episode_id);
 
-        // Собираю SQL: с фильтром по эпизоду или без
+        // Собираю SQL: с фильтром по эпизоду или без (episode_id в БД - строка)
         let query = if episode_id.is_empty() {
             "SELECT id, type, name, emotion, url, display_name, episode_id, preview_data FROM asset WHERE type = $type ORDER BY display_name".to_string()
         } else {
-            "SELECT id, type, name, emotion, url, display_name, episode_id, preview_data FROM asset WHERE type = $type AND (episode_id = type::record($ep_id) OR episode_id = NONE) ORDER BY display_name".to_string()
+            "SELECT id, type, name, emotion, url, display_name, episode_id, preview_data FROM asset WHERE type = $type AND (episode_id = $ep_id OR episode_id = NONE) ORDER BY display_name".to_string()
         };
 
         // Выполняю запрос
@@ -168,8 +168,8 @@ impl AssetApi for AssetApiService {
 
         let req = request.into_inner(); // Достаю данные из запроса
 
-        println!("[UPLOAD_ASSET] Загрузка: type={}, name={}, emotion={}",
-            req.r#type, req.name, req.emotion);
+        println!("[UPLOAD_ASSET] Загрузка: type={}, name={}, emotion={}, episode={}",
+            req.r#type, req.name, req.emotion, req.episode_id);
 
         // Проверяю обязательные поля
         if req.r#type.is_empty() || req.name.is_empty() {
@@ -214,9 +214,16 @@ impl AssetApi for AssetApiService {
             Some(req.emotion.clone())
         };
 
+        // Эпизод: пустая строка - NONE
+        let episode_value: Option<String> = if req.episode_id.is_empty() {
+            None
+        } else {
+            Some(req.episode_id.clone())
+        };
+
         let display_name_final = if req.display_name.is_empty() { req.name.clone() } else { req.display_name.clone() };
 
-        // Проверяю - есть ли уже запись
+        // Проверяю - есть ли уже запись (уникальность: type и name и emotion)
         let mut check_response = self
             .db
             .query("SELECT id FROM asset WHERE type = $type AND name = $name AND emotion = $emotion")
@@ -240,14 +247,15 @@ impl AssetApi for AssetApiService {
 
             println!("[UPLOAD_ASSET] Найдена существующая запись: {}", existing_id);
 
-            // Обновляю (url, display_name, file_data, preview_data)
+            // Обновляю (url, display_name, file_data, preview_data, episode_id)
             self.db
-                .query("UPDATE type::record($id) SET url = $url, display_name = $display_name, file_data = $file_data, preview_data = $preview_data")
+                .query("UPDATE type::record($id) SET url = $url, display_name = $display_name, file_data = $file_data, preview_data = $preview_data, episode_id = $episode_id")
                 .bind(("id", existing_id.clone()))
                 .bind(("url", url.clone()))
                 .bind(("display_name", display_name_final.clone()))
                 .bind(("file_data", file_base64.clone()))
                 .bind(("preview_data", preview_base64.clone()))
+                .bind(("episode_id", episode_value.clone()))
                 .await
                 .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -259,7 +267,7 @@ impl AssetApi for AssetApiService {
                 emotion: req.emotion.clone(),
                 url,
                 display_name: display_name_final.clone(),
-                episode_id: String::new(),
+                episode_id: req.episode_id.clone(),
                 preview_data: preview_bytes,
             };
 
@@ -277,7 +285,7 @@ impl AssetApi for AssetApiService {
 
         let mut response = self
             .db
-            .query("CREATE asset CONTENT { type: $type, name: $name, emotion: $emotion, url: $url, display_name: $display_name, file_data: $file_data, preview_data: $preview_data, created_at: time::now() }")
+            .query("CREATE asset CONTENT { type: $type, name: $name, emotion: $emotion, url: $url, display_name: $display_name, file_data: $file_data, preview_data: $preview_data, episode_id: $episode_id, created_at: time::now() }")
             .bind(("type", req.r#type.clone()))
             .bind(("name", req.name.clone()))
             .bind(("emotion", emotion_value))
@@ -285,6 +293,7 @@ impl AssetApi for AssetApiService {
             .bind(("display_name", display_name_final.clone()))
             .bind(("file_data", file_base64))
             .bind(("preview_data", preview_base64))
+            .bind(("episode_id", episode_value))
             .await
             .map_err(|e| {
                 println!("[UPLOAD_ASSET] ОШИБКА БД: {}", e);
@@ -305,7 +314,7 @@ impl AssetApi for AssetApiService {
                     emotion: req.emotion.clone(),
                     url,
                     display_name: display_name_final,
-                    episode_id: String::new(),
+                    episode_id: req.episode_id.clone(),
                     preview_data: preview_bytes,
                 }
             }

@@ -280,6 +280,9 @@ impl EpisodeApi for EpisodeApiService {
         &self,
         request: Request<SaveEpisodeRequest>,
     ) -> Result<Response<SaveEpisodeResponse>, Status> {
+        // Проверяю, что запрос от админа
+        AdminApiService::check_admin(&request)?;
+
         let episode = request.into_inner().episode
             .ok_or_else(|| Status::invalid_argument("Эпизод не передан"))?;
 
@@ -550,10 +553,13 @@ impl EpisodeApi for EpisodeApiService {
         &self,
         request: Request<DeleteEpisodeRequest>,
     ) -> Result<Response<DeleteEpisodeResponse>, Status> {
-        let id = request.into_inner().id;
-        println!("[DELETE_EPISODE] Удаляю эпизод ID: {}", id);
+        // Проверяю, что запрос от админа
+        AdminApiService::check_admin(&request)?;
 
-        let id_i64 = i64::from(id);
+        let id = request.into_inner().id;
+        let id_i64 = i64::from(id); // ← ЭТА СТРОКА ПРОПАЛА
+
+        println!("[DELETE_EPISODE] Удаляю эпизод ID: {}", id);
 
         // 1. Удаляю действия (в два шага)
         {

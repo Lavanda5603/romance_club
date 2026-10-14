@@ -20,7 +20,7 @@ impl AdminApiService {
     }
 
     // Проверить, что запрос от админа
-    fn check_admin<T>(request: &Request<T>) -> Result<(), Status> {
+    pub fn check_admin<T>(request: &Request<T>) -> Result<(), Status> {
         // Достаю токен из метаданных
         let token = request
             .metadata()

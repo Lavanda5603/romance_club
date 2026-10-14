@@ -9,6 +9,7 @@ use crate::romance_club::{
     UploadAssetRequest, UploadAssetResponse,
     DeleteAssetRequest, DeleteAssetResponse,
 }; // Импорт структур
+use crate::admin_service::AdminApiService; // Для проверки админа
 
 // Сервис для работы с ассетами
 pub struct AssetApiService {
@@ -97,6 +98,9 @@ impl AssetApi for AssetApiService {
         &self,
         request: Request<UploadAssetRequest>,
     ) -> Result<Response<UploadAssetResponse>, Status> {
+        // Проверяю, что запрос от админа
+        AdminApiService::check_admin(&request)?;
+
         let req = request.into_inner(); // Достаю данные из запроса
 
         println!("[UPLOAD_ASSET] Загрузка: type={}, name={}, emotion={}",
@@ -254,11 +258,14 @@ impl AssetApi for AssetApiService {
         }))
     }
 
-    // Удалить ассет по ID (устаревшее — теперь через AdminApi)
+    // Удалить ассет по ID (устаревшее - через AdminApi)
     async fn delete_asset(
         &self,
         request: Request<DeleteAssetRequest>,
     ) -> Result<Response<DeleteAssetResponse>, Status> {
+        // Проверяю, что запрос от админа
+        AdminApiService::check_admin(&request)?;
+
         let id = request.into_inner().id; // Достаю ID
 
         println!("[DELETE_ASSET] Удаляю ассет: {}", id);

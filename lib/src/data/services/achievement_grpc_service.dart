@@ -1,5 +1,9 @@
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/achievement_api.pbgrpc.dart'; // Импорт gRPC-клиента
+import '../../../services/storage_service.dart'; // Импорт StorageService
+
+// Таймаут
+const _timeout = Duration(seconds: 10);
 
 // Сервис для работы с достижениями через gRPC
 class AchievementGrpcService {
@@ -8,7 +12,6 @@ class AchievementGrpcService {
 
   // Конструктор класса AchievementGrpcService
   AchievementGrpcService({String host = '10.0.2.2', int port = 50051}) {
-    // Создаю канал связи
     _channel = ClientChannel(
       host,
       port: port,
@@ -16,14 +19,24 @@ class AchievementGrpcService {
         credentials: ChannelCredentials.insecure(),
       ),
     );
-    // Создаю gRPC-клиент
     _client = AchievementApiClient(_channel);
+  }
+
+  // Метаданные с токеном
+  Future<CallOptions> _getAuthOptions() async {
+    final token = await StorageService.loadToken();
+    if (token.isEmpty) return CallOptions(timeout: _timeout);
+    return CallOptions(
+      metadata: {'authorization': 'Bearer $token'},
+      timeout: _timeout,
+    );
   }
 
   // Получить достижения игрока
   Future<GetAchievementsResponse> getAchievements(String playerId) async {
     final request = GetAchievementsRequest(playerId: playerId);
-    return await _client.getAchievements(request);
+    final options = await _getAuthOptions();
+    return await _client.getAchievements(request, options: options);
   }
 
   // Открыть достижение
@@ -35,7 +48,8 @@ class AchievementGrpcService {
       playerId: playerId,
       name: name,
     );
-    return await _client.unlockAchievement(request);
+    final options = await _getAuthOptions();
+    return await _client.unlockAchievement(request, options: options);
   }
 
   // Закрыть соединение

@@ -2,6 +2,11 @@ import 'package:grpc/grpc.dart'; // Импорт gRPC
 import 'dart:typed_data'; // Импорт Uint8List
 import '../../../generated/asset_api.pbgrpc.dart'; // Импорт gRPC-клиента
 
+// Таймауты для разных операций
+const _timeoutFast = Duration(seconds: 10);   // Быстрые
+const _timeoutMedium = Duration(seconds: 30); // Средние (upload)
+const _timeoutLong = Duration(seconds: 60);   // Длинные (оригинал)
+
 // Сервис для работы с gRPC (транспортный слой)
 class AssetGrpcService {
   late final ClientChannel _channel; // Канал связи
@@ -27,14 +32,20 @@ class AssetGrpcService {
       episodeId: episodeId,
     );
 
-    final response = await _client.getAssets(request);
+    final response = await _client.getAssets(
+      request,
+      options: CallOptions(timeout: _timeoutFast), // таймаут 10 сек
+    );
     return response.assets;
   }
 
   // Получить оригинал ассета по ID
   Future<Uint8List> getAssetFull(String id) async {
     final request = GetAssetFullRequest(id: id);
-    final response = await _client.getAssetFull(request);
+    final response = await _client.getAssetFull(
+      request,
+      options: CallOptions(timeout: _timeoutLong), // таймаут 60 сек
+    );
     return Uint8List.fromList(response.fileData);
   }
 
@@ -58,13 +69,19 @@ class AssetGrpcService {
       fileName: fileName,
     );
 
-    return await _client.uploadAsset(request);
+    return await _client.uploadAsset(
+      request,
+      options: CallOptions(timeout: _timeoutMedium), // таймаут 30 сек
+    );
   }
 
   // Удалить ассет по ID
   Future<DeleteAssetResponse> deleteAsset(String id) async {
     final request = DeleteAssetRequest(id: id);
-    return await _client.deleteAsset(request);
+    return await _client.deleteAsset(
+      request,
+      options: CallOptions(timeout: _timeoutFast), // таймаут 10 сек
+    );
   }
 
   // Закрыть соединение

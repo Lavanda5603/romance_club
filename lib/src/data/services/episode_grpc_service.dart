@@ -1,6 +1,12 @@
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../../../generated/episode_api.pbgrpc.dart'; // Импорт gRPC-клиента
+import '../../../services/storage_service.dart'; // Импорт StorageService
+
+// Таймауты
+const _timeoutFast = Duration(seconds: 15);   // Метаданные
+const _timeoutMedium = Duration(seconds: 30); // Эпизод целиком
+const _timeoutLong = Duration(seconds: 60);   // Сохранение
 
 // Сервис для работы с gRPC (транспортный слой)
 class EpisodeGrpcService {
@@ -9,60 +15,58 @@ class EpisodeGrpcService {
 
   // Конструктор класса EpisodeGrpcService
   EpisodeGrpcService({String host = '10.0.2.2', int port = 50051}) {
-    // Создаю канал связи с сервером
     _channel = ClientChannel(
       host,
       port: port,
       options: const ChannelOptions(
-        credentials: ChannelCredentials.insecure(), // Без шифрования
+        credentials: ChannelCredentials.insecure(),
       ),
     );
-
-    // Создаю gRPC-клиент
     _client = EpisodeApiClient(_channel);
+  }
+
+  // Метаданные с токеном
+  Future<CallOptions> _getAuthOptions({Duration? timeout}) async {
+    final token = await StorageService.loadToken();
+    final t = timeout ?? _timeoutFast;
+    if (token.isEmpty) return CallOptions(timeout: t);
+    return CallOptions(
+      metadata: {'authorization': 'Bearer $token'},
+      timeout: t,
+    );
   }
 
   // Получить эпизод по ID
   Future<Episode> getEpisode(int id) async {
-    // Создаю запрос
     final request = GetEpisodeRequest(id: id);
-
-    // Вызываю метод сервера
-    return await _client.getEpisode(request);
+    final options = await _getAuthOptions(timeout: _timeoutMedium); // 30 сек
+    return await _client.getEpisode(request, options: options);
   }
 
   // Получить все эпизоды
   Future<List<Episode>> getAllEpisodes() async {
-    // Создаю запрос
     final request = GetAllEpisodesRequest();
-
-    // Вызываю метод сервера
-    final response = await _client.getAllEpisodes(request);
-
-    // Возвращаю список эпизодов
+    final options = await _getAuthOptions(); // 15 сек
+    final response = await _client.getAllEpisodes(request, options: options);
     return response.episodes;
   }
 
   // Сохранить эпизод
   Future<SaveEpisodeResponse> saveEpisode(Episode episode) async {
-    // Создаю запрос
     final request = SaveEpisodeRequest(episode: episode);
-
-    // Вызываю метод сервера
-    return await _client.saveEpisode(request);
+    final options = await _getAuthOptions(timeout: _timeoutLong); // 60 сек
+    return await _client.saveEpisode(request, options: options);
   }
 
   // Удалить эпизод
   Future<DeleteEpisodeResponse> deleteEpisode(int id) async {
-    // Создаю запрос
     final request = DeleteEpisodeRequest(id: id);
-
-    // Вызываю метод сервера
-    return await _client.deleteEpisode(request);
+    final options = await _getAuthOptions(timeout: _timeoutMedium); // 30 сек
+    return await _client.deleteEpisode(request, options: options);
   }
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown(); // Закрываю канал
+    await _channel.shutdown();
   }
 }

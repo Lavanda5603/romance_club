@@ -1,6 +1,10 @@
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/progress.pb.dart'; // Импорт Protobuf-модели Progress
 import '../../../generated/progress_api.pbgrpc.dart'; // Импорт gRPC-клиента
+import '../../../services/storage_service.dart'; // Импорт StorageService
+
+// Таймаут
+const _timeout = Duration(seconds: 10);
 
 // Сервис для работы с прогрессом через gRPC
 class ProgressGrpcService {
@@ -9,7 +13,6 @@ class ProgressGrpcService {
 
   // Конструктор класса ProgressGrpcService
   ProgressGrpcService({String host = '10.0.2.2', int port = 50051}) {
-    // Создаю канал связи
     _channel = ClientChannel(
       host,
       port: port,
@@ -17,8 +20,17 @@ class ProgressGrpcService {
         credentials: ChannelCredentials.insecure(),
       ),
     );
-    // Создаю gRPC-клиент
     _client = ProgressApiClient(_channel);
+  }
+
+  // Метаданные с токеном
+  Future<CallOptions> _getAuthOptions() async {
+    final token = await StorageService.loadToken();
+    if (token.isEmpty) return CallOptions(timeout: _timeout);
+    return CallOptions(
+      metadata: {'authorization': 'Bearer $token'},
+      timeout: _timeout,
+    );
   }
 
   // Получить прогресс
@@ -27,7 +39,8 @@ class ProgressGrpcService {
       playerId: playerId,
       episodeId: episodeId,
     );
-    return await _client.getProgress(request);
+    final options = await _getAuthOptions();
+    return await _client.getProgress(request, options: options);
   }
 
   // Сохранить прогресс
@@ -45,13 +58,15 @@ class ProgressGrpcService {
       flags: flags.entries.toList(),
       counters: counters.entries.toList(),
     );
-    return await _client.saveProgress(request);
+    final options = await _getAuthOptions();
+    return await _client.saveProgress(request, options: options);
   }
 
   // Сбросить прогресс
   Future<ResetProgressResponse> resetProgress(String playerId) async {
     final request = ResetProgressRequest(playerId: playerId);
-    return await _client.resetProgress(request);
+    final options = await _getAuthOptions();
+    return await _client.resetProgress(request, options: options);
   }
 
   // Закрыть соединение

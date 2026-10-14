@@ -580,6 +580,9 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Загружаю переменные окружения из .env
+    dotenvy::dotenv().ok();
+
     // Подключаюсь к SurrealDB
     let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
 

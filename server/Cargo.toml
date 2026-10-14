@@ -16,6 +16,7 @@ argon2 = "0.5"
 rand = "0.8"
 jsonwebtoken = "9"
 chrono = "0.4"
+dotenvy = "0.15"
 
 [build-dependencies]
 tonic-build = "0.12"

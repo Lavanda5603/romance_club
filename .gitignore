@@ -26,3 +26,6 @@ Thumbs.db
 *.log
 # Widget Preview related
 .widget_preview/
+
+# Секреты
+server/.env

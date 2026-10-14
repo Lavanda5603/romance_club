@@ -2,11 +2,15 @@ use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey}
 use serde::{Deserialize, Serialize}; // Импорт сериализации
 use chrono::{Utc, Duration}; // Импорт работы со временем
 
-// Секретный ключ
-const SECRET_KEY: &[u8] = b"romance_club_secret_key_2026_super_secret_do_not_share";
-
 // Время жизни токена - 7 дней
 const TOKEN_LIFETIME_HOURS: i64 = 24 * 7;
+
+// Получить секретный ключ из переменной окружения
+fn get_secret() -> Vec<u8> {
+    std::env::var("JWT_SECRET")
+        .expect("JWT_SECRET не задан в переменных окружения")
+        .into_bytes()
+}
 
 // Claims (данные внутри токена)
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -34,7 +38,7 @@ pub fn create_token(player_id: &str, login: &str, is_admin: bool) -> Result<Stri
     encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(SECRET_KEY),
+        &EncodingKey::from_secret(&get_secret()), // читаю ключ из env
     )
     .map_err(|e| format!("Ошибка создания токена: {}", e))
 }
@@ -43,7 +47,7 @@ pub fn create_token(player_id: &str, login: &str, is_admin: bool) -> Result<Stri
 pub fn verify_token(token: &str) -> Result<Claims, String> {
     decode::<Claims>(
         token,
-        &DecodingKey::from_secret(SECRET_KEY),
+        &DecodingKey::from_secret(&get_secret()), // читаю ключ из env
         &Validation::default(),
     )
     .map(|data| data.claims)

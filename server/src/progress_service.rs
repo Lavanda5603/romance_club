@@ -137,31 +137,54 @@ impl ProgressApi for ProgressApiService {
         let counters_json: serde_json::Value = serde_json::to_value(&counters)
             .unwrap_or(serde_json::json!({}));
 
-        self.db
-            .query("DELETE progress WHERE player_id = type::record($player_id) AND episode_id = type::record('episode', $episode_id)")
+        // Сначала ищу существующий прогресс
+        let mut find_response = self
+            .db
+            .query("SELECT VALUE id FROM progress WHERE player_id = type::record($player_id) AND episode_id = type::record('episode', $episode_id) LIMIT 1")
             .bind(("player_id", player_id.clone()))
-            .bind(("episode_id", episode_id))
+            .bind(("episode_id", episode_id.clone()))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
 
-        let result = self.db
-            .query("CREATE progress CONTENT { player_id: type::record($player_id), episode_id: type::record('episode', $episode_id), scene_id: type::record($scene_id), flags: $flags, counters: $counters, updated_at: time::now() }")
-            .bind(("player_id", player_id.clone()))
-            .bind(("episode_id", episode_id))
-            .bind(("scene_id", scene_id))
-            .bind(("flags", flags_json))
-            .bind(("counters", counters_json))
-            .await;
+        let existing: Vec<Value> = find_response
+            .take(0)
+            .map_err(|e| Status::internal(e.to_string()))?;
 
+        let result = if let Some(existing_id) = existing.first().and_then(|v| v.as_str()) {
+            // Запись есть - UPDATE (атомарно)
+            self.db
+                .query("UPDATE type::record($progress_id) SET scene_id = type::record($scene_id), flags = $flags, counters = $counters, updated_at = time::now()")
+                .bind(("progress_id", existing_id.to_string()))
+                .bind(("scene_id", scene_id))
+                .bind(("flags", flags_json))
+                .bind(("counters", counters_json))
+                .await
+        } else {
+            // Записи нет - CREATE (тоже атомарно, одна операция)
+            self.db
+                .query("CREATE progress CONTENT { player_id: type::record($player_id), episode_id: type::record('episode', $episode_id), scene_id: type::record($scene_id), flags: $flags, counters: $counters, updated_at: time::now() }")
+                .bind(("player_id", player_id.clone()))
+                .bind(("episode_id", episode_id.clone()))
+                .bind(("scene_id", scene_id))
+                .bind(("flags", flags_json))
+                .bind(("counters", counters_json))
+                .await
+        };
+
+        // Проверяю результат и возвращаю ошибку если не сохранилось
         match result {
-            Ok(_) => println!("[SAVE_PROGRESS] Прогресс создан"),
-            Err(e) => println!("[SAVE_PROGRESS] ОШИБКА: {}", e),
+            Ok(_) => {
+                println!("[SAVE_PROGRESS] Прогресс сохранён");
+                Ok(Response::new(SaveProgressResponse {
+                    success: true,
+                    message: "Прогресс сохранён".to_string(),
+                }))
+            }
+            Err(e) => {
+                println!("[SAVE_PROGRESS] ОШИБКА: {}", e);
+                Err(Status::internal(format!("Ошибка сохранения прогресса: {}", e)))
+            }
         }
-
-        Ok(Response::new(SaveProgressResponse {
-            success: true,
-            message: "Прогресс сохранён".to_string(),
-        }))
     }
 
     // Сбросить прогресс игрока

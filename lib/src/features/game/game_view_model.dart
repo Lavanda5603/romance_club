@@ -43,6 +43,10 @@ class GameViewModel extends ChangeNotifier {
 
   // Текущая концовка
   String _ending = '';
+  // Флаг: идёт ли сохранение прямо сейчас (защита от гонки)
+  bool _isSaving = false;
+  // Флаг: нужно ли сохранить ещё раз после текущего (последнее состояние)
+  bool _saveAgain = false;
 
   // Геттер для состояния
   AsyncState<EpisodeModel> get state => _state;
@@ -472,10 +476,18 @@ class GameViewModel extends ChangeNotifier {
     }
   }
 
-  // Сохранить прогресс
+  // Сохранить прогресс (с защитой от гонки)
   Future<void> _saveProgress() async {
     if (_progressRepository == null) return;
     if (_state.data == null) return;
+
+    // Если сохранение уже идёт - помечаю, что надо сохранить ещё раз
+    if (_isSaving) {
+      _saveAgain = true;
+      return;
+    }
+
+    _isSaving = true;
 
     try {
       // Собираю все счётчики и points
@@ -499,6 +511,14 @@ class GameViewModel extends ChangeNotifier {
       await _progressRepository.saveProgress(progress);
     } catch (e) {
       debugPrint('Ошибка сохранения прогресса: $e');
+    } finally {
+      _isSaving = false;
+
+      // Если во время сохранения поступил ещё один запрос - сохраняю последнее состояние
+      if (_saveAgain) {
+        _saveAgain = false;
+        _saveProgress(); // рекурсивный вызов (уже с новыми данными)
+      }
     }
   }
 }

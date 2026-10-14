@@ -58,11 +58,13 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
   }
 
   // Загрузка ассетов с сервера
-  Future<void> _loadAssets() async {
+
+  Future<void> _loadAssets({bool forceRefresh = false}) async {
     try {
       final assets = await _repository.getAssets(
         widget.type,
         episodeId: widget.episodeId,
+        forceRefresh: forceRefresh, // передаю флаг
       );
 
       if (!mounted) return;
@@ -204,9 +206,9 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     setState(() => _isUploading = false);
 
     if (asset != null) {
-      setState(() {
-        _assets.add(asset);
-      });
+      // Перезагружаю список (с инвалидацией кэша)
+      await _loadAssets(forceRefresh: true);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ассет загружен')),
       );
@@ -248,9 +250,9 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     if (!mounted) return;
 
     if (success) {
-      setState(() {
-        _assets.removeWhere((a) => a.id == asset.id);
-      });
+      // Перезагружаю список (с инвалидацией кэша)
+      await _loadAssets(forceRefresh: true);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ассет удалён')),
       );
@@ -375,7 +377,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                                 borderRadius: const BorderRadius.vertical(
                                                   top: Radius.circular(11),
                                                 ),
-                                                child: asset.fileData.isEmpty
+                                                child: asset.previewData.isEmpty
                                                     ? Container(
                                                         color: const Color(0xFF333333),
                                                         child: const Center(
@@ -387,7 +389,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                                         ),
                                                       )
                                                     : Image.memory(
-                                                        Uint8List.fromList(asset.fileData),
+                                                        asset.previewData,
                                                         fit: BoxFit.cover,
                                                         width: double.infinity,
                                                         errorBuilder: (context, error, stackTrace) {

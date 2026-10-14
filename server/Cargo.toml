@@ -17,6 +17,7 @@ rand = "0.8"
 jsonwebtoken = "9"
 chrono = "0.4"
 dotenvy = "0.15"
+image = "0.25"
 
 [build-dependencies]
 tonic-build = "0.12"

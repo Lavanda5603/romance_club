@@ -26,7 +26,7 @@ class Asset extends $pb.GeneratedMessage {
     $core.String? url,
     $core.String? displayName,
     $core.String? episodeId,
-    $core.List<$core.int>? fileData,
+    $core.List<$core.int>? previewData,
   }) {
     final result = Asset._();
     if (id != null) result.id = id;
@@ -36,7 +36,7 @@ class Asset extends $pb.GeneratedMessage {
     if (url != null) result.url = url;
     if (displayName != null) result.displayName = displayName;
     if (episodeId != null) result.episodeId = episodeId;
-    if (fileData != null) result.fileData = fileData;
+    if (previewData != null) result.previewData = previewData;
     return result;
   }
 
@@ -61,7 +61,7 @@ class Asset extends $pb.GeneratedMessage {
     ..aOS(6, _omitFieldNames ? '' : 'displayName')
     ..aOS(7, _omitFieldNames ? '' : 'episodeId')
     ..a<$core.List<$core.int>>(
-        8, _omitFieldNames ? '' : 'fileData', $pb.PbFieldType.OY)
+        8, _omitFieldNames ? '' : 'previewData', $pb.PbFieldType.OY)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -148,13 +148,13 @@ class Asset extends $pb.GeneratedMessage {
   void clearEpisodeId() => $_clearField(7);
 
   @$pb.TagNumber(8)
-  $core.List<$core.int> get fileData => $_getN(7);
+  $core.List<$core.int> get previewData => $_getN(7);
   @$pb.TagNumber(8)
-  set fileData($core.List<$core.int> value) => $_setBytes(7, value);
+  set previewData($core.List<$core.int> value) => $_setBytes(7, value);
   @$pb.TagNumber(8)
-  $core.bool hasFileData() => $_has(7);
+  $core.bool hasPreviewData() => $_has(7);
   @$pb.TagNumber(8)
-  void clearFileData() => $_clearField(8);
+  void clearPreviewData() => $_clearField(8);
 }
 
 /// Запрос на получение ассетов по типу
@@ -278,6 +278,125 @@ class GetAssetsResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $pb.PbList<Asset> get assets => $_getList(0);
+}
+
+/// Запрос на получение оригинала ассета
+class GetAssetFullRequest extends $pb.GeneratedMessage {
+  factory GetAssetFullRequest({
+    $core.String? id,
+  }) {
+    final result = GetAssetFullRequest._();
+    if (id != null) result.id = id;
+    return result;
+  }
+
+  GetAssetFullRequest._();
+
+  factory GetAssetFullRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetAssetFullRequest()..mergeFromBuffer(data, registry);
+  factory GetAssetFullRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetAssetFullRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetAssetFullRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: GetAssetFullRequest.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetAssetFullRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetAssetFullRequest copyWith(void Function(GetAssetFullRequest) updates) =>
+      super.copyWith((message) => updates(message as GetAssetFullRequest))
+          as GetAssetFullRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use GetAssetFullRequest() / GetAssetFullRequest.new instead')
+  static GetAssetFullRequest create() => GetAssetFullRequest._();
+  static $pb.GeneratedMessage $_createMessage() => GetAssetFullRequest._();
+  @$core.override
+  GetAssetFullRequest createEmptyInstance() => GetAssetFullRequest._();
+  @$core.pragma('dart2js:noInline')
+  static GetAssetFullRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetAssetFullRequest>(
+          GetAssetFullRequest.$_createMessage);
+  static GetAssetFullRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+}
+
+/// Ответ с оригиналом
+class GetAssetFullResponse extends $pb.GeneratedMessage {
+  factory GetAssetFullResponse({
+    $core.List<$core.int>? fileData,
+  }) {
+    final result = GetAssetFullResponse._();
+    if (fileData != null) result.fileData = fileData;
+    return result;
+  }
+
+  GetAssetFullResponse._();
+
+  factory GetAssetFullResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetAssetFullResponse()..mergeFromBuffer(data, registry);
+  factory GetAssetFullResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetAssetFullResponse()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetAssetFullResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: GetAssetFullResponse.$_createMessage)
+    ..a<$core.List<$core.int>>(
+        1, _omitFieldNames ? '' : 'fileData', $pb.PbFieldType.OY)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetAssetFullResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetAssetFullResponse copyWith(void Function(GetAssetFullResponse) updates) =>
+      super.copyWith((message) => updates(message as GetAssetFullResponse))
+          as GetAssetFullResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use GetAssetFullResponse() / GetAssetFullResponse.new instead')
+  static GetAssetFullResponse create() => GetAssetFullResponse._();
+  static $pb.GeneratedMessage $_createMessage() => GetAssetFullResponse._();
+  @$core.override
+  GetAssetFullResponse createEmptyInstance() => GetAssetFullResponse._();
+  @$core.pragma('dart2js:noInline')
+  static GetAssetFullResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetAssetFullResponse>(
+          GetAssetFullResponse.$_createMessage);
+  static GetAssetFullResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.List<$core.int> get fileData => $_getN(0);
+  @$pb.TagNumber(1)
+  set fileData($core.List<$core.int> value) => $_setBytes(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasFileData() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearFileData() => $_clearField(1);
 }
 
 /// Запрос на загрузку нового ассета

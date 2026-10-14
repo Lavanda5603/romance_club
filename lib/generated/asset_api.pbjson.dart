@@ -26,7 +26,7 @@ const Asset$json = {
     {'1': 'url', '3': 5, '4': 1, '5': 9, '10': 'url'},
     {'1': 'display_name', '3': 6, '4': 1, '5': 9, '10': 'displayName'},
     {'1': 'episode_id', '3': 7, '4': 1, '5': 9, '10': 'episodeId'},
-    {'1': 'file_data', '3': 8, '4': 1, '5': 12, '10': 'fileData'},
+    {'1': 'preview_data', '3': 8, '4': 1, '5': 12, '10': 'previewData'},
   ],
 };
 
@@ -35,7 +35,7 @@ final $typed_data.Uint8List assetDescriptor = $convert.base64Decode(
     'CgVBc3NldBIOCgJpZBgBIAEoCVICaWQSEgoEdHlwZRgCIAEoCVIEdHlwZRISCgRuYW1lGAMgAS'
     'gJUgRuYW1lEhgKB2Vtb3Rpb24YBCABKAlSB2Vtb3Rpb24SEAoDdXJsGAUgASgJUgN1cmwSIQoM'
     'ZGlzcGxheV9uYW1lGAYgASgJUgtkaXNwbGF5TmFtZRIdCgplcGlzb2RlX2lkGAcgASgJUgllcG'
-    'lzb2RlSWQSGwoJZmlsZV9kYXRhGAggASgMUghmaWxlRGF0YQ==');
+    'lzb2RlSWQSIQoMcHJldmlld19kYXRhGAggASgMUgtwcmV2aWV3RGF0YQ==');
 
 @$core.Deprecated('Use getAssetsRequestDescriptor instead')
 const GetAssetsRequest$json = {
@@ -70,6 +70,31 @@ const GetAssetsResponse$json = {
 final $typed_data.Uint8List getAssetsResponseDescriptor = $convert.base64Decode(
     'ChFHZXRBc3NldHNSZXNwb25zZRIrCgZhc3NldHMYASADKAsyEy5yb21hbmNlX2NsdWIuQXNzZX'
     'RSBmFzc2V0cw==');
+
+@$core.Deprecated('Use getAssetFullRequestDescriptor instead')
+const GetAssetFullRequest$json = {
+  '1': 'GetAssetFullRequest',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+  ],
+};
+
+/// Descriptor for `GetAssetFullRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getAssetFullRequestDescriptor = $convert
+    .base64Decode('ChNHZXRBc3NldEZ1bGxSZXF1ZXN0Eg4KAmlkGAEgASgJUgJpZA==');
+
+@$core.Deprecated('Use getAssetFullResponseDescriptor instead')
+const GetAssetFullResponse$json = {
+  '1': 'GetAssetFullResponse',
+  '2': [
+    {'1': 'file_data', '3': 1, '4': 1, '5': 12, '10': 'fileData'},
+  ],
+};
+
+/// Descriptor for `GetAssetFullResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getAssetFullResponseDescriptor =
+    $convert.base64Decode(
+        'ChRHZXRBc3NldEZ1bGxSZXNwb25zZRIbCglmaWxlX2RhdGEYASABKAxSCGZpbGVEYXRh');
 
 @$core.Deprecated('Use uploadAssetRequestDescriptor instead')
 const UploadAssetRequest$json = {

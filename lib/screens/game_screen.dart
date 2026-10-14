@@ -39,7 +39,7 @@ class _GameScreenState extends State<GameScreen> {
   late AchievementRepositoryRemote _achievementRepository; // Репозиторий достижений
   late AssetRepositoryRemote _assetRepository; // Репозиторий ассетов
 
-  // Кэш картинок
+  // Кэш картинок (только оригиналы)
   final Map<String, Uint8List> _backgroundsCache = {};
   final Map<String, Uint8List> _charactersCache = {};
 
@@ -71,21 +71,31 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
-  // Загрузка всех ассетов в кэш
+  // Загрузка оригиналов ассетов в кэш (по ID)
   Future<void> _loadAssets() async {
     try {
+      // Загружаю фоны
       final backgrounds = await _assetRepository.getAssets('background');
       for (final a in backgrounds) {
-        if (a.fileData.isNotEmpty) {
-          _backgroundsCache[a.name] = Uint8List.fromList(a.fileData);
+        if (a.id.isNotEmpty) {
+          // Гружу оригинал по id
+          final fullData = await _assetRepository.getAssetFull(a.id);
+          if (fullData.isNotEmpty) {
+            _backgroundsCache[a.name] = fullData;
+          }
         }
       }
 
+      // Загружаю персонажей
       final characters = await _assetRepository.getAssets('character');
       for (final a in characters) {
-        if (a.fileData.isNotEmpty) {
-          final key = a.emotion.isEmpty ? a.name : '${a.name}_${a.emotion}';
-          _charactersCache[key] = Uint8List.fromList(a.fileData);
+        if (a.id.isNotEmpty) {
+          // Гружу оригинал по id
+          final fullData = await _assetRepository.getAssetFull(a.id);
+          if (fullData.isNotEmpty) {
+            final key = a.emotion.isEmpty ? a.name : '${a.name}_${a.emotion}';
+            _charactersCache[key] = fullData;
+          }
         }
       }
 

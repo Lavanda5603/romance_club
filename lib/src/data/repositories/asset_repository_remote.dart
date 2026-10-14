@@ -8,17 +8,42 @@ import '../../../generated/asset_api.pbgrpc.dart'; // Импорт Protobuf-мо
 class AssetRepositoryRemote implements AssetRepository {
   final AssetGrpcService _service; // gRPC-сервис
 
+  // Статический кэш ассетов по типу (живёт между экземплярами)
+  static final Map<String, List<AssetModel>> _cache = {};
+
   // Конструктор класса AssetRepositoryRemote
   AssetRepositoryRemote(this._service);
 
-  // Получить ассеты по типу
-  @override
-  Future<List<AssetModel>> getAssets(String type, {String episodeId = ''}) async {
-    // Запрашиваю ассеты у сервера
-    final assets = await _service.getAssets(type, episodeId: episodeId);
+  // Очистить кэш для типа (при upload/delete)
+  static void invalidateCache(String type) {
+    _cache.remove(type);
+  }
 
-    // Преобразую Protobuf-модели в доменные
-    return assets.map(toDomain).toList();
+  // Получить ассеты по типу (с кэшем)
+  @override
+  Future<List<AssetModel>> getAssets(String type, {String episodeId = '', bool forceRefresh = false}) async {
+    // Ключ кэша: тип и эпизод
+    final cacheKey = '$type::$episodeId';
+
+    // Если не forceRefresh и кэш есть - возвращаю из кэша
+    if (!forceRefresh && _cache.containsKey(cacheKey)) {
+      return _cache[cacheKey]!;
+    }
+
+    // Запрашиваю с сервера
+    final assets = await _service.getAssets(type, episodeId: episodeId);
+    final models = assets.map(toDomain).toList();
+
+    // Сохраняю в кэш
+    _cache[cacheKey] = models;
+
+    return models;
+  }
+
+  // Получить оригинал ассета по ID
+  @override
+  Future<Uint8List> getAssetFull(String id) async {
+    return await _service.getAssetFull(id);
   }
 
   // Загрузить новый ассет
@@ -33,7 +58,6 @@ class AssetRepositoryRemote implements AssetRepository {
     required String fileName,
   }) async {
     try {
-      // Отправляю на сервер
       final response = await _service.uploadAsset(
         type: type,
         name: name,
@@ -44,13 +68,15 @@ class AssetRepositoryRemote implements AssetRepository {
         fileName: fileName,
       );
 
-      // Если успешно - возвращаю ассет
       if (response.success && response.hasAsset()) {
+        // Инвалидирую кэш для этого типа
+        _cache.remove('$type::');
+        _cache.remove('$type::$episodeId');
         return toDomain(response.asset);
       }
       return null;
     } catch (e) {
-      return null; // Ошибка загрузки
+      return null;
     }
   }
 
@@ -58,11 +84,15 @@ class AssetRepositoryRemote implements AssetRepository {
   @override
   Future<bool> deleteAsset(String id) async {
     try {
-      // Отправляю на сервер
       final response = await _service.deleteAsset(id);
-      return response.success;
+      if (response.success) {
+        // Инвалидирую кэш (не знаю тип - чищу всё)
+        _cache.clear();
+        return true;
+      }
+      return false;
     } catch (e) {
-      return false; // Ошибка удаления
+      return false;
     }
   }
 
@@ -76,7 +106,7 @@ class AssetRepositoryRemote implements AssetRepository {
       url: asset.url,
       displayName: asset.displayName,
       episodeId: asset.episodeId,
-      fileData: Uint8List.fromList(asset.fileData),
+      previewData: Uint8List.fromList(asset.previewData),
     );
   }
 }

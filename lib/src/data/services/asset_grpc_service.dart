@@ -9,32 +9,33 @@ class AssetGrpcService {
 
   // Конструктор класса AssetGrpcService
   AssetGrpcService({String host = '10.0.2.2', int port = 50051}) {
-    // Создаю канал связи с сервером
     _channel = ClientChannel(
       host,
       port: port,
       options: const ChannelOptions(
-        credentials: ChannelCredentials.insecure(), // Без шифрования
+        credentials: ChannelCredentials.insecure(),
       ),
     );
 
-    // Создаю gRPC-клиент
     _client = AssetApiClient(_channel);
   }
 
-  // Получить ассеты по типу
+  // Получить ассеты по типу (с превью, без оригиналов)
   Future<List<Asset>> getAssets(String type, {String episodeId = ''}) async {
-    // Создаю запрос
     final request = GetAssetsRequest(
       type: type,
       episodeId: episodeId,
     );
 
-    // Вызываю метод сервера
     final response = await _client.getAssets(request);
-
-    // Возвращаю список ассетов
     return response.assets;
+  }
+
+  // Получить оригинал ассета по ID
+  Future<Uint8List> getAssetFull(String id) async {
+    final request = GetAssetFullRequest(id: id);
+    final response = await _client.getAssetFull(request);
+    return Uint8List.fromList(response.fileData);
   }
 
   // Загрузить новый ассет
@@ -47,7 +48,6 @@ class AssetGrpcService {
     required Uint8List fileData,
     required String fileName,
   }) async {
-    // Создаю запрос
     final request = UploadAssetRequest(
       type: type,
       name: name,
@@ -58,21 +58,17 @@ class AssetGrpcService {
       fileName: fileName,
     );
 
-    // Вызываю метод сервера
     return await _client.uploadAsset(request);
   }
 
   // Удалить ассет по ID
   Future<DeleteAssetResponse> deleteAsset(String id) async {
-    // Создаю запрос
     final request = DeleteAssetRequest(id: id);
-
-    // Вызываю метод сервера
     return await _client.deleteAsset(request);
   }
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown(); // Закрываю канал
+    await _channel.shutdown();
   }
 }

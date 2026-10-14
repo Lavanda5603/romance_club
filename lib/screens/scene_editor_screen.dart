@@ -150,8 +150,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     try {
       final backgrounds = await _assetRepository.getAssets('background');
       for (final a in backgrounds) {
-        if (a.name == _selectedBackground && a.fileData.isNotEmpty) {
-          _selectedBackgroundBytes = Uint8List.fromList(a.fileData);
+        if (a.name == _selectedBackground && a.previewData.isNotEmpty) {
+          _selectedBackgroundBytes = a.previewData;
           break;
         }
       }
@@ -160,8 +160,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       for (final a in characters) {
         if (a.name == _selectedCharacter &&
             a.emotion == _selectedEmotion &&
-            a.fileData.isNotEmpty) {
-          _selectedCharacterBytes = Uint8List.fromList(a.fileData);
+            a.previewData.isNotEmpty) {
+          _selectedCharacterBytes = a.previewData;
           break;
         }
       }
@@ -204,8 +204,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     if (result != null) {
       setState(() {
         _selectedBackground = result.name;
-        _selectedBackgroundBytes = result.fileData.isNotEmpty
-            ? Uint8List.fromList(result.fileData)
+        _selectedBackgroundBytes = result.previewData.isNotEmpty
+            ? result.previewData
             : null;
       });
     }
@@ -227,8 +227,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       setState(() {
         _selectedCharacter = result.name;
         _selectedEmotion = result.emotion;
-        _selectedCharacterBytes = result.fileData.isNotEmpty
-            ? Uint8List.fromList(result.fileData)
+        _selectedCharacterBytes = result.previewData.isNotEmpty
+            ? result.previewData
             : null;
       });
     }

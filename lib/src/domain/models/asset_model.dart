@@ -9,7 +9,7 @@ class AssetModel {
   final String url; // Путь к файлу
   final String displayName; // Человеческое имя
   final String episodeId; // ID эпизода
-  final Uint8List fileData; // Байты файла (сама картинка)
+  final Uint8List previewData; // Байты превью (маленькая картинка)
 
   // Конструктор класса AssetModel
   const AssetModel({
@@ -20,6 +20,6 @@ class AssetModel {
     required this.url,
     required this.displayName,
     required this.episodeId,
-    required this.fileData,
+    required this.previewData,
   });
 }

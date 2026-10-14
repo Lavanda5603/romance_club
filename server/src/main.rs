@@ -54,16 +54,19 @@ impl Interceptor for AuthInterceptor {
 
         match token {
             Some(t) => match jwt::verify_token(&t) {
-                // Токен валидный - пропускаю
-                Ok(_claims) => Ok(request),
+                Ok(claims) => {
+                    // Кладу claims в extensions, чтобы обработчики могли их достать
+                    let mut request = request;
+                    request.extensions_mut().insert(claims);
+                    Ok(request)
+                }
                 Err(e) => {
-                    // Неверный токен - отказ
                     println!("[INTERCEPTOR] Неверный токен: {}", e);
                     Err(Status::unauthenticated("Неверный токен"))
                 }
             },
-            // Нет токена - пропускаю (для Register/Login)
-            None => Ok(request),
+            // Нет токена - отказ (кроме Register/Login, они на AuthApi без интерцептора)
+            None => Err(Status::unauthenticated("Требуется токен")),
         }
     }
 }

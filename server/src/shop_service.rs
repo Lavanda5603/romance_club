@@ -2,6 +2,7 @@ use tonic::{Request, Response, Status}; // Импорт tonic
 use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
 use surrealdb::Surreal; // Импорт Surreal
 use serde_json::Value; // Импорт Value
+use crate::jwt::Claims; // Импорт Claims для проверки владельца
 use crate::romance_club::shop_api_server::ShopApi; // Импорт трейта
 use crate::romance_club::{
     Purchase, Currency, GetPurchasesRequest, GetPurchasesResponse,
@@ -85,8 +86,18 @@ impl ShopApi for ShopApiService {
         &self,
         request: Request<GetPurchasesRequest>,
     ) -> Result<Response<GetPurchasesResponse>, Status> {
+        // Достаю claims из extensions
+        let claims = request.extensions().get::<Claims>()
+            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
+            .clone();
+
         let req = request.into_inner();
         let player_id = req.player_id;
+
+        // Проверяю, что запрашивают свои покупки
+        if player_id != claims.sub {
+            return Err(Status::permission_denied("Нет доступа к чужим покупкам"));
+        }
 
         println!("[GET_PURCHASES] player={}", player_id);
 
@@ -128,10 +139,20 @@ impl ShopApi for ShopApiService {
         &self,
         request: Request<PurchaseRequest>,
     ) -> Result<Response<PurchaseResponse>, Status> {
+        // Достаю claims из extensions
+        let claims = request.extensions().get::<Claims>()
+            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
+            .clone();
+
         let req = request.into_inner();
         let player_id = req.player_id;
         let item_id = req.item_id;
         let item_type = req.item_type;
+
+        // Проверяю, что покупают себе
+        if player_id != claims.sub {
+            return Err(Status::permission_denied("Нет доступа к чужому кошельку"));
+        }
 
         println!("[PURCHASE] player={}, item={}, type={}", player_id, item_id, item_type);
 
@@ -253,8 +274,18 @@ impl ShopApi for ShopApiService {
         &self,
         request: Request<GetCurrencyRequest>,
     ) -> Result<Response<Currency>, Status> {
+        // Достаю claims из extensions
+        let claims = request.extensions().get::<Claims>()
+            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
+            .clone();
+
         let req = request.into_inner();
         let player_id = req.player_id;
+
+        // Проверяю, что запрашивают свой баланс
+        if player_id != claims.sub {
+            return Err(Status::permission_denied("Нет доступа к чужому кошельку"));
+        }
 
         println!("[GET_CURRENCY] player={}", player_id);
 

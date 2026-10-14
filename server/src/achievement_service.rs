@@ -2,6 +2,7 @@ use tonic::{Request, Response, Status}; // Импорт tonic
 use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
 use surrealdb::Surreal; // Импорт Surreal
 use serde_json::Value; // Импорт Value
+use crate::jwt::Claims; // Импорт Claims для проверки владельца
 use crate::romance_club::achievement_api_server::AchievementApi; // Импорт трейта
 use crate::romance_club::{
     Achievement, GetAchievementsRequest, GetAchievementsResponse,
@@ -27,8 +28,18 @@ impl AchievementApi for AchievementApiService {
         &self,
         request: Request<GetAchievementsRequest>,
     ) -> Result<Response<GetAchievementsResponse>, Status> {
+        // Достаю claims из extensions
+        let claims = request.extensions().get::<Claims>()
+            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
+            .clone();
+
         let req = request.into_inner();
         let player_id = req.player_id;
+
+        // Проверяю, что запрашивают свои достижения
+        if player_id != claims.sub {
+            return Err(Status::permission_denied("Нет доступа к чужим достижениям"));
+        }
 
         println!("[GET_ACHIEVEMENTS] player={}", player_id);
 
@@ -67,9 +78,19 @@ impl AchievementApi for AchievementApiService {
         &self,
         request: Request<UnlockAchievementRequest>,
     ) -> Result<Response<UnlockAchievementResponse>, Status> {
+        // Достаю claims из extensions
+        let claims = request.extensions().get::<Claims>()
+            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
+            .clone();
+
         let req = request.into_inner();
         let player_id = req.player_id;
         let name = req.name;
+
+        // Проверяю, что открывают достижение себе
+        if player_id != claims.sub {
+            return Err(Status::permission_denied("Нет доступа к чужим достижениям"));
+        }
 
         println!("[UNLOCK_ACHIEVEMENT] player={}, name={}", player_id, name);
 

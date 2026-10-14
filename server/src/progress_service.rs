@@ -2,6 +2,7 @@ use tonic::{Request, Response, Status}; // Импорт tonic
 use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
 use surrealdb::Surreal; // Импорт Surreal
 use serde_json::Value; // Импорт Value
+use crate::jwt::Claims; // Импорт Claims для проверки владельца
 use crate::romance_club::progress_api_server::ProgressApi; // Импорт трейта
 use crate::romance_club::{
     Progress, GetProgressRequest, SaveProgressRequest, SaveProgressResponse,
@@ -27,9 +28,19 @@ impl ProgressApi for ProgressApiService {
         &self,
         request: Request<GetProgressRequest>,
     ) -> Result<Response<Progress>, Status> {
+        // Достаю claims из extensions (кладёт интерцептор)
+        let claims = request.extensions().get::<Claims>()
+            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
+            .clone();
+
         let req = request.into_inner();
         let player_id = req.player_id;
         let episode_id = req.episode_id;
+
+        // Проверяю, что запрашивают свой прогресс
+        if player_id != claims.sub {
+            return Err(Status::permission_denied("Нет доступа к чужому прогрессу"));
+        }
 
         println!("[GET_PROGRESS] player={}, episode={}", player_id, episode_id);
 
@@ -102,12 +113,22 @@ impl ProgressApi for ProgressApiService {
         &self,
         request: Request<SaveProgressRequest>,
     ) -> Result<Response<SaveProgressResponse>, Status> {
+        // Достаю claims из extensions
+        let claims = request.extensions().get::<Claims>()
+            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
+            .clone();
+
         let req = request.into_inner();
         let player_id = req.player_id;
         let episode_id = req.episode_id;
         let scene_id = req.scene_id;
         let flags = req.flags;
         let counters = req.counters;
+
+        // Проверяю, что сохраняют свой прогресс
+        if player_id != claims.sub {
+            return Err(Status::permission_denied("Нет доступа к чужому прогрессу"));
+        }
 
         println!("[SAVE_PROGRESS] player={}, episode={}, scene={}", player_id, episode_id, scene_id);
 
@@ -148,8 +169,18 @@ impl ProgressApi for ProgressApiService {
         &self,
         request: Request<ResetProgressRequest>,
     ) -> Result<Response<ResetProgressResponse>, Status> {
+        // Достаю claims из extensions
+        let claims = request.extensions().get::<Claims>()
+            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
+            .clone();
+
         let req = request.into_inner();
         let player_id = req.player_id;
+
+        // Проверяю, что сбрасывают свой прогресс
+        if player_id != claims.sub {
+            return Err(Status::permission_denied("Нет доступа к чужому прогрессу"));
+        }
 
         println!("[RESET_PROGRESS] player={}", player_id);
 

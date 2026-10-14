@@ -378,8 +378,23 @@ impl AuthApi for AuthApiService {
         &self,
         request: Request<GetPlayerRequest>,
     ) -> Result<Response<AuthResponse>, Status> {
+        // AuthApi без интерцептора - проверяю токен вручную
+        let token = request.metadata()
+            .get("authorization")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.trim_start_matches("Bearer ").to_string())
+            .ok_or_else(|| Status::unauthenticated("Требуется токен"))?;
+
+        let claims = jwt::verify_token(&token)
+            .map_err(|e| Status::unauthenticated(format!("Неверный токен: {}", e)))?;
+
         let req = request.into_inner();
         let player_id = req.player_id;
+
+        // Проверяю, что запрашивают свой профиль
+        if player_id != claims.sub {
+            return Err(Status::permission_denied("Можно смотреть только свой профиль"));
+        }
 
         println!("[GET_PLAYER] player={}", player_id);
 

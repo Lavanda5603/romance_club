@@ -86,7 +86,7 @@ class AssetRepositoryRemote implements AssetRepository {
     try {
       final response = await _service.deleteAsset(id);
       if (response.success) {
-        // Инвалидирую кэш (не знаю тип - чищу всё)
+        // Инвалидирую кэш
         _cache.clear();
         return true;
       }

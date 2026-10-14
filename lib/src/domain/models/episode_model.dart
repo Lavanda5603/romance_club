@@ -27,7 +27,7 @@ class SceneModel {
   final String condition; // Условие
   final String textPosition; // Позиция текста
   final String characterPosition; // Позиция персонажа
-  final int nextSceneId; // ID следующей сцены (0 = конец)
+  final String nextSceneId; // ID следующей сцены (пусто = конец)
 
   // Конструктор класса SceneModel
   const SceneModel({
@@ -63,7 +63,7 @@ class ChoiceModel {
 // Доменная модель действия
 class ActionModel {
   final String type; // Тип действия
-  final int sceneId; // ID сцены
+  final String sceneId; // ID сцены (SurrealDB-id)
   final String flagName; // Имя флага
   final bool flagValue; // Значение флага
   final String counterName; // Имя счётчика

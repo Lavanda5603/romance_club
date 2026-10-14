@@ -82,7 +82,7 @@ struct EpisodeRecord {
 #[derive(Debug, SurrealValue)]
 struct ActionRecord {
     r#type: String, // Тип действия
-    scene_id: Option<i64>, // ID сцены
+    scene_id: Option<String>, // ID сцены (SurrealDB-id)
     flag_name: Option<String>, // Имя флага
     flag_value: Option<bool>, // Значение флага
     counter_name: Option<String>, // Имя счётчика
@@ -196,7 +196,7 @@ impl EpisodeApi for EpisodeApiService {
                     .into_iter()
                     .map(|a| Action {
                         r#type: a.r#type,
-                        scene_id: a.scene_id.unwrap_or(0) as i32,
+                        scene_id: a.scene_id.unwrap_or_default(),
                         flag_name: a.flag_name.unwrap_or_default(),
                         flag_value: a.flag_value.unwrap_or(false),
                         counter_name: a.counter_name.unwrap_or_default(),
@@ -210,8 +210,11 @@ impl EpisodeApi for EpisodeApiService {
                 choices.push(Choice { text, title: choice_title, actions });
             }
 
-            // Читаю next_scene_id (0 = конец)
-            let next_scene_id = scene_value.get("next_scene_id").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+            // Читаю next_scene_id (пусто = конец)
+            let next_scene_id = scene_value.get("next_scene_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
 
             scenes.push(Scene {
                 id: order_index + 1,
@@ -379,7 +382,7 @@ impl EpisodeApi for EpisodeApiService {
                 .bind(("text_pos", scene.text_position.clone()))
                 .bind(("char_pos", scene.character_position.clone()))
                 .bind(("order", scene_index as i32))
-                .bind(("next_scene", scene.next_scene_id))
+                .bind(("next_scene", scene.next_scene_id.clone()))
                 .await
                 .map_err(|e| Status::internal(e.to_string()))?;
 
@@ -436,7 +439,7 @@ impl EpisodeApi for EpisodeApiService {
                         .query("CREATE action CONTENT { choice_id: type::record($choice_id), type: $type, scene_id: $scene_id, flag_name: $flag_name, flag_value: $flag_value, counter_name: $counter_name, counter_value: $counter_value, sound_path: $sound, image_path: $image, title: $title } RETURN id")
                         .bind(("choice_id", choice_id_str.clone()))
                         .bind(("type", action.r#type.clone()))
-                        .bind(("scene_id", action.scene_id))
+                        .bind(("scene_id", action.scene_id.clone()))
                         .bind(("flag_name", action.flag_name.clone()))
                         .bind(("flag_value", action.flag_value))
                         .bind(("counter_name", action.counter_name.clone()))

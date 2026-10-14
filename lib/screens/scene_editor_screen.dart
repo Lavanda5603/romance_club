@@ -46,7 +46,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   String _selectedCharacterPosition = 'center'; // Позиция персонажа
   String _selectedTextPosition = 'bottom_center'; // Позиция текста
 
-  int _selectedNextSceneId = 0; // ID следующей сцены (0 = конец эпизода)
+  String _selectedNextSceneId = ''; // ID следующей сцены (пусто = конец эпизода)
 
   // Список позиций персонажа (9 вариантов)
   final List<String> _characterPositions = [
@@ -423,16 +423,16 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
   // Выпадающий список Следующая сцена
   Widget _buildNextSceneDropdown() {
-    // Собираю пункты: все сцены эпизода и Конец эпизода
-    final items = <int>[0];
+    // Собираю пункты: все сцены эпизода b Конец эпизода (пустая строка)
+    final items = <String>[''];
     for (final s in widget.allScenes) {
-      items.add(s.id);
+      items.add(s.sceneKey); // SurrealDB-id
     }
 
-    // Текущее значение (если не найдено - 0)
+    // Текущее значение (если не найдено - пусто)
     final safeValue = items.contains(_selectedNextSceneId)
         ? _selectedNextSceneId
-        : 0;
+        : '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,28 +448,28 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             border: Border.all(color: Colors.white),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: DropdownButton<int>(
+          child: DropdownButton<String>(
             value: safeValue,
             isExpanded: true,
             dropdownColor: const Color(0xFF3F0404),
             style: const TextStyle(color: Colors.white, fontSize: 16),
             underline: const SizedBox(),
-            items: items.map((id) {
+            items: items.map((sceneKey) {
               String label;
-              if (id == 0) {
+              if (sceneKey.isEmpty) {
                 label = 'Конец эпизода';
               } else {
-                // Ищу сцену по id
+                // Ищу сцену по sceneKey
                 final scene = widget.allScenes.firstWhere(
-                  (s) => s.id == id,
-                  orElse: () => Scene(id: id, title: 'сцена $id'),
+                  (s) => s.sceneKey == sceneKey,
+                  orElse: () => Scene(title: 'сцена'),
                 );
                 label = scene.title.isNotEmpty
-                    ? '${scene.title} (id $id)'
-                    : 'сцена $id';
+                    ? scene.title
+                    : sceneKey;
               }
-              return DropdownMenuItem<int>(
-                value: id,
+              return DropdownMenuItem<String>(
+                value: sceneKey,
                 child: Text(label),
               );
             }).toList(),

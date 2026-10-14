@@ -43,7 +43,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
       text: widget.action?.title ?? widget.defaultTitle,
     );
     _sceneIdController = TextEditingController(
-      text: widget.action?.sceneId.toString() ?? '',
+      text: widget.action?.sceneId ?? '',
     );
     _counterNameController = TextEditingController(
       text: widget.action?.counterName ?? '',
@@ -77,7 +77,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
 
     // В зависимости от типа заполняю нужные поля
     if (_selectedType == 'nextScene') {
-      newAction.sceneId = int.tryParse(_sceneIdController.text) ?? 0;
+      newAction.sceneId = _sceneIdController.text.trim();
     } else if (_selectedType == 'changeCounter') {
       newAction.counterName = _counterNameController.text;
       newAction.counterValue = int.tryParse(_counterValueController.text) ?? 0;
@@ -256,7 +256,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                                   style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
                                 ),
                               ),
-                              Expanded(child: _buildField(_sceneIdController, keyboardType: TextInputType.number)),
+                              Expanded(child: _buildField(_sceneIdController)),
                             ],
                           ),
                         ] else if (_selectedType == 'changeCounter') ...[

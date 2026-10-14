@@ -5,7 +5,7 @@ package romance_club; // Пространство имён
 // Действие (происходит после выбора)
 message Action {
     string type = 1; // Тип действия
-    int32 scene_id = 2; // Id сцены
+    string scene_id = 2; // Id сцены (SurrealDB-id вида scene:xxx)
     string flag_name = 3; // Имя флага
     bool flag_value = 4; // Значение флага
     string counter_name = 5; // Имя счётчика

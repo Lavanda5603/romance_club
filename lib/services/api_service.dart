@@ -13,7 +13,7 @@ class ApiService {
   Future<Action> getAction() async {
     final action = Action(
       type: 'nextScene', // Тип действия
-      sceneId: 5, // ID сцены
+      sceneId: 'scene:5', // ID сцены (SurrealDB-id)
     );
     return action; // Возвращаю действие
   }

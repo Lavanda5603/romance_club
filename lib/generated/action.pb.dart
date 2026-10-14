@@ -20,7 +20,7 @@ export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 class Action extends $pb.GeneratedMessage {
   factory Action({
     $core.String? type,
-    $core.int? sceneId,
+    $core.String? sceneId,
     $core.String? flagName,
     $core.bool? flagValue,
     $core.String? counterName,
@@ -56,7 +56,7 @@ class Action extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
       createEmptyInstance: Action.$_createMessage)
     ..aOS(1, _omitFieldNames ? '' : 'type')
-    ..aI(2, _omitFieldNames ? '' : 'sceneId')
+    ..aOS(2, _omitFieldNames ? '' : 'sceneId')
     ..aOS(3, _omitFieldNames ? '' : 'flagName')
     ..aOB(4, _omitFieldNames ? '' : 'flagValue')
     ..aOS(5, _omitFieldNames ? '' : 'counterName')
@@ -96,9 +96,9 @@ class Action extends $pb.GeneratedMessage {
   void clearType() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $core.int get sceneId => $_getIZ(1);
+  $core.String get sceneId => $_getSZ(1);
   @$pb.TagNumber(2)
-  set sceneId($core.int value) => $_setSignedInt32(1, value);
+  set sceneId($core.String value) => $_setString(1, value);
   @$pb.TagNumber(2)
   $core.bool hasSceneId() => $_has(1);
   @$pb.TagNumber(2)

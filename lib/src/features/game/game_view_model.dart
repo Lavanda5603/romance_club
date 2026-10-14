@@ -104,8 +104,8 @@ class GameViewModel extends ChangeNotifier {
   // Геттер: последняя ли сцена (или nextSceneId == 0)
   bool get isLastScene {
     if (currentScene == null) return true;
-    // Если next_scene_id == 0 - это конец
-    if (currentScene!.nextSceneId == 0) return true;
+    // Если next_scene_id пустой - это конец
+    if (currentScene!.nextSceneId.isEmpty) return true;
     if (_state.data == null) return false;
     return _currentSceneIndex >= _state.data!.scenes.length - 1;
   }
@@ -251,11 +251,11 @@ class GameViewModel extends ChangeNotifier {
   }
 
   // Переход к сцене по SurrealDB-id (с проверкой условия)
-  void goToScene(int sceneId) {
+  void goToScene(String sceneKey) {
     if (_state.data == null) return;
 
-    // Формирую sceneKey из sceneId
-    final sceneKey = 'scene:$sceneId';
+    // Если пустая строка - ничего не делаю
+    if (sceneKey.isEmpty) return;
 
     // Ищу сцену по sceneKey (SurrealDB-id)
     for (int i = 0; i < _state.data!.scenes.length; i++) {
@@ -267,7 +267,7 @@ class GameViewModel extends ChangeNotifier {
           debugPrint('[GAME] Сцена ${scene.sceneKey} пропущена (условие: ${scene.condition})');
 
           // Условие не выполнено - иду дальше по nextSceneId этой сцены
-          if (scene.nextSceneId > 0) {
+          if (scene.nextSceneId.isNotEmpty) {
             goToScene(scene.nextSceneId);
             return;
           }
@@ -301,7 +301,7 @@ class GameViewModel extends ChangeNotifier {
   }
 
   // Выбрать следующую сцену по счётчикам (для автовыбора)
-  int _pickSceneByCounters(int episodeId) {
+   String _pickSceneByCounters(int episodeId) { // ← int → String
     // Для эпизода 4: выбираю между 221 (Адриан), 226 (Кот), 231 (МариНет+Кот), 236 (ЛБ+Адриан)
     if (episodeId == 4) {
       // Считаю максимум среди romance_adrian, romance_cat, romance_ladybug_adrian, romance_ladybug_cat
@@ -313,11 +313,11 @@ class GameViewModel extends ChangeNotifier {
       final max = [adrian, cat, lbAdrian, lbCat].reduce((a, b) => a > b ? a : b);
 
       // Порядок проверки
-      if (adrian == max && adrian > 0) return 221;
-      if (cat == max && cat > 0) return 226;
-      if (lbAdrian == max && lbAdrian > 0) return 236;
-      if (lbCat == max && lbCat > 0) return 231;
-      return 221; // По умолчанию Адриан
+      if (adrian == max && adrian > 0) return 'scene:221';
+      if (cat == max && cat > 0) return 'scene:226';
+      if (lbAdrian == max && lbAdrian > 0) return 'scene:236';
+      if (lbCat == max && lbCat > 0) return 'scene:231';
+      return 'scene:221'; // По умолчанию Адриан
     }
 
     // Для эпизода 5: 5 веток - 308 (Адриан), 314 (Кот), 320 (Лука), 328 (МариНет+Кот), 334 (ЛБ+Адриан)
@@ -330,15 +330,15 @@ class GameViewModel extends ChangeNotifier {
 
       final max = [adrian, cat, luka, lbAdrian, lbCat].reduce((a, b) => a > b ? a : b);
 
-      if (adrian == max && adrian > 0) return 308;
-      if (cat == max && cat > 0) return 314;
-      if (luka == max && luka > 0) return 320;
-      if (lbAdrian == max && lbAdrian > 0) return 334;
-      if (lbCat == max && lbCat > 0) return 328;
-      return 308; // По умолчанию Адриан
+      if (adrian == max && adrian > 0) return 'scene:308';
+      if (cat == max && cat > 0) return 'scene:314';
+      if (luka == max && luka > 0) return 'scene:320';
+      if (lbAdrian == max && lbAdrian > 0) return 'scene:334';
+      if (lbCat == max && lbCat > 0) return 'scene:328';
+      return 'scene:308'; // По умолчанию Адриан
     }
 
-    return 0;
+    return '';
   }
 
   // Переход к следующей сцене (по next_scene_id или по порядку)
@@ -354,7 +354,7 @@ class GameViewModel extends ChangeNotifier {
     if ((episodeId == 4 && sceneKey == 'scene:220') ||
         (episodeId == 5 && sceneKey == 'scene:307')) {
       final picked = _pickSceneByCounters(episodeId);
-      if (picked > 0) {
+      if (picked.isNotEmpty) {
         debugPrint('[GAME] Автовыбор сцены по счётчикам: $picked');
         goToScene(picked);
         return;
@@ -363,7 +363,7 @@ class GameViewModel extends ChangeNotifier {
 
     // Если у сцены задан nextSceneId - иду на него
     final nextId = currentScene!.nextSceneId;
-    if (nextId > 0) {
+    if (nextId.isNotEmpty) {
       goToScene(nextId);
       return;
     }

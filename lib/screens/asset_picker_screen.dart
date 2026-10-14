@@ -58,7 +58,6 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
   }
 
   // Загрузка ассетов с сервера
-
   Future<void> _loadAssets({bool forceRefresh = false}) async {
     try {
       final assets = await _repository.getAssets(
@@ -265,6 +264,11 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Размер ячейки (3 колонки, отступы 20+20, spacing 8+8)
+    final cellWidth = (MediaQuery.of(context).size.width - 40 - 16) / 3;
+    // С учётом devicePixelRatio (для retina)
+    final cacheSize = (cellWidth * MediaQuery.of(context).devicePixelRatio).round();
+
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       body: Stack(
@@ -392,6 +396,8 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                                         asset.previewData,
                                                         fit: BoxFit.cover,
                                                         width: double.infinity,
+                                                        cacheWidth: cacheSize, // ограничиваю размер декодирования
+                                                        cacheHeight: cacheSize, // квадрат (ячейка 1:1)
                                                         errorBuilder: (context, error, stackTrace) {
                                                           return Container(
                                                             color: const Color(0xFF333333),

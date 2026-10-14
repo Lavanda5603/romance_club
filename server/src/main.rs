@@ -82,6 +82,7 @@ struct EpisodeRecord {
 #[derive(Debug, SurrealValue)]
 struct ActionRecord {
     r#type: String, // Тип действия
+    choice_id: Option<String>, // ID выбора (SurrealDB-id)
     scene_id: Option<String>, // ID сцены (SurrealDB-id)
     flag_name: Option<String>, // Имя флага
     flag_value: Option<bool>, // Значение флага
@@ -106,7 +107,7 @@ impl EpisodeApiService {
 
 #[tonic::async_trait]
 impl EpisodeApi for EpisodeApiService {
-    // Получить эпизод по ID (со сценами, выборами, действиями)
+     // Получить эпизод по ID (со сценами, выборами, действиями) - пакетными запросами
     async fn get_episode(
         &self,
         request: Request<GetEpisodeRequest>,
@@ -126,7 +127,7 @@ impl EpisodeApi for EpisodeApiService {
             None => return Err(Status::not_found("Эпизод не найден")),
         };
 
-        // 2. Загружаю сцены эпизода
+        // 2. Загружаю ВСЕ сцены эпизода (1 запрос)
         let mut sc_response = self
             .db
             .query("SELECT * FROM scene WHERE episode_id = type::record('episode', $id) ORDER BY order_index")
@@ -140,9 +141,75 @@ impl EpisodeApi for EpisodeApiService {
 
         println!("[GET_EPISODE] Найдено сцен: {}", scene_values.len());
 
+        // Собираю id всех сцен
+        let scene_ids: Vec<String> = scene_values
+            .iter()
+            .filter_map(|v| v.get("id").and_then(|s| s.as_str()).map(|s| s.to_string()))
+            .collect();
+
+        // 3. Загружаю ВСЕ выборы этих сцен (1 запрос)
+        let mut choices_by_scene: std::collections::HashMap<String, Vec<Value>> =
+            std::collections::HashMap::new();
+
+        if !scene_ids.is_empty() {
+            let mut ch_response = self
+                .db
+                .query("SELECT * FROM choice WHERE scene_id IN $scene_ids ORDER BY order_index")
+                .bind(("scene_ids", scene_ids.clone()))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let all_choices: Vec<Value> = ch_response
+                .take(0)
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            // Группирую выборы по scene_id
+            for c in all_choices {
+                let scene_id = c
+                    .get("scene_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                choices_by_scene.entry(scene_id).or_insert_with(Vec::new).push(c);
+            }
+        }
+
+        // Собираю id всех выборов
+        let choice_ids: Vec<String> = choices_by_scene
+            .values()
+            .flat_map(|v| v.iter())
+            .filter_map(|c| c.get("id").and_then(|s| s.as_str()).map(|s| s.to_string()))
+            .collect();
+
+        // 4. Загружаю все действия этих выборов (1 запрос)
+        let mut actions_by_choice: std::collections::HashMap<String, Vec<ActionRecord>> =
+            std::collections::HashMap::new();
+
+        if !choice_ids.is_empty() {
+            let mut ac_response = self
+                .db
+                .query("SELECT * FROM action WHERE choice_id IN $choice_ids")
+                .bind(("choice_ids", choice_ids.clone()))
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            let all_actions: Vec<ActionRecord> = ac_response
+                .take(0)
+                .map_err(|e| Status::internal(e.to_string()))?;
+
+            // Группирую действия по choice_id
+            for a in all_actions {
+                let choice_id = a
+                    .choice_id
+                    .clone()
+                    .unwrap_or_default();
+                actions_by_choice.entry(choice_id).or_insert_with(Vec::new).push(a);
+            }
+        }
+
+        // 5. Собираю сцены с выборами и действиями
         let mut scenes: Vec<Scene> = Vec::new();
 
-        // 3. Собираю сцены с выборами и действиями
         for scene_value in scene_values.iter() {
             // Извлекаю поля сцены
             let scene_id_str = scene_value.get("id").and_then(|v| v.as_str()).unwrap_or("scene:0").to_string();
@@ -159,62 +226,40 @@ impl EpisodeApi for EpisodeApiService {
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
                 .unwrap_or_default();
-
-            // Загружаю выборы сцены
-            let mut ch_response = self
-                .db
-                .query("SELECT * FROM choice WHERE scene_id = type::record($scene_id) ORDER BY order_index")
-                .bind(("scene_id", scene_id_str.clone()))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let choice_values: Vec<Value> = ch_response
-                .take(0)
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let mut choices: Vec<Choice> = Vec::new();
-
-            for choice_value in choice_values.iter() {
-                let choice_id_str = choice_value.get("id").and_then(|v| v.as_str()).unwrap_or("choice:0").to_string();
-                let text = choice_value.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                let choice_title = choice_value.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
-
-                // Загружаю действия выбора
-                let mut ac_response = self
-                    .db
-                    .query("SELECT * FROM action WHERE choice_id = type::record($choice_id)")
-                    .bind(("choice_id", choice_id_str.clone()))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-
-                let action_records: Vec<ActionRecord> = ac_response
-                    .take(0)
-                    .map_err(|e| Status::internal(e.to_string()))?;
-
-                // Собираю действия
-                let actions = action_records
-                    .into_iter()
-                    .map(|a| Action {
-                        r#type: a.r#type,
-                        scene_id: a.scene_id.unwrap_or_default(),
-                        flag_name: a.flag_name.unwrap_or_default(),
-                        flag_value: a.flag_value.unwrap_or(false),
-                        counter_name: a.counter_name.unwrap_or_default(),
-                        counter_value: a.counter_value.unwrap_or(0) as i32,
-                        sound_path: a.sound_path.unwrap_or_default(),
-                        image_path: a.image_path.unwrap_or_default(),
-                        title: a.title,
-                    })
-                    .collect();
-
-                choices.push(Choice { text, title: choice_title, actions });
-            }
-
-            // Читаю next_scene_id (пусто = конец)
             let next_scene_id = scene_value.get("next_scene_id")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
+
+            // Собираю выборы этой сцены (из уже загруженных)
+            let mut choices: Vec<Choice> = Vec::new();
+            if let Some(scene_choices) = choices_by_scene.get(&scene_id_str) {
+                for choice_value in scene_choices.iter() {
+                    let choice_id_str = choice_value.get("id").and_then(|v| v.as_str()).unwrap_or("choice:0").to_string();
+                    let text = choice_value.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let choice_title = choice_value.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+                    // Собираю действия этого выбора (из уже загруженных)
+                    let empty = Vec::new();
+                    let action_records = actions_by_choice.get(&choice_id_str).unwrap_or(&empty);
+                    let actions = action_records
+                        .iter()
+                        .map(|a| Action {
+                            r#type: a.r#type.clone(),
+                            scene_id: a.scene_id.clone().unwrap_or_default(),
+                            flag_name: a.flag_name.clone().unwrap_or_default(),
+                            flag_value: a.flag_value.unwrap_or(false),
+                            counter_name: a.counter_name.clone().unwrap_or_default(),
+                            counter_value: a.counter_value.unwrap_or(0) as i32,
+                            sound_path: a.sound_path.clone().unwrap_or_default(),
+                            image_path: a.image_path.clone().unwrap_or_default(),
+                            title: a.title.clone(),
+                        })
+                        .collect();
+
+                    choices.push(Choice { text, title: choice_title, actions });
+                }
+            }
 
             scenes.push(Scene {
                 id: order_index + 1,
@@ -232,7 +277,7 @@ impl EpisodeApi for EpisodeApiService {
             });
         }
 
-        // 4. Собираю финальный эпизод
+        // 6. Собираю финальный эпизод
         let episode = Episode {
             id,
             title: episode_record.title,

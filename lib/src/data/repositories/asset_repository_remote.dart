@@ -46,6 +46,31 @@ class AssetRepositoryRemote implements AssetRepository {
     return await _service.getAssetFull(id);
   }
 
+  // Получить ассет по имени и эмоции (для выбранного в редакторе)
+  @override
+  Future<AssetModel?> getAssetByName(String type, String name, {String emotion = ''}) async {
+    // Ищу в кэше по всем ключам с этим типом
+    for (final entry in _cache.entries) {
+      if (entry.key.startsWith('$type::')) {
+        for (final a in entry.value) {
+          if (a.name == name && a.emotion == emotion) {
+            return a;
+          }
+        }
+      }
+    }
+
+    // Если в кэше нет - запрашиваю с сервера (эпизод пустой - все ассеты типа)
+    final assets = await _service.getAssets(type);
+    for (final a in assets) {
+      final m = toDomain(a);
+      if (m.name == name && m.emotion == emotion) {
+        return m;
+      }
+    }
+    return null;
+  }
+
   // Загрузить новый ассет
   @override
   Future<AssetModel?> uploadAsset({
@@ -86,7 +111,7 @@ class AssetRepositoryRemote implements AssetRepository {
     try {
       final response = await _service.deleteAsset(id);
       if (response.success) {
-        // Инвалидирую кэш
+        // Инвалидирую кэш (не знаю тип - чищу всё)
         _cache.clear();
         return true;
       }

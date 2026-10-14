@@ -9,6 +9,9 @@ abstract class AssetRepository {
   // Получить оригинал ассета по ID (для отображения в сцене)
   Future<Uint8List> getAssetFull(String id);
 
+  // Получить ассет по имени и эмоции (для выбранного в редакторе)
+  Future<AssetModel?> getAssetByName(String type, String name, {String emotion = ''});
+
   // Загрузить новый ассет
   Future<AssetModel?> uploadAsset({
     required String type,

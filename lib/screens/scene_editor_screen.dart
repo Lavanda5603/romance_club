@@ -145,24 +145,26 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     super.dispose();
   }
 
-  // Загрузка выбранных ассетов (фон, персонаж)
+  // Загрузка выбранных ассетов (только фон и персонаж этой сцены)
   Future<void> _loadSelectedAssets() async {
     try {
-      final backgrounds = await _assetRepository.getAssets('background');
-      for (final a in backgrounds) {
-        if (a.name == _selectedBackground && a.previewData.isNotEmpty) {
-          _selectedBackgroundBytes = a.previewData;
-          break;
+      // Загружаю фон только если он выбран
+      if (_selectedBackground.isNotEmpty) {
+        final bg = await _assetRepository.getAssetByName('background', _selectedBackground);
+        if (bg != null && bg.previewData.isNotEmpty) {
+          _selectedBackgroundBytes = bg.previewData;
         }
       }
 
-      final characters = await _assetRepository.getAssets('character');
-      for (final a in characters) {
-        if (a.name == _selectedCharacter &&
-            a.emotion == _selectedEmotion &&
-            a.previewData.isNotEmpty) {
-          _selectedCharacterBytes = a.previewData;
-          break;
+      // Загружаю персонажа ТОЛЬКО если он выбран
+      if (_selectedCharacter.isNotEmpty) {
+        final ch = await _assetRepository.getAssetByName(
+          'character',
+          _selectedCharacter,
+          emotion: _selectedEmotion,
+        );
+        if (ch != null && ch.previewData.isNotEmpty) {
+          _selectedCharacterBytes = ch.previewData;
         }
       }
 

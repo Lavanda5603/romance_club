@@ -71,14 +71,29 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
-  // Загрузка оригиналов ассетов в кэш (по ID)
+  // Загрузка только тех ассетов, что используются в эпизоде
   Future<void> _loadAssets() async {
     try {
-      // Загружаю фоны
+      // Собираю имена фонов и персонажей из сцен эпизода
+      final usedBackgrounds = <String>{};
+      final usedCharacters = <String>{};
+
+      for (final scene in widget.episode.scenes) {
+        if (scene.background.isNotEmpty) {
+          usedBackgrounds.add(scene.background);
+        }
+        if (scene.character.isNotEmpty) {
+          final key = scene.characterEmotion.isEmpty
+              ? scene.character
+              : '${scene.character}_${scene.characterEmotion}';
+          usedCharacters.add(key);
+        }
+      }
+
+      // Загружаю только нужные фоны
       final backgrounds = await _assetRepository.getAssets('background');
       for (final a in backgrounds) {
-        if (a.id.isNotEmpty) {
-          // Гружу оригинал по id
+        if (usedBackgrounds.contains(a.name) && a.id.isNotEmpty) {
           final fullData = await _assetRepository.getAssetFull(a.id);
           if (fullData.isNotEmpty) {
             _backgroundsCache[a.name] = fullData;
@@ -86,14 +101,13 @@ class _GameScreenState extends State<GameScreen> {
         }
       }
 
-      // Загружаю персонажей
+      // Загружаю только нужных персонажей
       final characters = await _assetRepository.getAssets('character');
       for (final a in characters) {
-        if (a.id.isNotEmpty) {
-          // Гружу оригинал по id
+        final key = a.emotion.isEmpty ? a.name : '${a.name}_${a.emotion}';
+        if (usedCharacters.contains(key) && a.id.isNotEmpty) {
           final fullData = await _assetRepository.getAssetFull(a.id);
           if (fullData.isNotEmpty) {
-            final key = a.emotion.isEmpty ? a.name : '${a.name}_${a.emotion}';
             _charactersCache[key] = fullData;
           }
         }
@@ -109,7 +123,6 @@ class _GameScreenState extends State<GameScreen> {
       setState(() {
         _assetsLoaded = true;
       });
-      // Показываю SnackBar с ошибкой
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ошибка загрузки ассетов: $e')),
       );

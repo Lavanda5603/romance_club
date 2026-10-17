@@ -6,6 +6,7 @@ mod asset_service; // Модуль ассетов
 mod admin_service; // Модуль админа
 mod jwt; // Модуль JWT
 mod episode_store;
+mod request_auth;
 
 use tonic::{transport::Server, Request, Response, Status}; // Импорт tonic
 use tonic::service::Interceptor; // Импорт интерцептора
@@ -45,27 +46,11 @@ use romance_club::{
 pub struct AuthInterceptor;
 
 impl Interceptor for AuthInterceptor {
-    fn call(&mut self, request: Request<()>) -> Result<Request<()>, Status> {
-        // Достаю токен из метаданных
-        let token = request
-            .metadata()
-            .get("authorization")
-            .and_then(|v| v.to_str().ok())
-            .map(|s| s.trim_start_matches("Bearer ").to_string());
-
-        match token {
-            Some(t) => match jwt::verify_token(&t) {
-                // Токен валидный - пропускаю
-                Ok(_claims) => Ok(request),
-                Err(e) => {
-                    // Неверный токен - отказ
-                    println!("[INTERCEPTOR] Неверный токен: {}", e);
-                    Err(Status::unauthenticated("Неверный токен"))
-                }
-            },
-            // Нет токена - пропускаю (для Register/Login)
-            None => Ok(request),
-        }
+    fn call(&mut self, mut request: Request<()>) -> Result<Request<()>, Status> {
+        // Сохраняю владельца токена для обработчиков
+        let claims = request_auth::authenticate(&request)?;
+        request.extensions_mut().insert(claims);
+        Ok(request)
     }
 }
 

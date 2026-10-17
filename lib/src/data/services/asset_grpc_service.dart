@@ -1,3 +1,4 @@
+import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import 'dart:typed_data'; // Импорт Uint8List
 import '../../../generated/asset_api.pbgrpc.dart'; // Импорт gRPC-клиента
@@ -31,7 +32,7 @@ class AssetGrpcService {
     );
 
     // Вызываю метод сервера
-    final response = await _client.getAssets(request);
+    final response = await _client.getAssets(request, options: await authOptions());
 
     // Возвращаю список ассетов
     return response.assets;
@@ -59,7 +60,7 @@ class AssetGrpcService {
     );
 
     // Вызываю метод сервера
-    return await _client.uploadAsset(request);
+    return await _client.uploadAsset(request, options: await authOptions());
   }
 
   // Удалить ассет по ID
@@ -68,7 +69,7 @@ class AssetGrpcService {
     final request = DeleteAssetRequest(id: id);
 
     // Вызываю метод сервера
-    return await _client.deleteAsset(request);
+    return await _client.deleteAsset(request, options: await authOptions());
   }
 
   // Закрыть соединение

@@ -1,3 +1,4 @@
+import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/progress.pb.dart'; // Импорт Protobuf-модели Progress
 import '../../../generated/progress_api.pbgrpc.dart'; // Импорт gRPC-клиента
@@ -27,7 +28,7 @@ class ProgressGrpcService {
       playerId: playerId,
       episodeId: episodeId,
     );
-    return await _client.getProgress(request);
+    return await _client.getProgress(request, options: await authOptions());
   }
 
   // Сохранить прогресс
@@ -45,13 +46,13 @@ class ProgressGrpcService {
       flags: flags.entries.toList(),
       counters: counters.entries.toList(),
     );
-    return await _client.saveProgress(request);
+    return await _client.saveProgress(request, options: await authOptions());
   }
 
   // Сбросить прогресс
   Future<ResetProgressResponse> resetProgress(String playerId) async {
     final request = ResetProgressRequest(playerId: playerId);
-    return await _client.resetProgress(request);
+    return await _client.resetProgress(request, options: await authOptions());
   }
 
   // Закрыть соединение

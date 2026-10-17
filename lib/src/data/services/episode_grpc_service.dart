@@ -1,3 +1,4 @@
+import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../../../generated/episode_api.pbgrpc.dart'; // Импорт gRPC-клиента
@@ -28,7 +29,7 @@ class EpisodeGrpcService {
     final request = GetEpisodeRequest(id: id);
 
     // Вызываю метод сервера
-    return await _client.getEpisode(request);
+    return await _client.getEpisode(request, options: await authOptions());
   }
 
   // Получить все эпизоды
@@ -37,7 +38,7 @@ class EpisodeGrpcService {
     final request = GetAllEpisodesRequest();
 
     // Вызываю метод сервера
-    final response = await _client.getAllEpisodes(request);
+    final response = await _client.getAllEpisodes(request, options: await authOptions());
 
     // Возвращаю список эпизодов
     return response.episodes;
@@ -49,7 +50,7 @@ class EpisodeGrpcService {
     final request = SaveEpisodeRequest(episode: episode);
 
     // Вызываю метод сервера
-    return await _client.saveEpisode(request);
+    return await _client.saveEpisode(request, options: await authOptions());
   }
 
   // Удалить эпизод
@@ -58,7 +59,7 @@ class EpisodeGrpcService {
     final request = DeleteEpisodeRequest(id: id);
 
     // Вызываю метод сервера
-    return await _client.deleteEpisode(request);
+    return await _client.deleteEpisode(request, options: await authOptions());
   }
 
   // Закрыть соединение

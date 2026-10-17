@@ -1,3 +1,4 @@
+import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/achievement_api.pbgrpc.dart'; // Импорт gRPC-клиента
 
@@ -23,7 +24,7 @@ class AchievementGrpcService {
   // Получить достижения игрока
   Future<GetAchievementsResponse> getAchievements(String playerId) async {
     final request = GetAchievementsRequest(playerId: playerId);
-    return await _client.getAchievements(request);
+    return await _client.getAchievements(request, options: await authOptions());
   }
 
   // Открыть достижение
@@ -35,7 +36,7 @@ class AchievementGrpcService {
       playerId: playerId,
       name: name,
     );
-    return await _client.unlockAchievement(request);
+    return await _client.unlockAchievement(request, options: await authOptions());
   }
 
   // Закрыть соединение

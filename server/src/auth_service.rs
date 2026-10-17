@@ -378,8 +378,7 @@ impl AuthApi for AuthApiService {
         &self,
         request: Request<GetPlayerRequest>,
     ) -> Result<Response<AuthResponse>, Status> {
-        let req = request.into_inner();
-        let player_id = req.player_id;
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
 
         println!("[GET_PLAYER] player={}", player_id);
 

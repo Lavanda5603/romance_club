@@ -85,8 +85,7 @@ impl ShopApi for ShopApiService {
         &self,
         request: Request<GetPurchasesRequest>,
     ) -> Result<Response<GetPurchasesResponse>, Status> {
-        let req = request.into_inner();
-        let player_id = req.player_id;
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
 
         println!("[GET_PURCHASES] player={}", player_id);
 
@@ -128,8 +127,8 @@ impl ShopApi for ShopApiService {
         &self,
         request: Request<PurchaseRequest>,
     ) -> Result<Response<PurchaseResponse>, Status> {
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
         let req = request.into_inner();
-        let player_id = req.player_id;
         let item_id = req.item_id;
         let item_type = req.item_type;
 
@@ -253,8 +252,7 @@ impl ShopApi for ShopApiService {
         &self,
         request: Request<GetCurrencyRequest>,
     ) -> Result<Response<Currency>, Status> {
-        let req = request.into_inner();
-        let player_id = req.player_id;
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
 
         println!("[GET_CURRENCY] player={}", player_id);
 

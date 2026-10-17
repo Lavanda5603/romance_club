@@ -1,3 +1,4 @@
+import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/shop_api.pbgrpc.dart'; // Импорт gRPC-клиента
 
@@ -23,7 +24,7 @@ class ShopGrpcService {
   // Получить покупки
   Future<GetPurchasesResponse> getPurchases(String playerId) async {
     final request = GetPurchasesRequest(playerId: playerId);
-    return await _client.getPurchases(request);
+    return await _client.getPurchases(request, options: await authOptions());
   }
 
   // Купить
@@ -37,13 +38,13 @@ class ShopGrpcService {
       itemId: itemId,
       itemType: itemType,
     );
-    return await _client.purchase(request);
+    return await _client.purchase(request, options: await authOptions());
   }
 
   // Получить баланс
   Future<Currency> getCurrency(String playerId) async {
     final request = GetCurrencyRequest(playerId: playerId);
-    return await _client.getCurrency(request);
+    return await _client.getCurrency(request, options: await authOptions());
   }
 
   // Закрыть соединение

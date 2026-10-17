@@ -9,7 +9,7 @@ const SECRET_KEY: &[u8] = b"romance_club_secret_key_2026_super_secret_do_not_sha
 const TOKEN_LIFETIME_HOURS: i64 = 24 * 7;
 
 // Claims (данные внутри токена)
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String, // ID игрока
     pub login: String, // Логин

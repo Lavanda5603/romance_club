@@ -27,8 +27,7 @@ impl AchievementApi for AchievementApiService {
         &self,
         request: Request<GetAchievementsRequest>,
     ) -> Result<Response<GetAchievementsResponse>, Status> {
-        let req = request.into_inner();
-        let player_id = req.player_id;
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
 
         println!("[GET_ACHIEVEMENTS] player={}", player_id);
 
@@ -67,8 +66,8 @@ impl AchievementApi for AchievementApiService {
         &self,
         request: Request<UnlockAchievementRequest>,
     ) -> Result<Response<UnlockAchievementResponse>, Status> {
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
         let req = request.into_inner();
-        let player_id = req.player_id;
         let name = req.name;
 
         println!("[UNLOCK_ACHIEVEMENT] player={}, name={}", player_id, name);

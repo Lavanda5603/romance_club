@@ -27,8 +27,8 @@ impl ProgressApi for ProgressApiService {
         &self,
         request: Request<GetProgressRequest>,
     ) -> Result<Response<Progress>, Status> {
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
         let req = request.into_inner();
-        let player_id = req.player_id;
         let episode_id = req.episode_id;
 
         println!("[GET_PROGRESS] player={}, episode={}", player_id, episode_id);
@@ -102,8 +102,8 @@ impl ProgressApi for ProgressApiService {
         &self,
         request: Request<SaveProgressRequest>,
     ) -> Result<Response<SaveProgressResponse>, Status> {
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
         let req = request.into_inner();
-        let player_id = req.player_id;
         let episode_id = req.episode_id;
         let scene_id = req.scene_id;
         let flags = req.flags;
@@ -148,8 +148,7 @@ impl ProgressApi for ProgressApiService {
         &self,
         request: Request<ResetProgressRequest>,
     ) -> Result<Response<ResetProgressResponse>, Status> {
-        let req = request.into_inner();
-        let player_id = req.player_id;
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
 
         println!("[RESET_PROGRESS] player={}", player_id);
 

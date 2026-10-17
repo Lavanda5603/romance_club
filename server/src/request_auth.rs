@@ -17,6 +17,18 @@ pub fn authenticate<T>(request: &Request<T>) -> Result<Claims, Status> {
     Ok(claims)
 }
 
+// Проверяю, что контент меняет админ
+pub fn check_admin<T>(request: &Request<T>) -> Result<(), Status> {
+    let claims = match request.extensions().get::<Claims>() {
+        Some(claims) => claims.clone(),
+        None => authenticate(request)?,
+    };
+    if !claims.is_admin {
+        return Err(Status::permission_denied("Только админ может выполнить это действие"));
+    }
+    Ok(())
+}
+
 // Разрешаю работать только со своими данными
 pub fn player_id<T>(request: &Request<T>, requested_id: &str) -> Result<String, Status> {
     let claims = match request.extensions().get::<Claims>() {
@@ -97,4 +109,38 @@ mod tests {
             assert_eq!(shop.get_currency(request(GetCurrencyRequest { player_id: "player:bob".into() }, header)).await.unwrap_err().code(), code);
         }
     }
+    #[test]
+    fn content_changes_require_admin_role() {
+        for admin in [false, true] {
+            let token = jwt::create_token("player:editor", "editor", admin).unwrap();
+            let header = format!("Bearer {token}");
+            let req = request((), Some(&header));
+            assert_eq!(check_admin(&req).is_ok(), admin);
+            let mut interceptor = crate::AuthInterceptor;
+            let intercepted = interceptor.call(req).unwrap();
+            assert_eq!(check_admin(&intercepted).is_ok(), admin);
+        }
+    }
+
+    #[tokio::test]
+    async fn all_content_methods_check_role_before_database_queries() {
+        let db = surrealdb::Surreal::<surrealdb::engine::remote::ws::Client>::init();
+        let episodes = crate::EpisodeApiService::new(db.clone());
+        let assets = crate::asset_service::AssetApiService::new(db.clone());
+        let admin = crate::admin_service::AdminApiService::new(db);
+        let token = jwt::create_token("player:reader", "reader", false).unwrap();
+        let header = format!("Bearer {token}");
+        for (token, code) in [(None, Code::Unauthenticated), (Some("Bearer invalid"), Code::Unauthenticated), (Some(header.as_str()), Code::PermissionDenied)] {
+            use crate::romance_club::episode_api_server::EpisodeApi;
+            use crate::romance_club::asset_api_server::AssetApi;
+            use crate::romance_club::admin_api_server::AdminApi;
+            assert_eq!(episodes.save_episode(request(SaveEpisodeRequest::default(), token)).await.unwrap_err().code(), code);
+            assert_eq!(episodes.delete_episode(request(DeleteEpisodeRequest::default(), token)).await.unwrap_err().code(), code);
+            assert_eq!(assets.upload_asset(request(UploadAssetRequest::default(), token)).await.unwrap_err().code(), code);
+            assert_eq!(assets.delete_asset(request(DeleteAssetRequest::default(), token)).await.unwrap_err().code(), code);
+            assert_eq!(admin.delete_asset(request(AdminDeleteAssetRequest::default(), token)).await.unwrap_err().code(), code);
+            assert_eq!(admin.delete_episode(request(AdminDeleteEpisodeRequest::default(), token)).await.unwrap_err().code(), code);
+        }
+    }
+
 }

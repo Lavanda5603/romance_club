@@ -97,6 +97,9 @@ impl AssetApi for AssetApiService {
         &self,
         request: Request<UploadAssetRequest>,
     ) -> Result<Response<UploadAssetResponse>, Status> {
+        // Проверяю админа
+        crate::request_auth::check_admin(&request)?;
+
         let req = request.into_inner(); // Достаю данные из запроса
 
         println!("[UPLOAD_ASSET] Загрузка: type={}, name={}, emotion={}",
@@ -259,6 +262,9 @@ impl AssetApi for AssetApiService {
         &self,
         request: Request<DeleteAssetRequest>,
     ) -> Result<Response<DeleteAssetResponse>, Status> {
+        // Проверяю админа
+        crate::request_auth::check_admin(&request)?;
+
         let id = request.into_inner().id; // Достаю ID
 
         println!("[DELETE_ASSET] Удаляю ассет: {}", id);

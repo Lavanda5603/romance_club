@@ -261,6 +261,9 @@ impl EpisodeApi for EpisodeApiService {
         &self,
         request: Request<SaveEpisodeRequest>,
     ) -> Result<Response<SaveEpisodeResponse>, Status> {
+        // Проверяю админа
+        crate::request_auth::check_admin(&request)?;
+
         let episode = request.into_inner().episode
             .ok_or_else(|| Status::invalid_argument("Эпизод не передан"))?;
 
@@ -283,6 +286,9 @@ impl EpisodeApi for EpisodeApiService {
         &self,
         request: Request<DeleteEpisodeRequest>,
     ) -> Result<Response<DeleteEpisodeResponse>, Status> {
+        // Проверяю админа
+        crate::request_auth::check_admin(&request)?;
+
         let id = request.into_inner().id;
         println!("[DELETE_EPISODE] Удаляю эпизод ID: {}", id);
 

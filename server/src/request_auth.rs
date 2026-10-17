@@ -1,15 +1,15 @@
 use tonic::{Request, Status};
-use crate::jwt::{self, Claims};
+use crate::jwt::{Claims, JwtKeys};
 
 // Проверяю токен и получаю данные игрока
-pub fn authenticate<T>(request: &Request<T>) -> Result<Claims, Status> {
+pub fn authenticate<T>(request: &Request<T>, jwt: &JwtKeys) -> Result<Claims, Status> {
     let header = request.metadata().get("authorization")
         .and_then(|value| value.to_str().ok())
         .ok_or_else(|| Status::unauthenticated("Требуется авторизация"))?;
     let token = header.strip_prefix("Bearer ")
         .filter(|token| !token.is_empty() && !token.chars().any(char::is_whitespace))
         .ok_or_else(|| Status::unauthenticated("Неверный токен"))?;
-    let claims = jwt::verify_token(token)
+    let claims = jwt.verify_token(token)
         .map_err(|_| Status::unauthenticated("Неверный токен"))?;
     if !claims.sub.starts_with("player:") || claims.sub.len() == "player:".len() {
         return Err(Status::unauthenticated("Неверный игрок в токене"));
@@ -19,10 +19,8 @@ pub fn authenticate<T>(request: &Request<T>) -> Result<Claims, Status> {
 
 // Проверяю, что контент меняет админ
 pub fn check_admin<T>(request: &Request<T>) -> Result<(), Status> {
-    let claims = match request.extensions().get::<Claims>() {
-        Some(claims) => claims.clone(),
-        None => authenticate(request)?,
-    };
+    let claims = request.extensions().get::<Claims>()
+        .ok_or_else(|| Status::unauthenticated("Требуется авторизация"))?;
     if !claims.is_admin {
         return Err(Status::permission_denied("Только админ может выполнить это действие"));
     }
@@ -31,14 +29,12 @@ pub fn check_admin<T>(request: &Request<T>) -> Result<(), Status> {
 
 // Разрешаю работать только со своими данными
 pub fn player_id<T>(request: &Request<T>, requested_id: &str) -> Result<String, Status> {
-    let claims = match request.extensions().get::<Claims>() {
-        Some(claims) => claims.clone(),
-        None => authenticate(request)?,
-    };
+    let claims = request.extensions().get::<Claims>()
+        .ok_or_else(|| Status::unauthenticated("Требуется авторизация"))?;
     if requested_id != claims.sub {
         return Err(Status::permission_denied("Нет доступа к данным другого игрока"));
     }
-    Ok(claims.sub)
+    Ok(claims.sub.clone())
 }
 
 #[cfg(test)]
@@ -52,21 +48,29 @@ mod tests {
     use tonic::Code;
     use tonic::service::Interceptor;
 
+    // Этот ключ используется только в тестах
+    fn test_keys() -> JwtKeys {
+        JwtKeys::from_secret("test_key_only_0123456789_ABCDEFGHIJKLMN").unwrap()
+    }
+
     fn request<T>(body: T, token: Option<&str>) -> Request<T> {
         let mut request = Request::new(body);
         if let Some(token) = token {
             request.metadata_mut().insert("authorization", token.parse().unwrap());
+        }
+        if let Ok(claims) = authenticate(&request, &test_keys()) {
+            request.extensions_mut().insert(claims);
         }
         request
     }
 
     #[test]
     fn interceptor_requires_valid_token_and_keeps_owner() {
-        let mut interceptor = crate::AuthInterceptor;
+        let mut interceptor = crate::AuthInterceptor { jwt: test_keys() };
         for header in [None, Some(""), Some("Bearer "), Some("Bearer invalid"), Some("Basic invalid")] {
             assert_eq!(interceptor.call(request((), header)).unwrap_err().code(), Code::Unauthenticated);
         }
-        let token = jwt::create_token("player:alice", "alice", false).unwrap();
+        let token = test_keys().create_token("player:alice", "alice", false).unwrap();
         assert_eq!(interceptor.call(request((), Some(&token))).unwrap_err().code(), Code::Unauthenticated);
         let header = format!("Bearer {token}");
         let accepted = interceptor.call(request((), Some(&header))).unwrap();
@@ -79,7 +83,7 @@ mod tests {
     #[test]
     fn owner_check_also_works_without_interceptor() {
         for admin in [false, true] {
-            let token = jwt::create_token("player:alice", "alice", admin).unwrap();
+            let token = test_keys().create_token("player:alice", "alice", admin).unwrap();
             let header = format!("Bearer {token}");
             let req = request((), Some(&header));
             assert_eq!(player_id(&req, "player:alice").unwrap(), "player:alice");
@@ -91,11 +95,11 @@ mod tests {
     async fn personal_methods_reject_access_before_database_queries() {
         // Без подключения к БД проверяю, что отказ происходит до чтения и записи
         let db = surrealdb::Surreal::<surrealdb::engine::remote::ws::Client>::init();
-        let auth = crate::auth_service::AuthApiService::new(db.clone());
+        let auth = crate::auth_service::AuthApiService::new(db.clone(), test_keys());
         let progress = crate::progress_service::ProgressApiService::new(db.clone());
         let achievements = crate::achievement_service::AchievementApiService::new(db.clone());
         let shop = crate::shop_service::ShopApiService::new(db);
-        let token = jwt::create_token("player:alice", "alice", false).unwrap();
+        let token = test_keys().create_token("player:alice", "alice", false).unwrap();
         let foreign = format!("Bearer {token}");
         for (header, code) in [(None, Code::Unauthenticated), (Some("Bearer invalid"), Code::Unauthenticated), (Some(foreign.as_str()), Code::PermissionDenied)] {
             assert_eq!(auth.get_player(request(GetPlayerRequest { player_id: "player:bob".into() }, header)).await.unwrap_err().code(), code);
@@ -112,11 +116,11 @@ mod tests {
     #[test]
     fn content_changes_require_admin_role() {
         for admin in [false, true] {
-            let token = jwt::create_token("player:editor", "editor", admin).unwrap();
+            let token = test_keys().create_token("player:editor", "editor", admin).unwrap();
             let header = format!("Bearer {token}");
             let req = request((), Some(&header));
             assert_eq!(check_admin(&req).is_ok(), admin);
-            let mut interceptor = crate::AuthInterceptor;
+            let mut interceptor = crate::AuthInterceptor { jwt: test_keys() };
             let intercepted = interceptor.call(req).unwrap();
             assert_eq!(check_admin(&intercepted).is_ok(), admin);
         }
@@ -128,7 +132,7 @@ mod tests {
         let episodes = crate::EpisodeApiService::new(db.clone());
         let assets = crate::asset_service::AssetApiService::new(db.clone());
         let admin = crate::admin_service::AdminApiService::new(db);
-        let token = jwt::create_token("player:reader", "reader", false).unwrap();
+        let token = test_keys().create_token("player:reader", "reader", false).unwrap();
         let header = format!("Bearer {token}");
         for (token, code) in [(None, Code::Unauthenticated), (Some("Bearer invalid"), Code::Unauthenticated), (Some(header.as_str()), Code::PermissionDenied)] {
             use crate::romance_club::episode_api_server::EpisodeApi;

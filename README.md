@@ -33,6 +33,7 @@ cd C:\flutter_projects\romance_club\server
 $env:SURREAL_NAMESPACE = 'romance_club'
 $env:SURREAL_DATABASE = 'main'
 $env:GRPC_BIND = '0.0.0.0:50051'
+$env:JWT_SECRET = (Get-Content ..\.local\jwt-secret.txt -Raw).Trim()
 cargo run
 ```
 
@@ -52,3 +53,21 @@ flutter run
 Для клиента нужны Flutter и Android SDK. Для сервера — Rust, MSVC и компилятор Protobuf `protoc`. Версия Rust указана в `server/rust-toolchain.toml`. Сейчас использую SurrealDB 3.3.0 и Dart 3.13.2.
 
 Миграции создают таблицы, но не добавляют сюжет. На другом компьютере данные загружаются из SQL-выгрузки SurrealDB с расширением `.surql` через команду `surreal import`.
+
+## Ключ для токенов
+
+JWT_SECRET передаю серверу через окружение. Ключ должен быть случайным, не короче 32 байт и без пробелов. Без него сервер не запускается. Ключ не добавляю в Git и не включаю в архив для сдачи.
+
+На новом компьютере создаю отдельный локальный ключ из корня проекта:
+
+```powershell
+New-Item -ItemType Directory -Force .local | Out-Null
+$jwtBytes = New-Object byte[] 32
+$jwtRandom = [Security.Cryptography.RandomNumberGenerator]::Create()
+$jwtRandom.GetBytes($jwtBytes)
+$jwtRandom.Dispose()
+$jwtSecret = [BitConverter]::ToString($jwtBytes).Replace('-', '').ToLowerInvariant()
+[IO.File]::WriteAllText((Join-Path (Get-Location) '.local\jwt-secret.txt'), $jwtSecret)
+```
+
+start-server.cmd читает этот файл, если JWT_SECRET ещё не задан в окружении. При замене ключа старые токены перестают работать, нужно войти в приложение заново. Аккаунты и прогресс остаются в базе.

@@ -43,12 +43,14 @@ use romance_club::{
 
 // Интерцептор для проверки JWT
 #[derive(Clone)]
-pub struct AuthInterceptor;
+pub struct AuthInterceptor {
+    jwt: jwt::JwtKeys,
+}
 
 impl Interceptor for AuthInterceptor {
     fn call(&mut self, mut request: Request<()>) -> Result<Request<()>, Status> {
         // Сохраняю владельца токена для обработчиков
-        let claims = request_auth::authenticate(&request)?;
+        let claims = request_auth::authenticate(&request, &self.jwt)?;
         request.extensions_mut().insert(claims);
         Ok(request)
     }
@@ -399,6 +401,9 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Проверяю ключ до подключения к БД и запуска API
+    let jwt = jwt::JwtKeys::from_env()?;
+
     // Подключаюсь к SurrealDB
     let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
 
@@ -422,7 +427,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let episode_service = EpisodeApiService::new(db.clone()); // Сервис эпизодов
     let progress_service = ProgressApiService::new(db.clone()); // Сервис прогресса
-    let auth_service = AuthApiService::new(db.clone()); // Сервис авторизации
+    let auth_service = AuthApiService::new(db.clone(), jwt.clone()); // Сервис авторизации
     let achievement_service = AchievementApiService::new(db.clone()); // Сервис достижений
     let shop_service = ShopApiService::new(db.clone()); // Сервис магазина
     let asset_service = AssetApiService::new(db.clone()); // Сервис ассетов
@@ -434,7 +439,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Сервер запущен на {}", addr);
 
     // Интерцептор JWT
-    let interceptor = AuthInterceptor;
+    let interceptor = AuthInterceptor { jwt };
 
     Server::builder()
         .add_service(EpisodeApiServer::with_interceptor(episode_service, interceptor.clone())) // Сервис эпизодов

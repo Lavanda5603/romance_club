@@ -16,17 +16,18 @@ use crate::romance_club::auth_api_server::AuthApi; // Импорт трейта
 use crate::romance_club::{
     AuthResponse, RegisterRequest, LoginRequest, GetPlayerRequest, Player,
 }; // Импорт структур
-use crate::jwt; // Модуль JWT
+use crate::jwt::JwtKeys; // Ключ JWT
 
 // Сервис для работы с авторизацией
 pub struct AuthApiService {
     pub db: Surreal<Client>, // Подключение к SurrealDB
+    jwt: JwtKeys, // Проверенный ключ
 }
 
 impl AuthApiService {
     // Создать новый сервис
-    pub fn new(db: Surreal<Client>) -> Self {
-        Self { db }
+    pub fn new(db: Surreal<Client>, jwt: JwtKeys) -> Self {
+        Self { db, jwt }
     }
 
     // Хэшировать пароль через Argon2
@@ -218,7 +219,7 @@ impl AuthApi for AuthApiService {
                     .unwrap_or(false);
 
                 // Генерирую JWT с is_admin
-                let token = match jwt::create_token(&id, &login, is_admin) {
+                let token = match self.jwt.create_token(&id, &login, is_admin) {
                     Ok(t) => t,
                     Err(e) => {
                         println!("[REGISTER] Ошибка создания токена: {}", e);
@@ -337,7 +338,7 @@ impl AuthApi for AuthApiService {
                 }
 
                 // Генерирую JWT с is_admin
-                let token = match jwt::create_token(&id, &login, is_admin) {
+                let token = match self.jwt.create_token(&id, &login, is_admin) {
                     Ok(t) => t,
                     Err(e) => {
                         println!("[LOGIN] Ошибка создания токена: {}", e);
@@ -376,8 +377,11 @@ impl AuthApi for AuthApiService {
     // Получить игрока по ID
     async fn get_player(
         &self,
-        request: Request<GetPlayerRequest>,
+        mut request: Request<GetPlayerRequest>,
     ) -> Result<Response<AuthResponse>, Status> {
+        // Здесь нет интерцептора, поэтому проверяю токен сама
+        let claims = crate::request_auth::authenticate(&request, &self.jwt)?;
+        request.extensions_mut().insert(claims);
         let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
 
         println!("[GET_PLAYER] player={}", player_id);

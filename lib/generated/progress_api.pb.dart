@@ -10,9 +10,12 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
+import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
+
+import 'progress.pb.dart' as $0;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
@@ -94,6 +97,7 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
     $core.String? sceneId,
     $core.Iterable<$core.MapEntry<$core.String, $core.bool>>? flags,
     $core.Iterable<$core.MapEntry<$core.String, $core.int>>? counters,
+    $core.int? expectedRevision,
   }) {
     final result = SaveProgressRequest._();
     if (playerId != null) result.playerId = playerId;
@@ -101,6 +105,7 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
     if (sceneId != null) result.sceneId = sceneId;
     if (flags != null) result.flags.addEntries(flags);
     if (counters != null) result.counters.addEntries(counters);
+    if (expectedRevision != null) result.expectedRevision = expectedRevision;
     return result;
   }
 
@@ -130,6 +135,7 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
         keyFieldType: $pb.PbFieldType.OS,
         valueFieldType: $pb.PbFieldType.O3,
         packageName: const $pb.PackageName('romance_club'))
+    ..aI(6, _omitFieldNames ? '' : 'expectedRevision')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -187,6 +193,15 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(5)
   $pb.PbMap<$core.String, $core.int> get counters => $_getMap(4);
+
+  @$pb.TagNumber(6)
+  $core.int get expectedRevision => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set expectedRevision($core.int value) => $_setSignedInt32(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasExpectedRevision() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearExpectedRevision() => $_clearField(6);
 }
 
 /// Ответ после сохранения
@@ -194,10 +209,12 @@ class SaveProgressResponse extends $pb.GeneratedMessage {
   factory SaveProgressResponse({
     $core.bool? success,
     $core.String? message,
+    $core.int? revision,
   }) {
     final result = SaveProgressResponse._();
     if (success != null) result.success = success;
     if (message != null) result.message = message;
+    if (revision != null) result.revision = revision;
     return result;
   }
 
@@ -216,6 +233,7 @@ class SaveProgressResponse extends $pb.GeneratedMessage {
       createEmptyInstance: SaveProgressResponse.$_createMessage)
     ..aOB(1, _omitFieldNames ? '' : 'success')
     ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..aI(3, _omitFieldNames ? '' : 'revision')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -258,6 +276,15 @@ class SaveProgressResponse extends $pb.GeneratedMessage {
   $core.bool hasMessage() => $_has(1);
   @$pb.TagNumber(2)
   void clearMessage() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get revision => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set revision($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasRevision() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearRevision() => $_clearField(3);
 }
 
 /// Запрос на сброс прогресса
@@ -389,6 +416,26 @@ class ResetProgressResponse extends $pb.GeneratedMessage {
   $core.bool hasMessage() => $_has(1);
   @$pb.TagNumber(2)
   void clearMessage() => $_clearField(2);
+}
+
+/// gRPC-сервис для работы с прогрессом
+class ProgressApiApi {
+  final $pb.RpcClient _client;
+
+  ProgressApiApi(this._client);
+
+  $async.Future<$0.Progress> getProgress(
+          $pb.ClientContext? ctx, GetProgressRequest request) =>
+      _client.invoke<$0.Progress>(
+          ctx, 'ProgressApi', 'GetProgress', request, $0.Progress());
+  $async.Future<SaveProgressResponse> saveProgress(
+          $pb.ClientContext? ctx, SaveProgressRequest request) =>
+      _client.invoke<SaveProgressResponse>(
+          ctx, 'ProgressApi', 'SaveProgress', request, SaveProgressResponse());
+  $async.Future<ResetProgressResponse> resetProgress(
+          $pb.ClientContext? ctx, ResetProgressRequest request) =>
+      _client.invoke<ResetProgressResponse>(ctx, 'ProgressApi', 'ResetProgress',
+          request, ResetProgressResponse());
 }
 
 const $core.bool _omitFieldNames =

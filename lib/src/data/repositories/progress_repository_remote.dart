@@ -19,15 +19,17 @@ class ProgressRepositoryRemote implements ProgressRepository {
 
   // Сохранить прогресс
   @override
-  Future<bool> saveProgress(ProgressModel progress) async {
+  Future<int> saveProgress(ProgressModel progress) async {
     final response = await _service.saveProgress(
       playerId: progress.playerId,
       episodeId: progress.episodeId,
       sceneId: progress.sceneId,
+      expectedRevision: progress.revision,
       flags: progress.flags,
       counters: progress.counters,
     );
-    return response.success;
+    if (!response.success) throw StateError(response.message);
+    return response.revision;
   }
 
   // Сбросить прогресс игрока
@@ -43,6 +45,7 @@ class ProgressRepositoryRemote implements ProgressRepository {
       playerId: progress.playerId,
       episodeId: progress.episodeId,
       sceneId: progress.sceneId,
+      revision: progress.revision,
       flags: Map<String, bool>.from(progress.flags),
       counters: Map<String, int>.from(progress.counters),
     );

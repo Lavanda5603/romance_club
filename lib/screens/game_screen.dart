@@ -44,6 +44,22 @@ class _GameScreenState extends State<GameScreen> {
   final Map<String, Uint8List> _charactersCache = {};
 
   bool _assetsLoaded = false;
+  bool _leaving = false;
+  bool _allowPop = false;
+
+  // Перед выходом дожидаюсь последнего сохранения
+  Future<void> _leaveGame() async {
+    if (_leaving) return;
+    _leaving = true;
+    await _viewModel.flushProgress();
+    if (!mounted) return;
+    if (_viewModel.saveError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.saveError!)));
+    }
+    setState(() => _allowPop = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.pop(context);
+  }
 
   @override
   void initState() {
@@ -64,7 +80,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _episodeService.close();
-    _progressService.close();
+    _viewModel.flushProgress().then((_) => _progressService.close());
     _achievementService.close();
     _assetService.close();
     _viewModel.dispose();
@@ -166,12 +182,29 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leaveGame();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       body: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, _) {
           final state = _viewModel.state;
+          if (_viewModel.saveError != null) {
+            return Center(child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(_viewModel.saveError!, style: const TextStyle(color: Colors.red)),
+                ElevatedButton(
+                  onPressed: () => _viewModel.loadEpisode(widget.episode.id),
+                  child: const Text('Загрузить сохранённый прогресс'),
+                ),
+              ]),
+            ));
+          }
 
           if (state.isLoading || !_assetsLoaded) {
             return const Center(child: CircularProgressIndicator());
@@ -286,7 +319,7 @@ class _GameScreenState extends State<GameScreen> {
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                    onTap: _leaveGame,
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -508,6 +541,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
           );
         },
+      ),
       ),
     );
   }

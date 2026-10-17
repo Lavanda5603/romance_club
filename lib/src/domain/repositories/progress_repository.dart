@@ -6,7 +6,7 @@ abstract class ProgressRepository {
   Future<ProgressModel> getProgress(String playerId, int episodeId);
 
   // Сохранить прогресс
-  Future<bool> saveProgress(ProgressModel progress);
+  Future<int> saveProgress(ProgressModel progress);
 
   // Сбросить прогресс игрока
   Future<bool> resetProgress(String playerId);

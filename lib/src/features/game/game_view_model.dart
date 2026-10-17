@@ -45,6 +45,33 @@ class GameViewModel extends ChangeNotifier {
   String _ending = '';
   bool _progressSceneMissing = false; // Сохранённая сцена больше не существует
 
+  Future<void> _saveQueue = Future.value();
+  int _revision = 0;
+  String? _saveError;
+  bool _disposed = false;
+  int _loadId = 0;
+  String? get saveError => _saveError;
+
+  // Дожидаюсь всех записей перед выходом или новой загрузкой
+  Future<void> flushProgress() async {
+    Future<void> pending;
+    do {
+      pending = _saveQueue;
+      await pending;
+    } while (!identical(pending, _saveQueue));
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   bool get progressSceneMissing => _progressSceneMissing;
 
   // Геттер для состояния
@@ -121,6 +148,11 @@ class GameViewModel extends ChangeNotifier {
 
   // Загрузить эпизод по ID
   Future<void> loadEpisode(int id, {bool startFromBeginning = false}) async {
+    final loadId = ++_loadId;
+    await flushProgress();
+    if (_disposed || loadId != _loadId) return;
+    _saveError = null;
+    _revision = 0;
     _state = AsyncState.loading();
     _progressSceneMissing = false;
     _currentSceneIndex = 0;
@@ -139,6 +171,15 @@ class GameViewModel extends ChangeNotifier {
 
     try {
       final episode = await _repository.getEpisode(id);
+      if (_disposed || loadId != _loadId) return;
+
+      // Загружаю версию даже при явном перезапуске эпизода
+      ProgressModel? loadedProgress;
+      if (_progressRepository != null) {
+        loadedProgress = await _progressRepository.getProgress(_playerId, id);
+        if (_disposed || loadId != _loadId) return;
+        _revision = loadedProgress.revision;
+      }
       _state = AsyncState.success(episode);
 
       // Если надо начать с начала - сбрасываю прогресс
@@ -156,7 +197,7 @@ class GameViewModel extends ChangeNotifier {
       // Загружаю прогресс, если есть репозиторий
       if (_progressRepository != null) {
         try {
-          final progress = await _progressRepository.getProgress(_playerId, id);
+          final progress = loadedProgress!;
 
           if (progress.sceneId.isNotEmpty) {
             // Восстанавливаю позицию по постоянному ключу, даже после перестановки
@@ -188,6 +229,7 @@ class GameViewModel extends ChangeNotifier {
       }
       _currentTextIndex = 0;
     } catch (e) {
+      if (_disposed || loadId != _loadId) return;
       _state = AsyncState.failure(e.toString());
     }
 
@@ -267,7 +309,11 @@ class GameViewModel extends ChangeNotifier {
   void goToSceneKey(String sceneKey) {
     if (_state.data == null || sceneKey.isEmpty) return;
     final visited = <String>{};
+    if (_saveError != null) return;
     _goToSceneKey(sceneKey, visited);
+    _saveProgress();
+    _checkAchievements();
+    notifyListeners();
   }
 
   void _goToSceneKey(String sceneKey, Set<String> visited) {
@@ -294,25 +340,18 @@ class GameViewModel extends ChangeNotifier {
             if (_isConditionMet(_state.data!.scenes[j].condition)) {
               _currentSceneIndex = j;
               _currentTextIndex = 0;
-              _saveProgress();
-              _checkAchievements();
-              notifyListeners();
               return;
             }
           }
           // Если не нашли - перехожу на последнюю (или конец)
           _currentSceneIndex = _state.data!.scenes.length - 1;
           _currentTextIndex = 0;
-          notifyListeners();
           return;
         }
 
         // Условие выполнено - перехожу
         _currentSceneIndex = i;
         _currentTextIndex = 0;
-        _saveProgress();
-        _checkAchievements();
-        notifyListeners();
         return;
       }
     }
@@ -393,12 +432,13 @@ class GameViewModel extends ChangeNotifier {
 
   // Обработка выбора (индекс выбора в текущей сцене)
   void onChoiceSelected(int choiceIndex) {
-    if (currentScene == null) return;
+    if (currentScene == null || _saveError != null) return;
     final choice = currentScene!.choices[choiceIndex];
+    String target = '';
     for (final action in choice.actions) {
       // Переход на сцену (если тип nextScene)
       if (action.type == 'nextScene') {
-        goToSceneKey(action.sceneTarget);
+        target = action.sceneTarget;
       }
 
       // Счётчик (работает и для nextScene, и для changeCounter)
@@ -422,6 +462,8 @@ class GameViewModel extends ChangeNotifier {
         _ending = action.title;
       }
     }
+    // Сначала применяю баллы и флаги, потом проверяю условие новой сцены
+    if (target.isNotEmpty) _goToSceneKey(target, <String>{});
     _saveProgress();
     _checkAchievements();
     notifyListeners();
@@ -491,33 +533,30 @@ class GameViewModel extends ChangeNotifier {
     }
   }
 
-  // Сохранить прогресс
-  Future<void> _saveProgress() async {
-    if (_progressRepository == null) return;
-    if (_state.data == null) return;
-
-    try {
-      // Собираю все счётчики и points
-      final countersToSave = <String, int>{
-        'points': _points,
-        'romance_adrian': _counters['romance_adrian']!,
-        'romance_cat': _counters['romance_cat']!,
-        'romance_ladybug_adrian': _counters['romance_ladybug_adrian']!,
-        'romance_ladybug_cat': _counters['romance_ladybug_cat']!,
-        'romance_luka': _counters['romance_luka']!,
-        'friendship': _counters['friendship']!,
-      };
-
-      final progress = ProgressModel(
-        playerId: _playerId,
-        episodeId: _state.data!.id,
-        sceneId: _currentSceneIdStr,
-        flags: _flags,
-        counters: countersToSave,
-      );
-      await _progressRepository.saveProgress(progress);
-    } catch (e) {
-      debugPrint('Ошибка сохранения прогресса: $e');
+  // Ставлю в очередь отдельный снимок, а не изменяемые карты состояния
+  Future<void> _saveProgress() {
+    if (_progressRepository == null || _state.data == null || _saveError != null) {
+      return _saveQueue;
     }
+    final playerId = _playerId;
+    final episodeId = _state.data!.id;
+    final sceneId = _currentSceneIdStr;
+    final flags = Map<String, bool>.unmodifiable(_flags);
+    final counters = Map<String, int>.unmodifiable({'points': _points, ..._counters});
+    _saveQueue = _saveQueue.then((_) async {
+      if (_saveError != null) return;
+      try {
+        _revision = await _progressRepository.saveProgress(ProgressModel(
+          playerId: playerId, episodeId: episodeId, sceneId: sceneId,
+          flags: flags, counters: counters, revision: _revision,
+        ));
+      } catch (e) {
+        // Не отправляю следующие старые снимки после неудачной записи
+        _saveError = 'Не удалось сохранить прогресс: $e';
+        debugPrint(_saveError);
+        notifyListeners();
+      }
+    });
+    return _saveQueue;
   }
 }

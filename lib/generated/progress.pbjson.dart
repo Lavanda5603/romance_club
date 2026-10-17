@@ -40,6 +40,7 @@ const Progress$json = {
       '10': 'counters'
     },
     {'1': 'updated_at', '3': 7, '4': 1, '5': 9, '10': 'updatedAt'},
+    {'1': 'revision', '3': 8, '4': 1, '5': 5, '10': 'revision'},
   ],
   '3': [Progress_FlagsEntry$json, Progress_CountersEntry$json],
 };
@@ -70,6 +71,7 @@ final $typed_data.Uint8List progressDescriptor = $convert.base64Decode(
     'IdCgplcGlzb2RlX2lkGAMgASgFUgllcGlzb2RlSWQSGQoIc2NlbmVfaWQYBCABKAlSB3NjZW5l'
     'SWQSNwoFZmxhZ3MYBSADKAsyIS5yb21hbmNlX2NsdWIuUHJvZ3Jlc3MuRmxhZ3NFbnRyeVIFZm'
     'xhZ3MSQAoIY291bnRlcnMYBiADKAsyJC5yb21hbmNlX2NsdWIuUHJvZ3Jlc3MuQ291bnRlcnNF'
-    'bnRyeVIIY291bnRlcnMSHQoKdXBkYXRlZF9hdBgHIAEoCVIJdXBkYXRlZEF0GjgKCkZsYWdzRW'
-    '50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKAhSBXZhbHVlOgI4ARo7Cg1Db3Vu'
-    'dGVyc0VudHJ5EhAKA2tleRgBIAEoCVIDa2V5EhQKBXZhbHVlGAIgASgFUgV2YWx1ZToCOAE=');
+    'bnRyeVIIY291bnRlcnMSHQoKdXBkYXRlZF9hdBgHIAEoCVIJdXBkYXRlZEF0EhoKCHJldmlzaW'
+    '9uGAggASgFUghyZXZpc2lvbho4CgpGbGFnc0VudHJ5EhAKA2tleRgBIAEoCVIDa2V5EhQKBXZh'
+    'bHVlGAIgASgIUgV2YWx1ZToCOAEaOwoNQ291bnRlcnNFbnRyeRIQCgNrZXkYASABKAlSA2tleR'
+    'IUCgV2YWx1ZRgCIAEoBVIFdmFsdWU6AjgB');

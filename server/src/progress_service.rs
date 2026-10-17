@@ -35,7 +35,7 @@ impl ProgressApi for ProgressApiService {
 
         let mut response = self
             .db
-            .query("SELECT * FROM progress WHERE player_id = type::record($player_id) AND episode_id = type::record('episode', $episode_id) LIMIT 1")
+            .query("SELECT * FROM type::record('progress', [type::record($player_id), type::record('episode', $episode_id)])")
             .bind(("player_id", player_id.clone()))
             .bind(("episode_id", episode_id))
             .await
@@ -80,7 +80,8 @@ impl ProgressApi for ProgressApiService {
                     scene_id,
                     flags: flags_map,
                     counters: counters_map,
-                    updated_at: String::new(),
+                    updated_at: v.get("updated_at").and_then(Value::as_str).unwrap_or_default().to_owned(),
+                    revision: v.get("revision").and_then(Value::as_i64).unwrap_or(0) as i32,
                 }
             }
             None => Progress {
@@ -91,6 +92,7 @@ impl ProgressApi for ProgressApiService {
                 flags: std::collections::HashMap::new(),
                 counters: std::collections::HashMap::new(),
                 updated_at: String::new(),
+                revision: 0,
             },
         };
 
@@ -116,30 +118,39 @@ impl ProgressApi for ProgressApiService {
         let counters_json: serde_json::Value = serde_json::to_value(&counters)
             .unwrap_or(serde_json::json!({}));
 
-        self.db
-            .query("DELETE progress WHERE player_id = type::record($player_id) AND episode_id = type::record('episode', $episode_id)")
-            .bind(("player_id", player_id.clone()))
-            .bind(("episode_id", episode_id))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let revision = req.expected_revision.checked_add(1)
+            .filter(|_| req.expected_revision >= 0)
+            .ok_or_else(|| Status::invalid_argument("Неверная версия прогресса"))?;
+        if episode_id <= 0 || !scene_id.starts_with("scene:") {
+            return Err(Status::invalid_argument("Неверная сцена или эпизод"));
+        }
 
-        let result = self.db
-            .query("CREATE progress CONTENT { player_id: type::record($player_id), episode_id: type::record('episode', $episode_id), scene_id: type::record($scene_id), flags: $flags, counters: $counters, updated_at: time::now() }")
-            .bind(("player_id", player_id.clone()))
+        // Проверяю версию и обновляю постоянную запись в одной транзакции
+        let mut result = self.db.query(include_str!("save_progress.surql"))
+            .bind(("player_id", player_id))
             .bind(("episode_id", episode_id))
             .bind(("scene_id", scene_id))
             .bind(("flags", flags_json))
             .bind(("counters", counters_json))
-            .await;
-
-        match result {
-            Ok(_) => println!("[SAVE_PROGRESS] Прогресс создан"),
-            Err(e) => println!("[SAVE_PROGRESS] ОШИБКА: {}", e),
+            .bind(("expected_revision", req.expected_revision))
+            .await.map_err(|e| Status::internal(e.to_string()))?;
+        let errors = result.take_errors();
+        if !errors.is_empty() {
+            let messages = errors.values().map(ToString::to_string).collect::<Vec<_>>().join("; ");
+            if messages.contains("PROGRESS_CONFLICT") || errors.values().any(|e| matches!(e.query_details(), Some(surrealdb::types::QueryError::TransactionConflict))) {
+                return Err(Status::aborted("Прогресс изменился в другом окне. Загрузите эпизод заново"));
+            }
+            if messages.contains("PROGRESS_SCENE_INVALID") {
+                return Err(Status::invalid_argument("Сцена не принадлежит эпизоду"));
+            }
+            return Err(Status::internal(messages));
         }
+        result.check().map_err(|e| Status::internal(e.to_string()))?;
 
         Ok(Response::new(SaveProgressResponse {
             success: true,
             message: "Прогресс сохранён".to_string(),
+            revision,
         }))
     }
 
@@ -152,17 +163,12 @@ impl ProgressApi for ProgressApiService {
 
         println!("[RESET_PROGRESS] player={}", player_id);
 
-        // Удаляю весь прогресс игрока
-        let result = self
-            .db
-            .query("DELETE progress WHERE player_id = type::record($player_id)")
-            .bind(("player_id", player_id.clone()))
-            .await;
-
-        match result {
-            Ok(_) => println!("[RESET_PROGRESS] Прогресс сброшен"),
-            Err(e) => println!("[RESET_PROGRESS] ОШИБКА: {}", e),
-        }
+        // Оставляю версию сброса, чтобы старый клиент не вернул прежний прогресс
+        self.db
+            .query("UPDATE progress SET scene_id = NONE, flags = {}, counters = {}, revision = (revision ?? 0) + 1, updated_at = time::now() WHERE player_id = type::record($player_id)")
+            .bind(("player_id", player_id))
+            .await.map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
 
         Ok(Response::new(ResetProgressResponse {
             success: true,
@@ -170,3 +176,7 @@ impl ProgressApi for ProgressApiService {
         }))
     }
 }
+
+#[cfg(test)]
+#[path = "progress_tests.rs"]
+mod tests;

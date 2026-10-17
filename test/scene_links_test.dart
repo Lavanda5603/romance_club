@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart' hide Action;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,10 +31,23 @@ class _Episodes implements EpisodeRepository {
 
 class _Progress implements ProgressRepository {
   ProgressModel saved = ProgressModel.empty();
+  final List<ProgressModel> writes = [];
+  Completer<void>? gate;
+  Completer<void>? readGate;
+  bool fail = false;
   @override
-  Future<ProgressModel> getProgress(String playerId, int episodeId) async => saved;
+  Future<ProgressModel> getProgress(String playerId, int episodeId) async {
+    await readGate?.future;
+    return saved;
+  }
   @override
-  Future<bool> saveProgress(ProgressModel progress) async { saved = progress; return true; }
+  Future<int> saveProgress(ProgressModel progress) async {
+    writes.add(progress);
+    await gate?.future;
+    if (fail) throw StateError('Конфликт версии');
+    saved = progress;
+    return progress.revision + 1;
+  }
   @override
   Future<bool> resetProgress(String playerId) async => true;
 }
@@ -85,6 +99,7 @@ void main() {
     await vm.loadEpisode(1, startFromBeginning: true);
     vm.nextScene();
     expect(vm.currentScene!.sceneKey, 'scene:branch');
+    await vm.flushProgress();
     expect(progress.saved.sceneId, 'scene:branch');
     vm.nextScene();
     expect(vm.currentScene!.sceneKey, 'scene:ending');
@@ -135,6 +150,95 @@ void main() {
     final keys = List.generate(100, (_) => newSceneKey());
     expect(keys.toSet().length, 100);
     expect(keys.every((key) => key.startsWith('draft:')), isTrue);
+  });
+
+  test('Выбор записываю один раз с баллами и флагами до проверки условия', () async {
+    final proto = story();
+    proto.scenes[0].choices[0].actions[0]
+      ..counterName = 'points' ..counterValue = 2
+      ..flagName = 'chosen' ..flagValue = true;
+    proto.scenes[2].condition = 'points>=2';
+    final progress = _Progress();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(proto)), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.onChoiceSelected(0);
+    await vm.flushProgress();
+    expect(progress.writes, hasLength(1));
+    expect(progress.saved.sceneId, 'scene:ending');
+    expect(progress.saved.counters['points'], 2);
+    expect(progress.saved.flags['chosen'], isTrue);
+    await vm.loadEpisode(1);
+    expect(vm.points, 2);
+    expect(vm.flags['chosen'], isTrue);
+  });
+
+  test('Медленные записи идут по очереди со своими снимками и версиями', () async {
+    final progress = _Progress()..gate = Completer<void>();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.nextScene();
+    vm.flags['later'] = true;
+    vm.nextScene();
+    await Future<void>.delayed(Duration.zero);
+    expect(progress.writes, hasLength(1));
+    expect(progress.writes.first.sceneId, 'scene:branch');
+    expect(progress.writes.first.flags, isEmpty);
+    progress.gate!.complete();
+    await vm.flushProgress();
+    expect(progress.writes.map((p) => p.revision), [0, 1]);
+    expect(progress.saved.sceneId, 'scene:ending');
+    expect(progress.saved.flags['later'], isTrue);
+  });
+
+  test('После конфликта не отправляю старые снимки и показываю ошибку', () async {
+    final progress = _Progress()..fail = true;
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.nextScene();
+    vm.nextScene();
+    await vm.flushProgress();
+    expect(progress.writes, hasLength(1));
+    expect(vm.saveError, contains('Конфликт версии'));
+    expect(progress.saved.sceneId, isEmpty);
+    progress.fail = false;
+    await vm.loadEpisode(1);
+    vm.nextScene();
+    await vm.flushProgress();
+    expect(vm.saveError, isNull);
+    expect(progress.saved.sceneId, 'scene:branch');
+  });
+
+  test('Закрытие экрана не обрывает уже поставленную запись', () async {
+    final progress = _Progress()..gate = Completer<void>();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    await vm.loadEpisode(1);
+    vm.nextScene();
+    vm.dispose();
+    progress.gate!.complete();
+    await vm.flushProgress();
+    expect(progress.saved.sceneId, 'scene:branch');
+  });
+
+  test('Не начинаю игру и запись, пока не загружена версия прогресса', () async {
+    final progress = _Progress()..readGate = Completer<void>();
+    progress.saved = const ProgressModel(playerId: 'player:test', episodeId: 1,
+      sceneId: 'scene:200', revision: 7, flags: {}, counters: {'points': 2});
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    final loading = vm.loadEpisode(1);
+    await Future<void>.delayed(Duration.zero);
+    expect(vm.state.isLoading, isTrue);
+    vm.nextScene();
+    expect(progress.writes, isEmpty);
+    progress.readGate!.complete();
+    await loading;
+    vm.nextScene();
+    await vm.flushProgress();
+    expect(progress.saved.revision, 7);
+    expect(progress.saved.counters['points'], 2);
   });
 
   testWidgets('В редакторе действия выбираю сцену по ключу', (tester) async {

@@ -36,6 +36,7 @@ class ProgressGrpcService {
     required String playerId,
     required int episodeId,
     required String sceneId,
+    required int expectedRevision,
     required Map<String, bool> flags,
     required Map<String, int> counters,
   }) async {
@@ -43,6 +44,7 @@ class ProgressGrpcService {
       playerId: playerId,
       episodeId: episodeId,
       sceneId: sceneId,
+      expectedRevision: expectedRevision,
       flags: flags.entries.toList(),
       counters: counters.entries.toList(),
     );

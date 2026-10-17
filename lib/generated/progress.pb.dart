@@ -26,6 +26,7 @@ class Progress extends $pb.GeneratedMessage {
     $core.Iterable<$core.MapEntry<$core.String, $core.bool>>? flags,
     $core.Iterable<$core.MapEntry<$core.String, $core.int>>? counters,
     $core.String? updatedAt,
+    $core.int? revision,
   }) {
     final result = Progress._();
     if (id != null) result.id = id;
@@ -35,6 +36,7 @@ class Progress extends $pb.GeneratedMessage {
     if (flags != null) result.flags.addEntries(flags);
     if (counters != null) result.counters.addEntries(counters);
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (revision != null) result.revision = revision;
     return result;
   }
 
@@ -66,6 +68,7 @@ class Progress extends $pb.GeneratedMessage {
         valueFieldType: $pb.PbFieldType.O3,
         packageName: const $pb.PackageName('romance_club'))
     ..aOS(7, _omitFieldNames ? '' : 'updatedAt')
+    ..aI(8, _omitFieldNames ? '' : 'revision')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -138,6 +141,15 @@ class Progress extends $pb.GeneratedMessage {
   $core.bool hasUpdatedAt() => $_has(6);
   @$pb.TagNumber(7)
   void clearUpdatedAt() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get revision => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set revision($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasRevision() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearRevision() => $_clearField(8);
 }
 
 const $core.bool _omitFieldNames =

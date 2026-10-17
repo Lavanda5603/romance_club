@@ -11,6 +11,8 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
+    - .local/**
+    - .codegraph/**
     - build/**
     - android/**
     - ios/**

@@ -6,7 +6,7 @@ import 'scene_editor_screen.dart'; // Импорт экрана редактир
 // Экран редактирования эпизода
 class EpisodeEditorScreen extends StatefulWidget {
   final Episode episode; // Эпизод
-  final Function(Episode) onSave; // Функция, вызывается при сохранении
+  final Future<Episode> Function(Episode) onSave; // Функция, вызывается при сохранении
 
   // Конструктор класса EpisodeEditorScreen
   const EpisodeEditorScreen({
@@ -21,13 +21,16 @@ class EpisodeEditorScreen extends StatefulWidget {
 }
 
 class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
+  late Episode _episode;
+  bool _isSaving = false;
   late TextEditingController _titleController; // Контроллер названия
 
   @override
   void initState() {
     super.initState();
+    _episode = widget.episode.deepCopy();
     // Создаю контроллер и заполняю текущим названием
-    _titleController = TextEditingController(text: widget.episode.title);
+    _titleController = TextEditingController(text: _episode.title);
   }
 
   @override
@@ -42,8 +45,8 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
     setState(() {
       // Создаю Protobuf-модель Scene
       final newScene = Scene(
-        id: widget.episode.scenes.length + 1, // ID новой сцены
-        title: 'сцена ${widget.episode.scenes.length + 1}', // Название по умолчанию
+        id: _episode.scenes.fold<int>(0, (max, scene) => scene.id > max ? scene.id : max) + 1, // ID новой сцены
+        title: 'сцена ${_episode.scenes.length + 1}', // Название по умолчанию
         background: '', // Фон
         character: '', // Персонаж
         characterEmotion: '', // Эмоция
@@ -53,10 +56,10 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
       );
 
       // Добавляю в список
-      widget.episode.scenes.add(newScene);
+      _episode.scenes.add(newScene);
 
       // Добавила сцену
-      debugPrint('[FLUTTER] Добавлена сцена: ${newScene.title}, всего сцен: ${widget.episode.scenes.length}');
+      debugPrint('[FLUTTER] Добавлена сцена: ${newScene.title}, всего сцен: ${_episode.scenes.length}');
     });
   }
 
@@ -69,7 +72,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
         return AlertDialog(
           title: const Text('Удалить сцену?'),
           content: Text(
-            'Вы точно уверены, что хотите удалить "Сцена ${widget.episode.scenes[index].id}"?',
+            'Вы точно уверены, что хотите удалить "Сцена ${_episode.scenes[index].id}"?',
           ),
           actions: [
             TextButton(
@@ -88,26 +91,34 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
     // Если подтвердил — удаляю
     if (confirmed == true) {
       setState(() {
-        widget.episode.scenes.removeAt(index);
+        _episode.scenes.removeAt(index);
       });
     }
   }
 
   // Сохранить эпизод
-  void _saveEpisode() {
-    // Обновляю название
-    widget.episode.title = _titleController.text;
-
-    // Сохраняю
-    debugPrint('[FLUTTER] _saveEpisode: ${widget.episode.title}, сцен: ${widget.episode.scenes.length}');
-
-    // Вызываю колбэк
-    widget.onSave(widget.episode);
-
-    // Показываю уведомление
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Эпизод сохранён')),
-    );
+  Future<void> _saveEpisode() async {
+    if (_isSaving) return;
+    _episode.title = _titleController.text;
+    setState(() => _isSaving = true);
+    try {
+      final saved = await widget.onSave(_episode.deepCopy());
+      if (!mounted) return;
+      setState(() {
+        _episode = saved;
+        _titleController.text = saved.title;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Эпизод сохранён на сервере')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка сохранения: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -171,6 +182,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                         const SizedBox(height: 4),
                         TextField(
                           controller: _titleController,
+                          readOnly: _isSaving,
                           style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
@@ -187,7 +199,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                         ),
                         const SizedBox(height: 10),
                         Expanded(
-                          child: widget.episode.scenes.isEmpty
+                          child: _episode.scenes.isEmpty
                               ? const Center(
                                   child: Text(
                                     'нет сцен',
@@ -195,9 +207,9 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                   ),
                                 )
                               : ListView.builder(
-                                  itemCount: widget.episode.scenes.length,
+                                  itemCount: _episode.scenes.length,
                                   itemBuilder: (context, index) {
-                                    final scene = widget.episode.scenes[index];
+                                    final scene = _episode.scenes[index];
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(vertical: 8),
                                       child: Row(
@@ -215,17 +227,17 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.edit, color: Colors.white, size: 24),
-                                            onPressed: () {
+                                            onPressed: _isSaving ? null : () {
                                               Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
                                                   builder: (context) => SceneEditorScreen(
                                                     scene: scene,
-                                                    episodeId: 'episode:${widget.episode.id}',
-                                                    allScenes: widget.episode.scenes, // Передаю все сцены эпизода
+                                                    episodeId: 'episode:${_episode.id}',
+                                                    allScenes: _episode.scenes, // Передаю все сцены эпизода
                                                     onSave: (newScene) {
                                                       setState(() {
-                                                        widget.episode.scenes[index] = newScene;
+                                                        _episode.scenes[index] = newScene;
                                                       });
                                                     },
                                                   ),
@@ -235,7 +247,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
-                                            onPressed: () => _deleteScene(index),
+                                            onPressed: _isSaving ? null : () => _deleteScene(index),
                                           ),
                                         ],
                                       ),
@@ -248,7 +260,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                           width: 260,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _addScene,
+                            onPressed: _isSaving ? null : _addScene,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(
@@ -271,7 +283,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                           width: 200,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _saveEpisode,
+                            onPressed: _isSaving ? null : _saveEpisode,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(

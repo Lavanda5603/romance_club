@@ -107,37 +107,18 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => EpisodeEditorScreen(
+          builder: (_) => EpisodeEditorScreen(
             episode: fullEpisode,
             onSave: (newEpisode) async {
-              // Сохраняю эпизод
-              debugPrint('[FLUTTER] onSave вызван: ${newEpisode.title}, сцен: ${newEpisode.scenes.length}');
-
-              setState(() {
-                // Создаю новый список и обновляю элемент
-                final newList = List<Episode>.from(_episodes);
-                newList[index] = newEpisode;
-                _episodes = newList;
-              });
-
-              try {
-                // Отправляю на сервер
-                final response = await _service.saveEpisode(newEpisode);
-                debugPrint('[FLUTTER] saveEpisode ответ: success=${response.success}, message=${response.message}');
-
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Эпизод сохранён на сервере')),
-                );
-              } catch (e) {
-                debugPrint('[FLUTTER] Ошибка saveEpisode: $e');
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Ошибка: $e')),
-                );
+              final response = await _service.saveEpisode(newEpisode);
+              if (!response.success) throw StateError(response.message);
+              final saved = await _service.getEpisode(newEpisode.id);
+              if (mounted) {
+                setState(() {
+                  _episodes = _episodes.map((item) => item.id == saved.id ? saved : item).toList();
+                });
               }
+              return saved;
             },
           ),
         ),

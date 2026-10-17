@@ -5,6 +5,7 @@ mod shop_service; // Модуль магазина
 mod asset_service; // Модуль ассетов
 mod admin_service; // Модуль админа
 mod jwt; // Модуль JWT
+mod episode_store;
 
 use tonic::{transport::Server, Request, Response, Status}; // Импорт tonic
 use tonic::service::Interceptor; // Импорт интерцептора
@@ -211,7 +212,8 @@ impl EpisodeApi for EpisodeApiService {
             let next_scene_id = scene_value.get("next_scene_id").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
 
             scenes.push(Scene {
-                id: order_index + 1,
+                id: scene_id_str.strip_prefix("scene:")
+                    .and_then(|id| id.parse::<i32>().ok()).unwrap_or(order_index + 1),
                 scene_key: scene_id_str.clone(),
                 title,
                 background,
@@ -282,179 +284,8 @@ impl EpisodeApi for EpisodeApiService {
         println!("[SAVE_EPISODE] Название: {}", episode.title);
         println!("[SAVE_EPISODE] Сцен: {}", episode.scenes.len());
 
-        let id = episode.id;
-        let title = episode.title.clone();
-        let version = episode.version;
-        let id_i64 = i64::from(id);
-
-        // 1. Сохраняю эпизод
-        self.db
-            .query("UPSERT type::record('episode', $id) CONTENT { title: $title, version: $version, created_at: time::now() }")
-            .bind(("id", id_i64))
-            .bind(("title", title))
-            .bind(("version", version))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        // 2. Удаляю старые action эпизода (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)))")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
-
-        // 3. Удаляю старые choice эпизода (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id))")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
-
-        // 4. Удаляю старые scene эпизода (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
-
-        // 5. Сохраняю сцены
-        for (scene_index, scene) in episode.scenes.iter().enumerate() {
-            // Сохраняю сцену
-            println!("[SAVE_EPISODE] Сцена {}: {} (фон: {}, персонаж: {})",
-                scene_index, scene.title, scene.background, scene.character);
-
-            // Создаю сцену
-            let mut sc_response = self
-                .db
-                .query("CREATE scene CONTENT { episode_id: type::record('episode', $ep_id), title: $title, background: $background, character: $character, character_emotion: $char_emotion, texts: $texts, condition: $condition, text_position: $text_pos, character_position: $char_pos, order_index: $order, next_scene_id: $next_scene } RETURN id")
-                .bind(("ep_id", id_i64)) // i64
-                .bind(("title", scene.title.clone()))
-                .bind(("background", scene.background.clone()))
-                .bind(("character", scene.character.clone()))
-                .bind(("char_emotion", scene.character_emotion.clone()))
-                .bind(("texts", scene.texts.clone()))
-                .bind(("condition", scene.condition.clone()))
-                .bind(("text_pos", scene.text_position.clone()))
-                .bind(("char_pos", scene.character_position.clone()))
-                .bind(("order", scene_index as i32))
-                .bind(("next_scene", scene.next_scene_id))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            // Извлекаю id созданной сцены (результат - массив с одним элементом)
-            let scene_rows: Vec<Value> = sc_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-            let scene_id_str = match scene_rows.first() {
-                Some(v) => v.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()),
-                None => None,
-            };
-            let scene_id_str = match scene_id_str {
-                Some(s) => {
-                    println!("[SAVE_EPISODE] Создана сцена: {}", s);
-                    s
-                }
-                None => {
-                    println!("[SAVE_EPISODE] ОШИБКА: сцена не создана (нет id)");
-                    continue;
-                }
-            };
-
-            // 6. Сохраняю выборы
-            for (choice_index, choice) in scene.choices.iter().enumerate() {
-                let mut ch_response = self
-                    .db
-                    .query("CREATE choice CONTENT { scene_id: type::record($scene_id), text: $text, title: $title, order_index: $order } RETURN id")
-                    .bind(("scene_id", scene_id_str.clone()))
-                    .bind(("text", choice.text.clone()))
-                    .bind(("title", choice.title.clone()))
-                    .bind(("order", choice_index as i32))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-
-                // Извлекаю id созданного выбора (результат - массив с одним элементом)
-                let choice_rows: Vec<Value> = ch_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-                let choice_id_str = match choice_rows.first() {
-                    Some(v) => v.get("id").and_then(|id| id.as_str()).map(|s| s.to_string()),
-                    None => None,
-                };
-                let choice_id_str = match choice_id_str {
-                    Some(s) => {
-                        println!("[SAVE_EPISODE] Создан выбор: {}", s);
-                        s
-                    }
-                    None => {
-                        println!("[SAVE_EPISODE] ОШИБКА: выбор не создан (нет id)");
-                        continue;
-                    }
-                };
-
-                // 7. Сохраняю действия
-                for action in choice.actions.iter() {
-                    let mut ac_response = self
-                        .db
-                        .query("CREATE action CONTENT { choice_id: type::record($choice_id), type: $type, scene_id: $scene_id, flag_name: $flag_name, flag_value: $flag_value, counter_name: $counter_name, counter_value: $counter_value, sound_path: $sound, image_path: $image, title: $title } RETURN id")
-                        .bind(("choice_id", choice_id_str.clone()))
-                        .bind(("type", action.r#type.clone()))
-                        .bind(("scene_id", action.scene_id))
-                        .bind(("flag_name", action.flag_name.clone()))
-                        .bind(("flag_value", action.flag_value))
-                        .bind(("counter_name", action.counter_name.clone()))
-                        .bind(("counter_value", action.counter_value))
-                        .bind(("sound", action.sound_path.clone()))
-                        .bind(("image", action.image_path.clone()))
-                        .bind(("title", action.title.clone()))
-                        .await
-                        .map_err(|e| Status::internal(e.to_string()))?;
-
-                    let action_rows: Vec<Value> = ac_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-                    if let Some(v) = action_rows.first() {
-                        if let Some(id) = v.get("id").and_then(|id| id.as_str()) {
-                            println!("[SAVE_EPISODE] Создано действие: {}", id);
-                        }
-                    }
-                }
-            }
-        }
-
-        println!("[SAVE_EPISODE] Эпизод сохранён: {} (сцен: {})", id, episode.scenes.len());
+        episode_store::save(&self.db, &episode).await?;
+        println!("[SAVE_EPISODE] Эпизод сохранён: {} (сцен: {})", episode.id, episode.scenes.len());
 
         Ok(Response::new(SaveEpisodeResponse {
             success: true,
@@ -568,7 +399,7 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
         let path = entry.path();
         let sql = std::fs::read_to_string(&path)?;
         println!("Применяю миграцию: {:?}", path);
-        db.query(&sql).await?;
+        db.query(&sql).await?.check()?;
     }
 
     println!("Все миграции применены");
@@ -588,9 +419,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
 
     // Использую namespace и database
-    db.use_ns("romance_club").use_db("main").await?;
+    let namespace = std::env::var("SURREAL_NAMESPACE")
+        .unwrap_or_else(|_| "romance_club".into());
+    let database = std::env::var("SURREAL_DATABASE").unwrap_or_else(|_| "main".into());
+    db.use_ns(&namespace).use_db(&database).await?;
 
-    println!("Подключение к SurrealDB установлено");
+    println!("Подключение к SurrealDB установлено: namespace={}, database={}", namespace, database);
 
     // Применяю миграции
     apply_migrations(&db).await?;
@@ -602,7 +436,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shop_service = ShopApiService::new(db.clone()); // Сервис магазина
     let asset_service = AssetApiService::new(db.clone()); // Сервис ассетов
     let admin_service = AdminApiService::new(db); // Сервис админа
-    let addr = "0.0.0.0:50051".parse()?;
+    let addr = std::env::var("GRPC_BIND")
+        .unwrap_or_else(|_| "0.0.0.0:50051".into())
+        .parse()?;
 
     println!("Сервер запущен на {}", addr);
 

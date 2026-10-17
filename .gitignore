@@ -13,6 +13,10 @@ server/target/
 database/
 *.surreal
 
+# Локальные копии и индекс проекта
+.local/
+.codegraph/
+
 # IDE
 .idea/
 .vscode/

@@ -1,5 +1,5 @@
 name: romance_club
-description: "A new Flutter project."
+description: "Визуальная новелла с выбором действий и сохранением прогресса."
 publish_to: 'none'
 
 version: 1.0.0+1

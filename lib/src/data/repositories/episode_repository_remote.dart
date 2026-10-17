@@ -65,6 +65,8 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
           textPosition: scene.textPosition,
           characterPosition: scene.characterPosition,
           nextSceneId: scene.nextSceneId,
+          nextSceneKey: scene.nextSceneKey,
+          orderIndex: scene.orderIndex,
           choices: scene.choices.map((choice) {
             return ChoiceModel(
               text: choice.text,
@@ -73,6 +75,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
                 return ActionModel(
                   type: action.type,
                   sceneId: action.sceneId,
+                  sceneKey: action.sceneKey,
                   flagName: action.flagName,
                   flagValue: action.flagValue,
                   counterName: action.counterName,
@@ -110,6 +113,8 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
         textPosition: scene.textPosition,
         characterPosition: scene.characterPosition,
         nextSceneId: scene.nextSceneId,
+        nextSceneKey: scene.nextSceneKey,
+        orderIndex: scene.orderIndex,
       );
       protoScene.texts.addAll(scene.texts);
 
@@ -125,6 +130,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
           final protoAction = Action(
             type: action.type,
             sceneId: action.sceneId,
+            sceneKey: action.sceneKey,
             flagName: action.flagName,
             flagValue: action.flagValue,
             counterName: action.counterName,

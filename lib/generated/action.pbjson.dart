@@ -28,6 +28,7 @@ const Action$json = {
     {'1': 'sound_path', '3': 7, '4': 1, '5': 9, '10': 'soundPath'},
     {'1': 'image_path', '3': 8, '4': 1, '5': 9, '10': 'imagePath'},
     {'1': 'title', '3': 9, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'scene_key', '3': 10, '4': 1, '5': 9, '10': 'sceneKey'},
   ],
 };
 
@@ -37,4 +38,5 @@ final $typed_data.Uint8List actionDescriptor = $convert.base64Decode(
     'IbCglmbGFnX25hbWUYAyABKAlSCGZsYWdOYW1lEh0KCmZsYWdfdmFsdWUYBCABKAhSCWZsYWdW'
     'YWx1ZRIhCgxjb3VudGVyX25hbWUYBSABKAlSC2NvdW50ZXJOYW1lEiMKDWNvdW50ZXJfdmFsdW'
     'UYBiABKAVSDGNvdW50ZXJWYWx1ZRIdCgpzb3VuZF9wYXRoGAcgASgJUglzb3VuZFBhdGgSHQoK'
-    'aW1hZ2VfcGF0aBgIIAEoCVIJaW1hZ2VQYXRoEhQKBXRpdGxlGAkgASgJUgV0aXRsZQ==');
+    'aW1hZ2VfcGF0aBgIIAEoCVIJaW1hZ2VQYXRoEhQKBXRpdGxlGAkgASgJUgV0aXRsZRIbCglzY2'
+    'VuZV9rZXkYCiABKAlSCHNjZW5lS2V5');

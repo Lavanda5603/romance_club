@@ -16,7 +16,8 @@ FOR $scene IN $scenes {
         character_emotion: $scene.character_emotion, texts: $scene.texts,
         condition: $scene.condition, text_position: $scene.text_position,
         character_position: $scene.character_position,
-        order_index: $scene.order_index, next_scene_id: $scene.next_scene_id
+        order_index: $scene.order_index, next_scene_id: $scene.next_scene_id,
+        next_scene_key: $scene.next_scene_key
     };
     IF $scene.is_new {
         CREATE $scene_id CONTENT $data;
@@ -32,7 +33,8 @@ FOR $scene IN $scenes {
         FOR $action IN $choice.actions {
             CREATE action CONTENT {
                 choice_id: $choice_id, type: $action.type,
-                scene_id: $action.scene_id, flag_name: $action.flag_name,
+                scene_id: $action.scene_id, scene_key: $action.scene_key,
+                flag_name: $action.flag_name,
                 flag_value: $action.flag_value, counter_name: $action.counter_name,
                 counter_value: $action.counter_value, sound_path: $action.sound_path,
                 image_path: $action.image_path, title: $action.title

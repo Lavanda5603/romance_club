@@ -1,3 +1,4 @@
+import '../src/core/scene_links.dart'; // Ключи переходов
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'dart:typed_data'; // Импорт Uint8List
 import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
@@ -46,7 +47,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   String _selectedCharacterPosition = 'center'; // Позиция персонажа
   String _selectedTextPosition = 'bottom_center'; // Позиция текста
 
-  int _selectedNextSceneId = 0; // ID следующей сцены (0 = конец эпизода)
+  String _selectedNextSceneKey = ''; // Ключ следующей сцены
 
   // Список позиций персонажа (9 вариантов)
   final List<String> _characterPositions = [
@@ -111,7 +112,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         : 'bottom_center';
 
     // Начальное значение для следующей сцены
-    _selectedNextSceneId = widget.scene.nextSceneId;
+    _selectedNextSceneKey = widget.scene.nextSceneTarget;
 
     // Для совместимости (если старая позиция не входит в список)
     if (!_textPositions.contains(_selectedTextPosition)) {
@@ -255,7 +256,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       sceneKey: widget.scene.sceneKey,
       characterPosition: _selectedCharacterPosition,
       textPosition: _selectedTextPosition,
-      nextSceneId: _selectedNextSceneId,
+      nextSceneKey: _selectedNextSceneKey,
+      orderIndex: widget.scene.orderIndex,
     );
 
     // Добавляю тексты
@@ -282,6 +284,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ChoiceEditorScreen(
+          allScenes: widget.allScenes,
           choice: null,
           defaultText: 'выбор ${widget.scene.choices.length + 1}',
           onSave: (newChoice) {
@@ -300,6 +303,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ChoiceEditorScreen(
+          allScenes: widget.allScenes,
           choice: widget.scene.choices[index],
           onSave: (newChoice) {
             setState(() {
@@ -424,15 +428,14 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   // Выпадающий список Следующая сцена
   Widget _buildNextSceneDropdown() {
     // Собираю пункты: все сцены эпизода и Конец эпизода
-    final items = <int>[0];
+    final items = <String>[''];
     for (final s in widget.allScenes) {
-      items.add(s.id);
+      items.add(s.sceneKey);
     }
 
-    // Текущее значение (если не найдено - 0)
-    final safeValue = items.contains(_selectedNextSceneId)
-        ? _selectedNextSceneId
-        : 0;
+    // Не подменяю удалённую цель концом эпизода
+    if (!items.contains(_selectedNextSceneKey)) items.add(_selectedNextSceneKey);
+    final safeValue = _selectedNextSceneKey;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,7 +451,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             border: Border.all(color: Colors.white),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: DropdownButton<int>(
+          child: DropdownButton<String>(
+            key: const ValueKey('scene-target'),
             value: safeValue,
             isExpanded: true,
             dropdownColor: const Color(0xFF3F0404),
@@ -456,26 +460,26 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             underline: const SizedBox(),
             items: items.map((id) {
               String label;
-              if (id == 0) {
+              if (id.isEmpty) {
                 label = 'Конец эпизода';
               } else {
                 // Ищу сцену по id
                 final scene = widget.allScenes.firstWhere(
-                  (s) => s.id == id,
-                  orElse: () => Scene(id: id, title: 'сцена $id'),
+                  (s) => s.sceneKey == id,
+                  orElse: () => Scene(sceneKey: id, title: 'Недоступная сцена'),
                 );
                 label = scene.title.isNotEmpty
-                    ? '${scene.title} (id $id)'
-                    : 'сцена $id';
+                    ? scene.title
+                    : 'сцена ${widget.allScenes.indexOf(scene) + 1}';
               }
-              return DropdownMenuItem<int>(
+              return DropdownMenuItem<String>(
                 value: id,
                 child: Text(label),
               );
             }).toList(),
             onChanged: (value) {
               if (value != null) {
-                setState(() => _selectedNextSceneId = value);
+                setState(() => _selectedNextSceneKey = value);
               }
             },
           ),

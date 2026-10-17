@@ -50,6 +50,8 @@ const Scene$json = {
       '10': 'characterEmotion'
     },
     {'1': 'next_scene_id', '3': 12, '4': 1, '5': 5, '10': 'nextSceneId'},
+    {'1': 'next_scene_key', '3': 13, '4': 1, '5': 9, '10': 'nextSceneKey'},
+    {'1': 'order_index', '3': 14, '4': 1, '5': 5, '10': 'orderIndex'},
   ],
 };
 
@@ -62,4 +64,5 @@ final $typed_data.Uint8List sceneDescriptor = $convert.base64Decode(
     'b24YCCABKAlSDHRleHRQb3NpdGlvbhItChJjaGFyYWN0ZXJfcG9zaXRpb24YCSABKAlSEWNoYX'
     'JhY3RlclBvc2l0aW9uEhsKCXNjZW5lX2tleRgKIAEoCVIIc2NlbmVLZXkSKwoRY2hhcmFjdGVy'
     'X2Vtb3Rpb24YCyABKAlSEGNoYXJhY3RlckVtb3Rpb24SIgoNbmV4dF9zY2VuZV9pZBgMIAEoBV'
-    'ILbmV4dFNjZW5lSWQ=');
+    'ILbmV4dFNjZW5lSWQSJAoObmV4dF9zY2VuZV9rZXkYDSABKAlSDG5leHRTY2VuZUtleRIfCgtv'
+    'cmRlcl9pbmRleBgOIAEoBVIKb3JkZXJJbmRleA==');

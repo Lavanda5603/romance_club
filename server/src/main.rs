@@ -68,6 +68,7 @@ struct EpisodeRecord {
 struct ActionRecord {
     r#type: String, // Тип действия
     scene_id: Option<i64>, // ID сцены
+    scene_key: Option<String>, // Ключ сцены
     flag_name: Option<String>, // Имя флага
     flag_value: Option<bool>, // Значение флага
     counter_name: Option<String>, // Имя счётчика
@@ -182,6 +183,7 @@ impl EpisodeApi for EpisodeApiService {
                     .map(|a| Action {
                         r#type: a.r#type,
                         scene_id: a.scene_id.unwrap_or(0) as i32,
+                        scene_key: episode_store::target_key(a.scene_key.as_deref(), a.scene_id.unwrap_or(0) as i32),
                         flag_name: a.flag_name.unwrap_or_default(),
                         flag_value: a.flag_value.unwrap_or(false),
                         counter_name: a.counter_name.unwrap_or_default(),
@@ -200,7 +202,7 @@ impl EpisodeApi for EpisodeApiService {
 
             scenes.push(Scene {
                 id: scene_id_str.strip_prefix("scene:")
-                    .and_then(|id| id.parse::<i32>().ok()).unwrap_or(order_index + 1),
+                    .and_then(|id| id.parse::<i32>().ok()).unwrap_or(0),
                 scene_key: scene_id_str.clone(),
                 title,
                 background,
@@ -212,6 +214,8 @@ impl EpisodeApi for EpisodeApiService {
                 text_position,
                 character_position,
                 next_scene_id,
+                next_scene_key: episode_store::target_key(scene_value.get("next_scene_key").and_then(Value::as_str), next_scene_id),
+                order_index,
             });
         }
 

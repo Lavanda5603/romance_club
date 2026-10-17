@@ -1,3 +1,4 @@
+import '../src/core/scene_links.dart'; // Ключи переходов
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
@@ -29,6 +30,10 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
   void initState() {
     super.initState();
     _episode = widget.episode.deepCopy();
+    // Несохранённые сцены тоже должны иметь разные ключи
+    for (final scene in _episode.scenes) {
+      if (scene.sceneKey.isEmpty) scene.sceneKey = newSceneKey();
+    }
     // Создаю контроллер и заполняю текущим названием
     _titleController = TextEditingController(text: _episode.title);
   }
@@ -45,7 +50,8 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
     setState(() {
       // Создаю Protobuf-модель Scene
       final newScene = Scene(
-        id: _episode.scenes.fold<int>(0, (max, scene) => scene.id > max ? scene.id : max) + 1, // ID новой сцены
+        sceneKey: newSceneKey(), // Временный ключ новой сцены
+        orderIndex: _episode.scenes.length,
         title: 'сцена ${_episode.scenes.length + 1}', // Название по умолчанию
         background: '', // Фон
         character: '', // Персонаж
@@ -72,7 +78,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
         return AlertDialog(
           title: const Text('Удалить сцену?'),
           content: Text(
-            'Вы точно уверены, что хотите удалить "Сцена ${_episode.scenes[index].id}"?',
+            'Вы точно уверены, что хотите удалить "Сцена ${index + 1}"?',
           ),
           actions: [
             TextButton(
@@ -218,7 +224,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                             child: Text(
                                               scene.title.isNotEmpty
                                                   ? scene.title
-                                                  : 'сцена ${scene.id}',
+                                                  : 'сцена ${index + 1}',
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 18,

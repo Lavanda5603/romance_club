@@ -104,10 +104,7 @@ class GameViewModel extends ChangeNotifier {
   // Геттер: последняя ли сцена (или nextSceneId == 0)
   bool get isLastScene {
     if (currentScene == null) return true;
-    // Если next_scene_id == 0 - это конец
-    if (currentScene!.nextSceneId == 0) return true;
-    if (_state.data == null) return false;
-    return _currentSceneIndex >= _state.data!.scenes.length - 1;
+    return currentScene!.nextSceneTarget.isEmpty;
   }
 
   // ID текущей сцены
@@ -250,13 +247,21 @@ class GameViewModel extends ChangeNotifier {
     return true;
   }
 
-  // Переход к сцене по SurrealDB-id (с проверкой условия)
-  void goToScene(int sceneId) {
-    if (_state.data == null) return;
+  // Старые сюжетные ветки пока передают числовой ID
+  void goToScene(int sceneId) => goToSceneKey(sceneId > 0 ? 'scene:$sceneId' : '');
 
-    // Формирую sceneKey из sceneId
-    final sceneKey = 'scene:$sceneId';
+  // Перехожу по настоящему ключу сцены, порядок списка не влияет
+  void goToSceneKey(String sceneKey) {
+    if (_state.data == null || sceneKey.isEmpty) return;
+    final visited = <String>{};
+    _goToSceneKey(sceneKey, visited);
+  }
 
+  void _goToSceneKey(String sceneKey, Set<String> visited) {
+    if (!visited.add(sceneKey)) {
+      debugPrint('[GAME] Цикл в переходах пропущенных сцен: $sceneKey');
+      return;
+    }
     // Ищу сцену по sceneKey (SurrealDB-id)
     for (int i = 0; i < _state.data!.scenes.length; i++) {
       if (_state.data!.scenes[i].sceneKey == sceneKey) {
@@ -267,8 +272,8 @@ class GameViewModel extends ChangeNotifier {
           debugPrint('[GAME] Сцена ${scene.sceneKey} пропущена (условие: ${scene.condition})');
 
           // Условие не выполнено - иду дальше по nextSceneId этой сцены
-          if (scene.nextSceneId > 0) {
-            goToScene(scene.nextSceneId);
+          if (scene.nextSceneTarget.isNotEmpty) {
+            _goToSceneKey(scene.nextSceneTarget, visited);
             return;
           }
           // Если nextSceneId == 0 - пробую следующую по индексу
@@ -298,6 +303,7 @@ class GameViewModel extends ChangeNotifier {
         return;
       }
     }
+    debugPrint('[GAME] Сцена перехода не найдена: $sceneKey');
   }
 
   // Выбрать следующую сцену по счётчикам (для автовыбора)
@@ -362,9 +368,9 @@ class GameViewModel extends ChangeNotifier {
     }
 
     // Если у сцены задан nextSceneId - иду на него
-    final nextId = currentScene!.nextSceneId;
-    if (nextId > 0) {
-      goToScene(nextId);
+    final nextKey = currentScene!.nextSceneTarget;
+    if (nextKey.isNotEmpty) {
+      goToSceneKey(nextKey);
       return;
     }
 
@@ -379,7 +385,7 @@ class GameViewModel extends ChangeNotifier {
     for (final action in choice.actions) {
       // Переход на сцену (если тип nextScene)
       if (action.type == 'nextScene') {
-        goToScene(action.sceneId);
+        goToSceneKey(action.sceneTarget);
       }
 
       // Счётчик (работает и для nextScene, и для changeCounter)

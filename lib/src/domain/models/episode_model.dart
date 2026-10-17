@@ -27,7 +27,12 @@ class SceneModel {
   final String condition; // Условие
   final String textPosition; // Позиция текста
   final String characterPosition; // Позиция персонажа
-  final int nextSceneId; // ID следующей сцены (0 = конец)
+  final int nextSceneId; // Числовой ID для старых данных
+  final String nextSceneKey; // Ключ следующей сцены
+  final int orderIndex; // Порядок сцены
+
+  String get nextSceneTarget => nextSceneKey.isNotEmpty
+      ? nextSceneKey : nextSceneId > 0 ? 'scene:$nextSceneId' : '';
 
   // Конструктор класса SceneModel
   const SceneModel({
@@ -43,6 +48,8 @@ class SceneModel {
     required this.textPosition,
     required this.characterPosition,
     required this.nextSceneId,
+    this.nextSceneKey = '',
+    this.orderIndex = 0,
   });
 }
 
@@ -63,7 +70,11 @@ class ChoiceModel {
 // Доменная модель действия
 class ActionModel {
   final String type; // Тип действия
-  final int sceneId; // ID сцены
+  final int sceneId; // Числовой ID для старых данных
+  final String sceneKey; // Ключ сцены для перехода
+
+  String get sceneTarget => sceneKey.isNotEmpty
+      ? sceneKey : sceneId > 0 ? 'scene:$sceneId' : '';
   final String flagName; // Имя флага
   final bool flagValue; // Значение флага
   final String counterName; // Имя счётчика
@@ -76,6 +87,7 @@ class ActionModel {
   const ActionModel({
     required this.type,
     required this.sceneId,
+    this.sceneKey = '',
     required this.flagName,
     required this.flagValue,
     required this.counterName,

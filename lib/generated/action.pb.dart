@@ -28,6 +28,7 @@ class Action extends $pb.GeneratedMessage {
     $core.String? soundPath,
     $core.String? imagePath,
     $core.String? title,
+    $core.String? sceneKey,
   }) {
     final result = Action._();
     if (type != null) result.type = type;
@@ -39,6 +40,7 @@ class Action extends $pb.GeneratedMessage {
     if (soundPath != null) result.soundPath = soundPath;
     if (imagePath != null) result.imagePath = imagePath;
     if (title != null) result.title = title;
+    if (sceneKey != null) result.sceneKey = sceneKey;
     return result;
   }
 
@@ -64,6 +66,7 @@ class Action extends $pb.GeneratedMessage {
     ..aOS(7, _omitFieldNames ? '' : 'soundPath')
     ..aOS(8, _omitFieldNames ? '' : 'imagePath')
     ..aOS(9, _omitFieldNames ? '' : 'title')
+    ..aOS(10, _omitFieldNames ? '' : 'sceneKey')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -166,6 +169,15 @@ class Action extends $pb.GeneratedMessage {
   $core.bool hasTitle() => $_has(8);
   @$pb.TagNumber(9)
   void clearTitle() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get sceneKey => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set sceneKey($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasSceneKey() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearSceneKey() => $_clearField(10);
 }
 
 const $core.bool _omitFieldNames =

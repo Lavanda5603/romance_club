@@ -1,6 +1,12 @@
 BEGIN TRANSACTION;
 
 LET $episode = type::record('episode', $episode_id);
+
+-- Не оставляю сохранённый прогресс со ссылкой на удалённую сцену
+LET $removed_scenes = (SELECT VALUE id FROM scene WHERE episode_id = $episode AND <string>id NOT IN $scene_keys);
+IF array::len((SELECT VALUE id FROM progress WHERE scene_id IN $removed_scenes LIMIT 1)) > 0 {
+    THROW "SCENE_HAS_PROGRESS";
+};
 UPSERT $episode MERGE { title: $title, version: $version, updated_at: time::now() };
 
 LET $old_scenes = (SELECT VALUE id FROM scene WHERE episode_id = $episode);
@@ -22,7 +28,7 @@ FOR $scene IN $scenes {
     IF $scene.is_new {
         CREATE $scene_id CONTENT $data;
     } ELSE {
-        UPDATE $scene_id CONTENT $data;
+        UPDATE $scene_id MERGE $data;
     };
     FOR $choice IN $scene.choices {
         LET $choice_id = type::record('choice', rand::ulid());

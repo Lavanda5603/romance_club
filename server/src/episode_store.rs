@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use serde_json::{json, Value};
 use surrealdb::{engine::remote::ws::Client, Surreal};
 use tonic::Status;
+use uuid::Uuid;
 use crate::romance_club::Episode;
 
 // Читаю старые числовые переходы, если строкового ключа ещё нет
@@ -21,14 +22,21 @@ pub async fn save(db: &Surreal<Client>, episode: &Episode) -> Result<(), Status>
     let scenes = prepare_scenes(episode, &records)?;
     let keys: Vec<String> = scenes.iter().filter_map(|s| s["key"].as_str().map(str::to_owned)).collect();
     // Все изменения выполняю вместе. При ошибке база откатывает транзакцию
-    db.query(include_str!("save_episode.surql"))
+    let mut response = db.query(include_str!("save_episode.surql"))
         .bind(("episode_id", episode.id))
         .bind(("title", episode.title.clone()))
         .bind(("version", episode.version))
         .bind(("scenes", scenes))
         .bind(("scene_keys", keys))
-        .await.map_err(|e| Status::internal(e.to_string()))?
-        .check().map_err(|e| Status::internal(e.to_string()))?;
+        .await.map_err(|e| Status::internal(e.to_string()))?;
+    // Ищу причину во всех ответах: первый может сообщать только об откате
+    let errors = response.take_errors();
+    if errors.values().any(|error| error.to_string().contains("SCENE_HAS_PROGRESS")) {
+        return Err(Status::failed_precondition("Нельзя удалить сцену, на которой есть сохранённый прогресс игроков. Изменения эпизода не сохранены"));
+    }
+    if let Some((_, error)) = errors.into_iter().min_by_key(|(index, _)| *index) {
+        return Err(Status::internal(error.to_string()));
+    }
     Ok(())
 }
 
@@ -37,9 +45,6 @@ fn prepare_scenes(episode: &Episode, records: &[Value]) -> Result<Vec<Value>, St
     let existing: HashSet<String> = records.iter()
         .filter(|r| r["episode_id"].as_str() == Some(episode_key.as_str()))
         .filter_map(|r| r["id"].as_str().map(str::to_owned)).collect();
-    let mut next_id = records.iter().filter_map(|r| r["id"].as_str())
-        .filter_map(|id| id.strip_prefix("scene:"))
-        .filter_map(|id| id.parse::<i32>().ok()).max().unwrap_or(0).max(0);
     let mut keys = Vec::new();
     let mut seen = HashSet::new();
     let mut drafts = HashMap::new();
@@ -47,9 +52,8 @@ fn prepare_scenes(episode: &Episode, records: &[Value]) -> Result<Vec<Value>, St
     for scene in &episode.scenes {
         let is_new = scene.scene_key.is_empty() || scene.scene_key.starts_with("draft:");
         let key = if is_new {
-            next_id = next_id.checked_add(1)
-                .ok_or_else(|| Status::invalid_argument("Закончились ID сцен"))?;
-            let key = format!("scene:{next_id}");
+            // Новый ключ не должен повторять ID удалённой сцены
+            let key = format!("scene:s_{}", Uuid::new_v4().simple());
             if !scene.scene_key.is_empty() && drafts.insert(scene.scene_key.clone(), key.clone()).is_some() {
                 return Err(Status::invalid_argument("Повторяется ключ новой сцены"));
             }
@@ -145,10 +149,10 @@ mod tests {
             Scene { scene_key:"draft:second".into(), next_scene_key:"draft:first".into(), ..Default::default() },
         ], ..Default::default() };
         let prepared = prepare_scenes(&episode, &[record("scene:900",2)]).unwrap();
-        assert_eq!(prepared[0]["key"],"scene:901");
-        assert_eq!(prepared[0]["next_scene_key"],"scene:902");
-        assert_eq!(prepared[1]["next_scene_key"],"scene:901");
-        assert_eq!(prepared[0]["choices"][0]["actions"][0]["scene_key"],"scene:902");
+        assert_ne!(prepared[0]["key"], prepared[1]["key"]);
+        assert_eq!(prepared[0]["next_scene_key"],prepared[1]["key"]);
+        assert_eq!(prepared[1]["next_scene_key"],prepared[0]["key"]);
+        assert_eq!(prepared[0]["choices"][0]["actions"][0]["scene_key"],prepared[1]["key"]);
     }
 
     #[test]
@@ -178,7 +182,34 @@ mod tests {
             Scene {id:2,..Default::default()},
         ],..Default::default()};
         let prepared=prepare_scenes(&episode,&[record("scene:200",2)]).unwrap();
-        assert_eq!(prepared[0]["next_scene_key"],"scene:202");
+        assert_eq!(prepared[0]["next_scene_key"],prepared[1]["key"]);
         assert_eq!(prepared[1]["next_scene_key"],"");
     }
+    #[test]
+    fn title_and_text_edits_keep_existing_keys_including_story_branches() {
+        let keys = ["scene:220", "scene:307", "scene:original_hash"];
+        let records: Vec<Value> = keys.iter().map(|key| record(key,1)).collect();
+        let mut episode = Episode {id:1,title:"Before".into(),scenes:keys.iter().map(|key| Scene {
+            scene_key:key.to_string(),title:"Old scene".into(),texts:vec!["Old text".into()],..Default::default()
+        }).collect(),..Default::default()};
+        episode.title = "After".into();
+        episode.scenes.reverse();
+        episode.scenes[0].title = "Changed title".into();
+        episode.scenes[0].texts = vec!["Changed text".into()];
+        for _ in 0..3 {
+            let prepared = prepare_scenes(&episode,&records).unwrap();
+            assert_eq!(prepared.iter().map(|s|s["key"].as_str().unwrap()).collect::<Vec<_>>(),vec!["scene:original_hash","scene:307","scene:220"]);
+            assert!(prepared.iter().all(|s|s["is_new"]==false));
+        }
+    }
+
+    #[test]
+    fn new_keys_do_not_depend_on_maximum_existing_id() {
+        let episode = Episode {id:1,scenes:vec![Scene {scene_key:"draft:new".into(),..Default::default()}],..Default::default()};
+        let first = prepare_scenes(&episode,&[]).unwrap();
+        let second = prepare_scenes(&episode,&[]).unwrap();
+        assert_ne!(first[0]["key"],second[0]["key"]);
+        assert!(first[0]["key"].as_str().unwrap().starts_with("scene:s_"));
+    }
+
 }

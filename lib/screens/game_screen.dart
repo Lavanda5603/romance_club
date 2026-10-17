@@ -179,9 +179,21 @@ class _GameScreenState extends State<GameScreen> {
 
           if (state.error != null) {
             return Center(
-              child: Text(
-                'Ошибка: ${state.error}',
-                style: const TextStyle(color: Colors.red),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Ошибка: ${state.error}', style: const TextStyle(color: Colors.red)),
+                    if (_viewModel.progressSceneMissing) ...[
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => _viewModel.loadEpisode(widget.episode.id, startFromBeginning: true),
+                        child: const Text('Начать эпизод заново'),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             );
           }

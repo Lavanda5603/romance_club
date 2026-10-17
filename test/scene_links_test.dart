@@ -177,4 +177,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('После изменения названия и перестановки продолжаю с сохранённой сцены', () async {
+    final progress = _Progress();
+    progress.saved = const ProgressModel(playerId: 'player:test', episodeId: 1,
+      sceneId: 'scene:branch', flags: {'saved_flag': true}, counters: {'points': 12, 'friendship': 3});
+    final edited = story();
+    edited.title = 'Новое название';
+    edited.scenes[1].texts[0] = 'Изменённый текст';
+    final branch = edited.scenes.removeAt(1);
+    edited.scenes.insert(0, branch);
+    final vm = GameViewModel(_Episodes(mapper.toDomain(edited)), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    expect(vm.currentScene!.sceneKey, 'scene:branch');
+    expect(vm.currentText, 'Изменённый текст');
+    expect(vm.points, 12);
+    expect(vm.friendshipPoints, 3);
+    expect(vm.flags['saved_flag'], isTrue);
+    expect(progress.saved.sceneId, 'scene:branch');
+  });
+
+  test('При старой удалённой сцене не подменяю прогресс началом эпизода', () async {
+    final progress = _Progress();
+    progress.saved = const ProgressModel(playerId: 'player:test', episodeId: 1,
+      sceneId: 'scene:deleted', flags: {'saved_flag': true}, counters: {'points': 12});
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    expect(vm.state.error, contains('Сохранённая сцена больше не существует'));
+    expect(vm.progressSceneMissing, isTrue);
+    expect(vm.currentScene, isNull);
+    expect(progress.saved.sceneId, 'scene:deleted');
+    expect(progress.saved.counters['points'], 12);
+    // Только явный перезапуск записывает новую стартовую позицию
+    await vm.loadEpisode(1, startFromBeginning: true);
+    expect(vm.state.error, isNull);
+    expect(vm.progressSceneMissing, isFalse);
+    expect(progress.saved.sceneId, 'scene:200');
+    expect(progress.saved.counters['points'], 0);
+  });
+
 }

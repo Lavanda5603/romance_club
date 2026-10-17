@@ -43,6 +43,9 @@ class GameViewModel extends ChangeNotifier {
 
   // Текущая концовка
   String _ending = '';
+  bool _progressSceneMissing = false; // Сохранённая сцена больше не существует
+
+  bool get progressSceneMissing => _progressSceneMissing;
 
   // Геттер для состояния
   AsyncState<EpisodeModel> get state => _state;
@@ -119,6 +122,13 @@ class GameViewModel extends ChangeNotifier {
   // Загрузить эпизод по ID
   Future<void> loadEpisode(int id, {bool startFromBeginning = false}) async {
     _state = AsyncState.loading();
+    _progressSceneMissing = false;
+    _currentSceneIndex = 0;
+    _currentTextIndex = 0;
+    _points = 0;
+    _resetCounters();
+    _flags.clear();
+    _ending = '';
     notifyListeners();
 
     // Загружаю player_id из Storage
@@ -138,6 +148,7 @@ class GameViewModel extends ChangeNotifier {
         _points = 0;
         _resetCounters();
         _flags.clear();
+        if (currentScene != null) await _saveProgress();
         notifyListeners();
         return;
       }
@@ -148,13 +159,15 @@ class GameViewModel extends ChangeNotifier {
           final progress = await _progressRepository.getProgress(_playerId, id);
 
           if (progress.sceneId.isNotEmpty) {
-            // Ищу сцену по sceneKey
-            for (int i = 0; i < _state.data!.scenes.length; i++) {
-              if (_state.data!.scenes[i].sceneKey == progress.sceneId) {
-                _currentSceneIndex = i;
-                break;
-              }
+            // Восстанавливаю позицию по постоянному ключу, даже после перестановки
+            final index = episode.scenes.indexWhere((scene) => scene.sceneKey == progress.sceneId);
+            if (index < 0) {
+              _progressSceneMissing = true;
+              _state = AsyncState.failure('Сохранённая сцена больше не существует. Можно начать эпизод заново.');
+              notifyListeners();
+              return;
             }
+            _currentSceneIndex = index;
             // Загружаю баллы и счётчики
             _points = progress.counters['points'] ?? 0;
             _loadCounters(progress.counters);

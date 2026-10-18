@@ -1,5 +1,5 @@
-use tonic::{Request, Status};
-use crate::jwt::{Claims, JwtKeys};
+use tonic::{Request, Status}; // Подключаю запросы, ответы и ошибки gRPC
+use crate::jwt::{Claims, JwtKeys}; // Подключаю модули сервера
 
 // Проверяю токен и получаю данные игрока
 pub fn authenticate<T>(request: &Request<T>, jwt: &JwtKeys) -> Result<Claims, Status> {

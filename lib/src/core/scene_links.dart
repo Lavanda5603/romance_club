@@ -1,6 +1,6 @@
-import 'dart:math';
-import '../../generated/scene.pb.dart';
-import '../../generated/action.pb.dart';
+import 'dart:math'; // Импорт математических функций и случайных чисел
+import '../../generated/scene.pb.dart'; // Импорт Protobuf-моделей сцен
+import '../../generated/action.pb.dart'; // Импорт Protobuf-моделей действий
 
 // Даю новой сцене временный ключ до сохранения на сервере
 String newSceneKey() {

@@ -1,10 +1,10 @@
-import 'dart:async';
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:romance_club/main.dart';
-import 'package:romance_club/screens/login_screen.dart';
+import 'dart:async'; // Импорт для Future и Completer
+import 'dart:io'; // Импорт для работы с файлами
+import 'package:flutter/material.dart'; // Импорт Material UI
+import 'package:flutter/services.dart'; // Импорт платформенных каналов Flutter
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:romance_club/main.dart'; // Импорт приложения
+import 'package:romance_club/screens/login_screen.dart'; // Импорт экрана входа
 
 void main() {
   const channel = MethodChannel('plugins.flutter.io/path_provider');

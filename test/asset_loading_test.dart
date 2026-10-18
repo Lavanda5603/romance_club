@@ -1,21 +1,21 @@
-import 'package:file_picker/file_picker.dart';
-import 'package:grpc/grpc.dart';
-import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:romance_club/generated/asset_api.pbgrpc.dart';
-import 'package:romance_club/generated/admin_api.pbgrpc.dart';
-import 'package:romance_club/src/data/services/admin_grpc_service.dart';
-import 'package:romance_club/src/data/repositories/admin_repository_remote.dart';
-import 'package:romance_club/screens/asset_picker_screen.dart';
-import 'package:romance_club/src/data/services/asset_grpc_service.dart';
-import 'package:romance_club/src/data/repositories/asset_repository_remote.dart';
-import 'package:romance_club/src/data/repositories/asset_cache.dart';
-import 'package:romance_club/src/domain/models/asset_model.dart';
-import 'package:romance_club/src/domain/repositories/asset_repository.dart';
+import 'package:file_picker/file_picker.dart'; // Импорт выбора файла
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import 'dart:async'; // Импорт для Future и Completer
+import 'dart:io'; // Импорт для работы с файлами
+import 'dart:typed_data'; // Импорт для байтов картинки
+import 'dart:ui' as ui; // Импорт графических классов Flutter
+import 'package:flutter/material.dart'; // Импорт Material UI
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:romance_club/generated/asset_api.pbgrpc.dart'; // Импорт gRPC-контракта ассетов
+import 'package:romance_club/generated/admin_api.pbgrpc.dart'; // Импорт gRPC-контракта админа
+import 'package:romance_club/src/data/services/admin_grpc_service.dart'; // Импорт gRPC-сервиса админа
+import 'package:romance_club/src/data/repositories/admin_repository_remote.dart'; // Импорт серверного репозитория админа
+import 'package:romance_club/screens/asset_picker_screen.dart'; // Импорт экрана выбора картинки
+import 'package:romance_club/src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
+import 'package:romance_club/src/data/repositories/asset_repository_remote.dart'; // Импорт серверного репозитория ассетов
+import 'package:romance_club/src/data/repositories/asset_cache.dart'; // Импорт кэша картинок
+import 'package:romance_club/src/domain/models/asset_model.dart'; // Импорт модели ассетов
+import 'package:romance_club/src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
 
 class _Service extends AssetGrpcService {
   int pages = 0;

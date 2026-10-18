@@ -1,18 +1,18 @@
-import 'dart:async';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:romance_club/generated/episode.pb.dart';
-import 'package:romance_club/generated/scene.pb.dart';
-import 'package:romance_club/screens/scene_editor_screen.dart';
-import 'package:romance_club/screens/game_screen.dart';
-import 'package:romance_club/src/domain/models/asset_model.dart';
-import 'package:romance_club/src/domain/models/episode_model.dart';
-import 'package:romance_club/src/domain/repositories/asset_repository.dart';
-import 'package:romance_club/src/domain/repositories/episode_repository.dart';
-import 'package:romance_club/src/features/game/game_view_model.dart';
-import 'package:romance_club/src/core/async_state.dart';
+import 'dart:async'; // Импорт для Future и Completer
+import 'dart:typed_data'; // Импорт для байтов картинки
+import 'dart:ui' as ui; // Импорт графических классов Flutter
+import 'package:flutter/material.dart'; // Импорт Material UI
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:romance_club/generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
+import 'package:romance_club/generated/scene.pb.dart'; // Импорт Protobuf-моделей сцен
+import 'package:romance_club/screens/scene_editor_screen.dart'; // Импорт экрана редактора сцены
+import 'package:romance_club/screens/game_screen.dart'; // Импорт экрана игры
+import 'package:romance_club/src/domain/models/asset_model.dart'; // Импорт модели ассетов
+import 'package:romance_club/src/domain/models/episode_model.dart'; // Импорт модели эпизодов
+import 'package:romance_club/src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
+import 'package:romance_club/src/domain/repositories/episode_repository.dart'; // Импорт интерфейса репозитория эпизодов
+import 'package:romance_club/src/features/game/game_view_model.dart'; // Импорт состояния и логики игры
+import 'package:romance_club/src/core/async_state.dart'; // Импорт состояния загрузки
 
 class _Assets implements AssetRepository {
   final Uint8List bytes;

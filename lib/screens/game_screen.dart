@@ -1,5 +1,5 @@
-import 'package:grpc/grpc.dart';
-import '../src/data/services/rpc_policy.dart';
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'dart:typed_data'; // Импорт Uint8List
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
@@ -12,7 +12,7 @@ import '../src/data/services/progress_grpc_service.dart'; // Импорт gRPC-�
 import '../src/data/services/achievement_grpc_service.dart'; // Импорт gRPC-сервиса достижений
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
 import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
-import '../src/domain/repositories/asset_repository.dart';
+import '../src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
 import 'episode_end_screen.dart'; // Импорт экрана конца эпизода
 
 // Игровой экран

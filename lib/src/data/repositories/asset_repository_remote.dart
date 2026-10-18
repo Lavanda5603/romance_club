@@ -1,10 +1,10 @@
-import 'dart:typed_data';
-import 'dart:convert';
-import '../../domain/models/asset_model.dart';
-import '../../domain/repositories/asset_repository.dart';
-import '../services/asset_grpc_service.dart';
-import '../../../generated/asset_api.pbgrpc.dart';
-import 'asset_cache.dart';
+import 'dart:typed_data'; // Импорт для байтов картинки
+import 'dart:convert'; // Импорт для преобразования данных
+import '../../domain/models/asset_model.dart'; // Импорт модели ассетов
+import '../../domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
+import '../services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
+import '../../../generated/asset_api.pbgrpc.dart'; // Импорт gRPC-контракта ассетов
+import 'asset_cache.dart'; // Импорт кэша картинок
 
 class AssetRepositoryRemote implements AssetRepository {
   final AssetGrpcService _service;

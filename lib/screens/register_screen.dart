@@ -1,4 +1,4 @@
-import '../src/data/services/rpc_policy.dart';
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'login_screen.dart'; // Импорт экрана авторизации
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория

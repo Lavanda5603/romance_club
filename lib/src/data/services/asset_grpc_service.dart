@@ -1,6 +1,6 @@
-import 'rpc_policy.dart';
+import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'auth_options.dart'; // Метаданные с токеном
-import '../../../services/storage_service.dart';
+import '../../../services/storage_service.dart'; // Импорт сервиса хранения
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import 'dart:typed_data'; // Импорт Uint8List
 import '../../../generated/asset_api.pbgrpc.dart'; // Импорт gRPC-клиента

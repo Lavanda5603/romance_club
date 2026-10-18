@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
-use serde_json::{json, Value};
-use surrealdb::{engine::remote::ws::Client, Surreal};
-use tonic::Status;
-use uuid::Uuid;
-use crate::romance_club::Episode;
+use std::collections::{HashMap, HashSet}; // Подключаю стандартные классы Rust
+use serde_json::{json, Value}; // Подключаю работу с JSON
+use surrealdb::{engine::remote::ws::Client, Surreal}; // Подключаю работу с SurrealDB
+use tonic::Status; // Подключаю запросы, ответы и ошибки gRPC
+use uuid::Uuid; // Подключаю создание уникальных ID
+use crate::romance_club::Episode; // Подключаю модули сервера
 
 // Читаю старые числовые переходы, если строкового ключа ещё нет
 pub fn target_key(key: Option<&str>, id: i32) -> String {

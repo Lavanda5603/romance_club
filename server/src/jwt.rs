@@ -1,7 +1,7 @@
 use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey}; // Импорт JWT-функций
 use serde::{Deserialize, Serialize}; // Импорт сериализации
 use chrono::{Utc, Duration}; // Импорт работы со временем
-use std::io;
+use std::io; // Подключаю стандартные классы Rust
 
 // Время жизни токена - 7 дней
 const TOKEN_LIFETIME_HOURS: i64 = 24 * 7;

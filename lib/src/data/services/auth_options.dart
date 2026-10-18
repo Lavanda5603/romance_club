@@ -1,5 +1,5 @@
-import 'package:grpc/grpc.dart';
-import '../../../services/storage_service.dart';
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import '../../../services/storage_service.dart'; // Импорт сервиса хранения
 
 // Добавляю текущий токен к запросу
 Future<CallOptions> authOptions() async {

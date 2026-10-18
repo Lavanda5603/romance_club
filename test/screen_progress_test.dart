@@ -1,21 +1,21 @@
-import 'package:romance_club/generated/progress.pb.dart' as progress_pb;
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:romance_club/generated/episode.pb.dart';
-import 'package:romance_club/generated/progress_api.pbgrpc.dart';
-import 'package:romance_club/screens/episode_select_screen.dart';
-import 'package:romance_club/screens/profile_screen.dart';
-import 'package:romance_club/screens/game_screen.dart';
-import 'package:romance_club/src/data/services/episode_grpc_service.dart';
-import 'package:romance_club/src/data/services/progress_grpc_service.dart';
-import 'package:romance_club/src/data/repositories/progress_repository_remote.dart';
-import 'package:romance_club/src/domain/models/progress_model.dart';
-import 'package:romance_club/src/domain/models/auth_model.dart';
-import 'package:romance_club/src/domain/models/achievement_model.dart';
-import 'package:romance_club/src/domain/repositories/progress_repository.dart';
-import 'package:romance_club/src/domain/repositories/auth_repository.dart';
-import 'package:romance_club/src/domain/repositories/achievement_repository.dart';
+import 'package:romance_club/generated/progress.pb.dart' as progress_pb; // Импорт Protobuf-моделей прогресса
+import 'dart:async'; // Импорт для Future и Completer
+import 'package:flutter/material.dart'; // Импорт Material UI
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:romance_club/generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
+import 'package:romance_club/generated/progress_api.pbgrpc.dart'; // Импорт gRPC-контракта прогресса
+import 'package:romance_club/screens/episode_select_screen.dart'; // Импорт экрана выбора эпизода
+import 'package:romance_club/screens/profile_screen.dart'; // Импорт экрана профиля
+import 'package:romance_club/screens/game_screen.dart'; // Импорт экрана игры
+import 'package:romance_club/src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
+import 'package:romance_club/src/data/services/progress_grpc_service.dart'; // Импорт gRPC-сервиса прогресса
+import 'package:romance_club/src/data/repositories/progress_repository_remote.dart'; // Импорт серверного репозитория прогресса
+import 'package:romance_club/src/domain/models/progress_model.dart'; // Импорт модели прогресса
+import 'package:romance_club/src/domain/models/auth_model.dart'; // Импорт модели авторизации
+import 'package:romance_club/src/domain/models/achievement_model.dart'; // Импорт модели достижений
+import 'package:romance_club/src/domain/repositories/progress_repository.dart'; // Импорт интерфейса репозитория прогресса
+import 'package:romance_club/src/domain/repositories/auth_repository.dart'; // Импорт интерфейса репозитория авторизации
+import 'package:romance_club/src/domain/repositories/achievement_repository.dart'; // Импорт интерфейса репозитория достижений
 
 class _Episodes extends EpisodeGrpcService {
   int calls = 0;
@@ -272,6 +272,8 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: EpisodeSelectScreen(
         episodeService: episodes, progressRepository: progress, loadPlayerId: () async => 'player:test')));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Эпизод 3'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('сбросить\nпрогресс'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Сбросить'));
@@ -283,9 +285,37 @@ void main() {
       expect(control(tester,'продолжить').onPressed,isNotNull);
       expect(find.textContaining('Ошибка:'), findsOneWidget);
       expect(progress.summaries, 1);
+      expect(control(tester,'Эпизод 3').style!.side!.resolve({})!.width, 2);
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('После полного сброса выбираю первый эпизод и передаю его в игру', (tester) async {
+    final episodes = _Episodes(4);
+    addTearDown(episodes.close);
+    final progress = _Progress()..pending.complete({1, 2, 3});
+    final observer = _Observer();
+    await tester.pumpWidget(MaterialApp(navigatorObservers: [observer], home: EpisodeSelectScreen(
+      episodeService: episodes, progressRepository: progress, loadPlayerId: () async => 'player:test')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Эпизод 4'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Эпизод 4'));
+    await tester.pumpAndSettle();
+    expect(control(tester,'Эпизод 4').style!.side!.resolve({})!.width, 2);
+    await tester.tap(find.text('сбросить\nпрогресс'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Сбросить'));
+    await tester.pumpAndSettle();
+    expect(control(tester,'Эпизод 1').style!.side!.resolve({})!.width, 2);
+    expect(tester.widget<ListView>(find.byType(ListView)).controller!.offset, 0);
+    expect(control(tester,'Эпизод 4').style!.side!.resolve({}), BorderSide.none);
+    await tester.tap(find.text('продолжить'));
+    final route = observer.route! as MaterialPageRoute;
+    final game = route.builder(tester.element(find.byType(EpisodeSelectScreen))) as GameScreen;
+    expect(game.episode.id, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('50 эпизодов видны до сводки, запрос прогресса только один', (tester) async {
     final episodes = _Episodes(50);

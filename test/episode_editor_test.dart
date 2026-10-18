@@ -1,9 +1,9 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:romance_club/generated/episode.pb.dart';
-import 'package:romance_club/generated/scene.pb.dart';
-import 'package:romance_club/screens/episode_editor_screen.dart';
+import 'dart:async'; // Импорт для Future и Completer
+import 'package:flutter/material.dart'; // Импорт Material UI
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:romance_club/generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
+import 'package:romance_club/generated/scene.pb.dart'; // Импорт Protobuf-моделей сцен
+import 'package:romance_club/screens/episode_editor_screen.dart'; // Импорт экрана редактора эпизода
 
 void main() {
   testWidgets('После создания сцены повторно отправляю постоянный ключ из ответа сервера', (tester) async {

@@ -1,7 +1,7 @@
-use super::*;
-use crate::{jwt::Claims, progress_service::ProgressApiService, EpisodeApiService};
-use crate::romance_club::{progress_api_server::ProgressApi, episode_api_server::EpisodeApi};
-use surrealdb::{engine::remote::ws::Ws, opt::auth::Root};
+use super::*; // Подключаю код проверяемого сервиса
+use crate::{jwt::Claims, progress_service::ProgressApiService, EpisodeApiService}; // Подключаю модули сервера
+use crate::romance_club::{progress_api_server::ProgressApi, episode_api_server::EpisodeApi}; // Подключаю модули сервера
+use surrealdb::{engine::remote::ws::Ws, opt::auth::Root}; // Подключаю работу с SurrealDB
 type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 fn own<T>(body:T) -> Request<T> {
     let mut req = Request::new(body);

@@ -1,4 +1,4 @@
-import 'package:grpc/grpc.dart';
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
 
 // Ограничиваю ожидание по типу запроса
 class RpcDeadline extends ClientInterceptor {

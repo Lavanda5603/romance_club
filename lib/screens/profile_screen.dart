@@ -1,9 +1,9 @@
-import 'package:grpc/grpc.dart';
-import '../src/data/services/rpc_policy.dart';
-import '../generated/episode.pb.dart';
-import '../src/domain/repositories/auth_repository.dart';
-import '../src/domain/repositories/progress_repository.dart';
-import '../src/domain/repositories/achievement_repository.dart';
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+import '../generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
+import '../src/domain/repositories/auth_repository.dart'; // Импорт интерфейса репозитория авторизации
+import '../src/domain/repositories/progress_repository.dart'; // Импорт интерфейса репозитория прогресса
+import '../src/domain/repositories/achievement_repository.dart'; // Импорт интерфейса репозитория достижений
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../services/storage_service.dart'; // Импорт сервиса хранения
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория авторизации

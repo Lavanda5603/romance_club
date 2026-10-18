@@ -1,7 +1,7 @@
-use super::*;
-use crate::jwt::Claims;
-use surrealdb::{engine::remote::ws::Ws, opt::auth::Root};
-use tonic::Code;
+use super::*; // Подключаю код проверяемого сервиса
+use crate::jwt::Claims; // Подключаю модули сервера
+use surrealdb::{engine::remote::ws::Ws, opt::auth::Root}; // Подключаю работу с SurrealDB
+use tonic::Code; // Подключаю запросы, ответы и ошибки gRPC
 
 fn request<T>(body: T) -> Request<T> {
     let mut request = Request::new(body);

@@ -1,6 +1,6 @@
-import 'package:grpc/grpc.dart';
-import '../src/data/services/rpc_policy.dart';
-import '../src/domain/repositories/progress_repository.dart';
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+import '../src/domain/repositories/progress_repository.dart'; // Импорт интерфейса репозитория прогресса
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../src/data/repositories/progress_repository_remote.dart'; // Импорт репозитория прогресса
@@ -32,6 +32,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
 
   // Выбранный эпизод
   int _selectedIndex = 0;
+  final ScrollController _episodeScroll = ScrollController(); // Прокрутка списка эпизодов
 
   // Флаг загрузки
   bool _isLoading = true;
@@ -88,6 +89,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
 
   @override
   void dispose() {
+    _episodeScroll.dispose(); // Освобождаю прокрутку
     // Закрываю соединения
     if (widget.episodeService == null) _episodeService.close();
     _progressService.close();
@@ -168,7 +170,14 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
         throw StateError('Не удалось сбросить прогресс');
       }
       if (!mounted) return;
-      setState(() => _passedEpisodes.clear());
+      setState(() {
+        _passedEpisodes.clear();
+        // После полного сброса выбираю первый эпизод
+        _selectedIndex = 0;
+        _selectionTouched = true;
+      });
+      // Показываю начало списка вместе с первым эпизодом
+      if (_episodeScroll.hasClients) _episodeScroll.jumpTo(0);
       // После успешного сброса перечитываю состояние сервера
       await _loadProgressSummary();
       if (!mounted) return;
@@ -291,6 +300,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                         )
                                       // Список эпизодов
                                       : ListView.builder(
+                                          controller: _episodeScroll,
                                           itemCount: _episodes.length,
                                           itemBuilder: (context, index) {
                                             final episode = _episodes[index];
@@ -311,6 +321,10 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                                       });
                                                     },
                                                     style: ElevatedButton.styleFrom(
+                                                      // Обвожу выбранный эпизод белым
+                                                      side: _selectedIndex == index
+                                                          ? const BorderSide(color: Colors.white, width: 2)
+                                                          : BorderSide.none,
                                                       // Красный, если пройден, серый, если нет
                                                       backgroundColor: isPassed 
                                                           ? const Color(0xFFD30010) 

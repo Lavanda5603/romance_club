@@ -1,24 +1,24 @@
-import 'package:romance_club/src/domain/repositories/achievement_repository.dart';
-import 'package:romance_club/src/domain/models/achievement_model.dart';
-import 'dart:io';
-import 'dart:async';
-import 'package:flutter/material.dart' hide Action;
-import 'package:flutter/services.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:romance_club/generated/episode.pb.dart';
-import 'package:romance_club/generated/scene.pb.dart';
-import 'package:romance_club/generated/choice.pb.dart';
-import 'package:romance_club/generated/action.pb.dart';
-import 'package:romance_club/screens/action_editor_screen.dart';
-import 'package:romance_club/screens/scene_editor_screen.dart';
-import 'package:romance_club/src/core/scene_links.dart';
-import 'package:romance_club/src/data/repositories/episode_repository_remote.dart';
-import 'package:romance_club/src/data/services/episode_grpc_service.dart';
-import 'package:romance_club/src/domain/models/episode_model.dart';
-import 'package:romance_club/src/domain/models/progress_model.dart';
-import 'package:romance_club/src/domain/repositories/episode_repository.dart';
-import 'package:romance_club/src/domain/repositories/progress_repository.dart';
-import 'package:romance_club/src/features/game/game_view_model.dart';
+import 'package:romance_club/src/domain/repositories/achievement_repository.dart'; // Импорт интерфейса репозитория достижений
+import 'package:romance_club/src/domain/models/achievement_model.dart'; // Импорт модели достижений
+import 'dart:io'; // Импорт для работы с файлами
+import 'dart:async'; // Импорт для Future и Completer
+import 'package:flutter/material.dart' hide Action; // Импорт Material UI
+import 'package:flutter/services.dart'; // Импорт платформенных каналов Flutter
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:romance_club/generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
+import 'package:romance_club/generated/scene.pb.dart'; // Импорт Protobuf-моделей сцен
+import 'package:romance_club/generated/choice.pb.dart'; // Импорт Protobuf-моделей выборов
+import 'package:romance_club/generated/action.pb.dart'; // Импорт Protobuf-моделей действий
+import 'package:romance_club/screens/action_editor_screen.dart'; // Импорт экрана редактора действий
+import 'package:romance_club/screens/scene_editor_screen.dart'; // Импорт экрана редактора сцены
+import 'package:romance_club/src/core/scene_links.dart'; // Импорт переходов между сценами
+import 'package:romance_club/src/data/repositories/episode_repository_remote.dart'; // Импорт серверного репозитория эпизодов
+import 'package:romance_club/src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
+import 'package:romance_club/src/domain/models/episode_model.dart'; // Импорт модели эпизодов
+import 'package:romance_club/src/domain/models/progress_model.dart'; // Импорт модели прогресса
+import 'package:romance_club/src/domain/repositories/episode_repository.dart'; // Импорт интерфейса репозитория эпизодов
+import 'package:romance_club/src/domain/repositories/progress_repository.dart'; // Импорт интерфейса репозитория прогресса
+import 'package:romance_club/src/features/game/game_view_model.dart'; // Импорт состояния и логики игры
 
 class _Episodes implements EpisodeRepository {
   final EpisodeModel episode;

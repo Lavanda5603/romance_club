@@ -1,4 +1,4 @@
-import '../../data/services/rpc_policy.dart';
+import '../../data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/foundation.dart'; // Импорт для ChangeNotifier и debugPrint
 import '../../core/async_state.dart'; // Импорт состояния
 import '../../domain/models/episode_model.dart'; // Импорт доменных моделей

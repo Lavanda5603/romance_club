@@ -1,8 +1,8 @@
-use tonic::{Request, Response, Status};
-use surrealdb::{engine::remote::ws::Client, Surreal};
-use serde_json::Value;
-use surrealdb::types::{Bytes, RecordId, SurrealValue, ToSql};
-use crate::{asset_preview, romance_club::{asset_api_server::AssetApi, *}};
+use tonic::{Request, Response, Status}; // Подключаю запросы, ответы и ошибки gRPC
+use surrealdb::{engine::remote::ws::Client, Surreal}; // Подключаю работу с SurrealDB
+use serde_json::Value; // Подключаю работу с JSON
+use surrealdb::types::{Bytes, RecordId, SurrealValue, ToSql}; // Подключаю работу с SurrealDB
+use crate::{asset_preview, romance_club::{asset_api_server::AssetApi, *}}; // Подключаю модули сервера
 
 pub const MAX_UPLOAD_BYTES: usize = 5 * 1024 * 1024;
 // Оставляю место для полей Protobuf и превью в ответе

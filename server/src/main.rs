@@ -1,17 +1,17 @@
 #[cfg(test)]
-mod shop_transaction_tests;
+mod shop_transaction_tests; // Проверки покупок в транзакции
 #[cfg(test)]
-mod operation_result_tests;
+mod operation_result_tests; // Проверки ошибок операций с базой
 mod progress_service; // Модуль прогресса
 mod auth_service; // Модуль авторизации
 mod achievement_service; // Модуль достижений
 mod shop_service; // Модуль магазина
 mod asset_service; // Модуль ассетов
-mod asset_preview;
+mod asset_preview; // Подготовка размеров и превью картинок
 mod admin_service; // Модуль админа
 mod jwt; // Модуль JWT
-mod episode_store;
-mod request_auth;
+mod episode_store; // Загрузка и сохранение дерева эпизода
+mod request_auth; // Проверка токена и прав игрока
 
 use tonic::{transport::Server, Request, Response, Status}; // Импорт tonic
 use tonic::service::Interceptor; // Импорт интерцептора
@@ -19,8 +19,8 @@ use surrealdb::engine::remote::ws::{Client, Ws}; // Импорт клиента 
 use surrealdb::opt::auth::Root; // Импорт Root-авторизации
 use surrealdb::Surreal; // Импорт Surreal
 use surrealdb::types::SurrealValue; // Импорт SurrealValue
-use surrealdb::types::ToSql;
-use std::collections::HashMap;
+use surrealdb::types::ToSql; // Подключаю работу с SurrealDB
+use std::collections::HashMap; // Подключаю стандартные классы Rust
 use serde_json::Value; // Импорт Value
 use progress_service::ProgressApiService; // Импорт сервиса прогресса
 use romance_club::progress_api_server::ProgressApiServer; // Импорт gRPC-сервера прогресса

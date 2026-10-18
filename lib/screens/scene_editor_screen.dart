@@ -5,7 +5,7 @@ import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
 import '../src/data/repositories/asset_repository_remote.dart'; // Импорт репозитория ассетов
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
 import '../src/domain/models/asset_model.dart'; // Импорт доменной модели
-import '../src/domain/repositories/asset_repository.dart';
+import '../src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
 import 'choice_editor_screen.dart'; // Импорт экрана редактора выбора
 import 'asset_picker_screen.dart'; // Импорт экрана выбора ассета
 

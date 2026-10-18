@@ -1,4 +1,4 @@
-import '../src/data/services/rpc_policy.dart';
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import '../src/core/scene_links.dart'; // Ключи переходов
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode

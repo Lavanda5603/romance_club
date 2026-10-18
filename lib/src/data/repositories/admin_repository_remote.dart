@@ -1,5 +1,5 @@
-import 'package:grpc/grpc.dart';
-import 'asset_repository_remote.dart';
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import 'asset_repository_remote.dart'; // Импорт серверного репозитория ассетов
 import '../../domain/repositories/admin_repository.dart'; // Импорт контракта
 import '../services/admin_grpc_service.dart'; // Импорт gRPC-сервиса
 

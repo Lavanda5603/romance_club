@@ -1,5 +1,5 @@
-import 'rpc_policy.dart';
-import 'dart:math';
+import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+import 'dart:math'; // Импорт математических функций и случайных чисел
 import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/shop_api.pbgrpc.dart'; // Импорт gRPC-клиента

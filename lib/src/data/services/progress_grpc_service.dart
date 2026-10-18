@@ -1,4 +1,4 @@
-import 'rpc_policy.dart';
+import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/progress.pb.dart'; // Импорт Protobuf-модели Progress

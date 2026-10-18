@@ -1,9 +1,9 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:romance_club/generated/episode.pb.dart';
-import 'package:romance_club/screens/programmer_screen.dart';
-import 'package:romance_club/src/data/services/episode_grpc_service.dart';
+import 'dart:async'; // Импорт для Future и Completer
+import 'package:flutter/material.dart'; // Импорт Material UI
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:romance_club/generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
+import 'package:romance_club/screens/programmer_screen.dart'; // Импорт экрана списка эпизодов для редактора
+import 'package:romance_club/src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
 
 class _PendingService extends EpisodeGrpcService {
   final pending = Completer<List<Episode>>();

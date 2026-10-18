@@ -1,9 +1,9 @@
-use super::*;
+use super::*; // Подключаю код проверяемого сервиса
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use crate::jwt::Claims;
-use image::{DynamicImage, RgbaImage, Rgba, ImageFormat};
-use std::{collections::HashSet, io::Cursor};
-use surrealdb::{engine::remote::ws::Ws, opt::auth::Root};
+use crate::jwt::Claims; // Подключаю модули сервера
+use image::{DynamicImage, RgbaImage, Rgba, ImageFormat}; // Подключаю чтение и обработку картинок
+use std::{collections::HashSet, io::Cursor}; // Подключаю стандартные классы Rust
+use surrealdb::{engine::remote::ws::Ws, opt::auth::Root}; // Подключаю работу с SurrealDB
 type TestResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 fn picture(seed: u8) -> Vec<u8> {

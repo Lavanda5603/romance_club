@@ -1,4 +1,4 @@
-import 'rpc_policy.dart';
+import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/auth_api.pbgrpc.dart'; // Импорт gRPC-клиента
 import '../../../services/storage_service.dart'; // Импорт StorageService

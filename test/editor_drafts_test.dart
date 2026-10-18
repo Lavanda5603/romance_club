@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart' hide Action;
-import 'package:flutter_test/flutter_test.dart';
-import 'package:romance_club/generated/action.pb.dart';
-import 'package:romance_club/generated/choice.pb.dart';
-import 'package:romance_club/generated/scene.pb.dart';
-import 'package:romance_club/generated/episode.pb.dart';
-import 'package:romance_club/screens/choice_editor_screen.dart';
-import 'package:romance_club/screens/scene_editor_screen.dart';
-import 'package:romance_club/screens/episode_editor_screen.dart';
+import 'package:flutter/material.dart' hide Action; // Импорт Material UI
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:romance_club/generated/action.pb.dart'; // Импорт Protobuf-моделей действий
+import 'package:romance_club/generated/choice.pb.dart'; // Импорт Protobuf-моделей выборов
+import 'package:romance_club/generated/scene.pb.dart'; // Импорт Protobuf-моделей сцен
+import 'package:romance_club/generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
+import 'package:romance_club/screens/choice_editor_screen.dart'; // Импорт экрана редактора выбора
+import 'package:romance_club/screens/scene_editor_screen.dart'; // Импорт экрана редактора сцены
+import 'package:romance_club/screens/episode_editor_screen.dart'; // Импорт экрана редактора эпизода
 
 void main() {
   Choice choice() => Choice(title: 'Выбор', text: 'Ответ', actions: [

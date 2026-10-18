@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:romance_club/src/core/validators.dart';
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:romance_club/src/core/validators.dart'; // Импорт проверки полей ввода
 
 void main() {
   test('Принимаю заполненные данные регистрации', () {

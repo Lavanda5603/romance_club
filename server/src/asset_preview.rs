@@ -1,8 +1,8 @@
-use std::io::Cursor;
-use image::{ImageReader, ImageFormat, ImageDecoder, DynamicImage, Limits, metadata::Orientation};
-use sha2::{Sha256, Digest};
-use surrealdb::types::{Bytes, SurrealValue};
-use tonic::Status;
+use std::io::Cursor; // Подключаю стандартные классы Rust
+use image::{ImageReader, ImageFormat, ImageDecoder, DynamicImage, Limits, metadata::Orientation}; // Подключаю чтение и обработку картинок
+use sha2::{Sha256, Digest}; // Подключаю подсчёт SHA256
+use surrealdb::types::{Bytes, SurrealValue}; // Подключаю работу с SurrealDB
+use tonic::Status; // Подключаю запросы, ответы и ошибки gRPC
 
 pub const MAX_PREVIEW_BYTES: usize = 24 * 1024;
 pub const MAX_SIDE: u32 = 8192;

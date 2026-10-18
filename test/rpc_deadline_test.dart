@@ -1,9 +1,9 @@
-import 'dart:async';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:grpc/grpc.dart';
-import 'package:romance_club/generated/auth_api.pbgrpc.dart';
-import 'package:romance_club/src/data/services/auth_grpc_service.dart';
-import 'package:romance_club/src/data/services/rpc_policy.dart';
+import 'dart:async'; // Импорт для Future и Completer
+import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import 'package:romance_club/generated/auth_api.pbgrpc.dart'; // Импорт gRPC-контракта авторизации
+import 'package:romance_club/src/data/services/auth_grpc_service.dart'; // Импорт gRPC-сервиса авторизации
+import 'package:romance_club/src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 
 class _Auth extends AuthApiServiceBase {
   final started = Completer<void>();

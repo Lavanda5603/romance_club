@@ -1,8 +1,8 @@
-use crate::{shop_service::ShopApiService, jwt::Claims, romance_club::*};
-use crate::romance_club::shop_api_server::ShopApi;
-use surrealdb::{Surreal, engine::remote::ws::{Client, Ws}, opt::auth::Root};
-use tonic::Request;
-use serde_json::Value;
+use crate::{shop_service::ShopApiService, jwt::Claims, romance_club::*}; // Подключаю модули сервера
+use crate::romance_club::shop_api_server::ShopApi; // Подключаю модули сервера
+use surrealdb::{Surreal, engine::remote::ws::{Client, Ws}, opt::auth::Root}; // Подключаю работу с SurrealDB
+use tonic::Request; // Подключаю запросы, ответы и ошибки gRPC
+use serde_json::Value; // Подключаю работу с JSON
 type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 fn buy(item: &str, kind: &str, key: &str) -> Request<PurchaseRequest> {

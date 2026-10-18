@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:romance_club/generated/asset_api.pbgrpc.dart';
@@ -40,11 +41,12 @@ class _Service extends AssetGrpcService {
 }
 
 class _PickerRepository implements AssetRepository {
+  Uint8List? previewBytes;
   final pages = <String>[];
   int originals = 0;
   final second = Completer<AssetPage>();
   AssetModel model(String id) => AssetModel(id: id, type: 'background', name: id, emotion: '', url: '',
-    displayName: id, episodeId: '', fileData: Uint8List(0));
+    displayName: id, episodeId: '', fileData: Uint8List(0), previewData: previewBytes);
   @override
   Future<AssetPage> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24}) async {
     pages.add(cursor);
@@ -169,6 +171,47 @@ void main() {
     await tester.tap(find.text('asset:second'));
     await tester.pumpAndSettle();
     expect(repo.originals, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Перестроение сетки сохраняет буфер и ключ MemoryImage', (tester) async {
+    final bytes = await tester.runAsync(() async {
+      final image = await createTestImage(width: 2, height: 2);
+      try {
+        final png = await image.toByteData(format: ui.ImageByteFormat.png);
+        return png!.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes);
+      } finally {
+        image.dispose();
+      }
+    });
+    final repo = _PickerRepository()..previewBytes = bytes;
+    Widget screen({bool dark = false}) => MaterialApp(
+      theme: dark ? ThemeData.dark() : ThemeData.light(),
+      home: AssetPickerScreen(type: 'background', title: 'Фоны', repository: repo),
+    );
+    MemoryImage provider() => tester.widget<Image>(find.byWidgetPredicate(
+      (widget) => widget is Image && widget.image is MemoryImage,
+    ).first).image as MemoryImage;
+
+    await tester.pumpWidget(screen());
+    await tester.pumpAndSettle();
+    final before = provider();
+    expect(before.bytes, same(bytes));
+    final key = await before.obtainKey(ImageConfiguration.empty);
+
+    // Начало загрузки страницы вызывает setState у уже показанных ячеек
+    await tester.tap(find.text('Загрузить ещё'));
+    await tester.pump();
+    expect(provider().bytes, same(bytes));
+    expect(await provider().obtainKey(ImageConfiguration.empty), key);
+
+    repo.second.complete(AssetPage([repo.model('asset:second')], ''));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(screen(dark: true));
+    await tester.pumpAndSettle();
+    expect(provider().bytes, same(bytes));
+    expect(await provider().obtainKey(ImageConfiguration.empty), key);
+    expect(repo.originals, 0);
     expect(tester.takeException(), isNull);
   });
 }

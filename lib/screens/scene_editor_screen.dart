@@ -200,7 +200,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       setState(() {
         _selectedBackground = result.name;
         _selectedBackgroundBytes = result.fileData.isNotEmpty
-            ? Uint8List.fromList(result.fileData)
+            ? result.fileData
             : null;
       });
     }
@@ -223,7 +223,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         _selectedCharacter = result.name;
         _selectedEmotion = result.emotion;
         _selectedCharacterBytes = result.fileData.isNotEmpty
-            ? Uint8List.fromList(result.fileData)
+            ? result.fileData
             : null;
       });
     }

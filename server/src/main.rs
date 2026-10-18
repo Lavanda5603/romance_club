@@ -397,7 +397,14 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
         let path = entry.path();
         let sql = std::fs::read_to_string(&path)?;
         println!("Применяю миграцию: {:?}", path);
-        db.query(&sql).await?.check()?;
+        let mut result = db.query(&sql).await?;
+        // Показываю причину отказа, даже если соседние команды транзакции отменены
+        let errors = result.take_errors();
+        if !errors.is_empty() {
+            let details = errors.values().map(ToString::to_string).collect::<Vec<_>>().join("; ");
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
+                format!("Ошибка миграции {}: {}", path.display(), details)).into());
+        }
     }
 
     println!("Все миграции применены");

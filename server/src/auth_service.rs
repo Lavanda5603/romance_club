@@ -25,6 +25,46 @@ pub struct AuthApiService {
 }
 
 impl AuthApiService {
+    // Одинаковый ответ для занятого логина при проверке и при гонке запросов
+    fn login_taken() -> Response<AuthResponse> {
+        Response::new(AuthResponse {
+            success: false,
+            message: "Игрок с таким логином уже существует".to_string(),
+            player: None,
+            token: String::new(),
+            is_admin: false,
+        })
+    }
+
+    // Уникальность окончательно проверяет индекс базы, а не предварительный SELECT
+    async fn create_player(&self, login: &str, email: &str, password_hash: &str) -> Result<Option<Value>, Status> {
+        for attempt in 0..4 {
+            let mut response = self.db
+                .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password_hash, is_admin: false, created_at: time::now() } RETURN id, login, email, created_at, is_admin")
+                .bind(("login", login.to_owned()))
+                .bind(("email", email.to_owned()))
+                .bind(("password_hash", password_hash.to_owned()))
+                .await.map_err(|e| Status::internal(e.to_string()))?;
+            match response.take::<Option<Value>>(0) {
+                Ok(Some(player)) => return Ok(Some(player)),
+                Ok(None) => return Err(Status::internal("База не вернула созданного игрока")),
+                Err(error) => {
+                    // SDK передаёт нарушение индекса текстом; другие ошибки не выдаю за занятый логин
+                    let message = error.to_string();
+                    if message.contains("player_login_unique") && message.contains("already contains") {
+                        return Ok(None);
+                    }
+                    if matches!(error.query_details(), Some(surrealdb::types::QueryError::TransactionConflict)) {
+                        if attempt < 3 { continue; }
+                        return Err(Status::aborted("Регистрация занята другим запросом. Повторите попытку"));
+                    }
+                    return Err(Status::internal(message));
+                }
+            }
+        }
+        Err(Status::aborted("Повторите регистрацию"))
+    }
+
     // Создать новый сервис
     pub fn new(db: Surreal<Client>, jwt: JwtKeys) -> Self {
         Self { db, jwt }
@@ -161,13 +201,7 @@ impl AuthApi for AuthApiService {
             .map_err(|e| Status::internal(e.to_string()))?;
 
         if existing.is_some() {
-            return Ok(Response::new(AuthResponse {
-                success: false,
-                message: "Игрок с таким логином уже существует".to_string(),
-                player: None,
-                token: String::new(),
-                is_admin: false,
-            }));
+            return Ok(Self::login_taken());
         }
 
         // Хэширую пароль
@@ -186,18 +220,8 @@ impl AuthApi for AuthApiService {
         };
 
         // Создаю игрока (с хэшем пароля и is_admin = false)
-        let mut create_response = self
-            .db
-            .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password_hash, is_admin: false, created_at: time::now() } RETURN id, login, email, created_at, is_admin")
-            .bind(("login", login.clone()))
-            .bind(("email", email.clone()))
-            .bind(("password_hash", password_hash))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let result: Option<Value> = create_response
-            .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let result = self.create_player(&login, &email, &password_hash).await?;
+        if result.is_none() { return Ok(Self::login_taken()); }
 
         match result {
             Some(v) => {
@@ -446,3 +470,7 @@ impl AuthApi for AuthApiService {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "auth_tests.rs"]
+mod tests; // Проверки уникальности регистрации

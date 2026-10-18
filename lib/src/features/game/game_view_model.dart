@@ -134,9 +134,9 @@ class GameViewModel extends ChangeNotifier {
   // Геттер для концовки
   String get ending => _ending;
 
-  // Геттер: последняя ли сцена (или nextSceneId == 0)
+  // Конец определяю по переходу сцены, а не по её месту в списке
   bool get isLastScene {
-    if (currentScene == null) return true;
+    if (currentScene == null) return false;
     return currentScene!.nextSceneTarget.isEmpty;
   }
 

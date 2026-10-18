@@ -149,6 +149,52 @@ void main() {
     expect(vm.currentScene!.sceneKey, 'scene:branch');
   });
 
+  test('Последняя сцена с переходом назад не завершает эпизод', () async {
+    final proto = story();
+    proto.scenes.last.nextSceneKey = 'scene:branch';
+    final progress = _Progress();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(proto)), progress);
+    addTearDown(vm.dispose);
+    expect(vm.isLastScene, isFalse);
+    await vm.loadEpisode(1);
+    vm.goToSceneKey('scene:ending');
+    await vm.flushProgress();
+    expect(vm.isLastScene, isFalse);
+    expect(await vm.completeEpisode(), isFalse);
+    vm.nextScene();
+    await vm.flushProgress();
+    expect(vm.currentScene!.sceneKey, 'scene:branch');
+    expect(progress.saved.completed, isFalse);
+  });
+
+  test('Конечная сцена в середине списка завершает эпизод', () async {
+    final proto = story();
+    final ending = proto.scenes.removeLast();
+    proto.scenes.insert(1, ending);
+    final progress = _Progress();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(proto)), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.goToSceneKey('scene:ending');
+    expect(vm.isLastScene, isTrue);
+    expect(await vm.completeEpisode(), isTrue);
+    expect(progress.saved.completed, isTrue);
+    expect(progress.saved.sceneId, 'scene:ending');
+  });
+
+  test('Последняя сцена со старым числовым переходом тоже не конец', () async {
+    final proto = story();
+    proto.scenes.last.nextSceneId = 200;
+    final vm = GameViewModel(_Episodes(mapper.toDomain(proto)));
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.goToSceneKey('scene:ending');
+    expect(vm.isLastScene, isFalse);
+    expect(await vm.completeEpisode(), isFalse);
+    vm.nextScene();
+    expect(vm.currentScene!.sceneKey, 'scene:200');
+  });
+
   test('Читаю старый числовой переход без привязки к номеру строки', () async {
     final proto = story();
     proto.scenes[1].id = 900;

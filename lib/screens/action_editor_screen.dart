@@ -29,6 +29,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   String _selectedType = 'nextScene';
 
   String _selectedSceneKey = ''; // Ключ выбранной сцены
+  bool _flagValue = false; // Значение флага
   late TextEditingController _titleController; // Контроллер для поля названия
   late TextEditingController _counterNameController; // Контроллер для поля имени счётчика
   late TextEditingController _counterValueController; // Контроллер для поля значения счётчика
@@ -47,6 +48,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
       text: widget.action?.title ?? widget.defaultTitle,
     );
     _selectedSceneKey = widget.action?.sceneTarget ?? '';
+    _flagValue = widget.action?.flagValue ?? false;
     _counterNameController = TextEditingController(
       text: widget.action?.counterName ?? '',
     );
@@ -70,20 +72,23 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
 
   // Сохранение действия
   void _saveAction() {
-    // Создаю Protobuf-модель Action
-    final newAction = Action(
-      type: _selectedType,
-      title: _titleController.text,
-    );
+    // Копирую действие, чтобы не потерять остальные параметры
+    final newAction = widget.action?.deepCopy() ?? Action();
+    newAction.type = _selectedType;
+    newAction.title = _titleController.text;
 
     // В зависимости от типа заполняю нужные поля
     if (_selectedType == 'nextScene') {
       newAction.sceneKey = _selectedSceneKey;
-    } else if (_selectedType == 'changeCounter') {
+      newAction.clearSceneId();
+    }
+    if (_selectedType == 'nextScene' || _selectedType == 'changeCounter') {
       newAction.counterName = _counterNameController.text;
       newAction.counterValue = int.tryParse(_counterValueController.text) ?? 0;
-    } else if (_selectedType == 'changeFlag') {
+    }
+    if (_selectedType == 'nextScene' || _selectedType == 'changeFlag') {
       newAction.flagName = _flagNameController.text;
+      newAction.flagValue = _flagValue;
     }
 
     // Вызываю функцию onSave
@@ -245,10 +250,13 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                             ),
                             suffixIcon: const Icon(Icons.radio_button_unchecked, color: Colors.white),
                           ),
-                          items: const [
+                          items: [
                             DropdownMenuItem(value: 'nextScene', child: Text('перейти к сцене')),
                             DropdownMenuItem(value: 'changeCounter', child: Text('баллы')),
                             DropdownMenuItem(value: 'changeFlag', child: Text('флаг')),
+                            const DropdownMenuItem(value: 'ending', child: Text('концовка')),
+                            if (!['nextScene', 'changeCounter', 'changeFlag', 'ending'].contains(_selectedType))
+                              DropdownMenuItem(value: _selectedType, child: Text(_selectedType)),
                           ],
                           onChanged: (value) {
                             if (value != null) {
@@ -280,7 +288,8 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                               Expanded(child: _buildSceneDropdown()),
                             ],
                           ),
-                        ] else if (_selectedType == 'changeCounter') ...[
+                        ],
+                        if (_selectedType == 'nextScene' || _selectedType == 'changeCounter') ...[
                           Row(
                             children: [
                               const Expanded(
@@ -294,7 +303,8 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                               Expanded(child: _buildField(_counterValueController, keyboardType: TextInputType.number)),
                             ],
                           ),
-                        ] else if (_selectedType == 'changeFlag') ...[
+                        ],
+                        if (_selectedType == 'nextScene' || _selectedType == 'changeFlag') ...[
                           Row(
                             children: [
                               const Expanded(
@@ -305,6 +315,13 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                               ),
                               Expanded(child: _buildField(_flagNameController)),
                             ],
+                          ),
+                          SwitchListTile(
+                            key: const ValueKey('action-flag-value'),
+                            title: const Text('значение флага', style: TextStyle(color: Colors.white)),
+                            subtitle: Text(_flagValue ? 'true' : 'false', style: const TextStyle(color: Colors.white)),
+                            value: _flagValue,
+                            onChanged: (value) => setState(() => _flagValue = value),
                           ),
                         ],
                         const SizedBox(height: 24),

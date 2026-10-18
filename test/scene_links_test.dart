@@ -528,6 +528,72 @@ void main() {
     expect(progress.saved.counters['points'], 2);
   });
 
+  testWidgets('При изменении названия перехода сохраняю все его эффекты', (tester) async {
+    final original = Action(type: 'nextScene', title: 'Раньше',
+      sceneKey: 'scene:branch', counterName: 'friendship', counterValue: -3,
+      flagName: 'secret', flagValue: true, soundPath: 'sound.wav', imagePath: 'image.png');
+    final before = original.writeToJson();
+    Action? saved;
+    await tester.pumpWidget(MaterialApp(home: ActionEditorScreen(
+      action: original, onSave: (action) => saved = action,
+    )));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Новое название');
+    await tester.ensureVisible(find.text('сохранить'));
+    await tester.tap(find.text('сохранить'));
+    await tester.pumpAndSettle();
+    final expected = original.deepCopy()..title = 'Новое название';
+    expect(saved!.writeToJson(), expected.writeToJson());
+    expect(original.writeToJson(), before);
+    expect(identical(saved, original), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final type in ['changeFlag', 'changeCounter', 'ending', 'sound']) {
+    testWidgets('Сохранение действия $type без правок не теряет параметры', (tester) async {
+      final original = Action(type: type, title: 'Действие', sceneId: 200,
+        sceneKey: 'scene:200', flagName: 'secret', flagValue: true,
+        counterName: 'points', counterValue: -2, soundPath: 'sound.wav', imagePath: 'image.png');
+      Action? saved;
+      await tester.pumpWidget(MaterialApp(home: ActionEditorScreen(
+        action: original, onSave: (action) => saved = action,
+      )));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('сохранить'));
+      await tester.tap(find.text('сохранить'));
+      await tester.pumpAndSettle();
+      expect(saved!.writeToJson(), original.writeToJson());
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final initial in [false, true]) {
+    testWidgets('Флаг $initial сохраняю и меняю на противоположный', (tester) async {
+      Action? saved;
+      final original = Action(type: 'changeFlag', flagName: 'secret', flagValue: initial,
+        counterName: 'points', counterValue: 5, soundPath: 'sound.wav');
+      await tester.pumpWidget(MaterialApp(home: ActionEditorScreen(
+        action: original, onSave: (action) => saved = action,
+      )));
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(const ValueKey('action-flag-value'));
+      expect(tester.widget<SwitchListTile>(toggle).value, initial);
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('сохранить'));
+      await tester.tap(find.text('сохранить'));
+      await tester.pumpAndSettle();
+      expect(saved!.flagValue, !initial);
+      expect(saved!.flagName, 'secret');
+      expect(saved!.counterName, 'points');
+      expect(saved!.counterValue, 5);
+      expect(saved!.soundPath, 'sound.wav');
+      expect(original.flagValue, initial);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('В редакторе действия выбираю сцену по ключу', (tester) async {
     // Одинаковые старые id не должны объединять разные сцены
     final scenes = [

@@ -56,6 +56,14 @@ class _Progress implements ProgressRepository {
   Future<bool> resetProgress(String playerId) async => true;
 }
 
+class _PendingEpisodes extends _Episodes {
+  final pending = <int, Completer<EpisodeModel>>{};
+  _PendingEpisodes(super.episode);
+  @override
+  Future<EpisodeModel> getEpisode(int id) =>
+      (pending[id] ??= Completer<EpisodeModel>()).future;
+}
+
 class _EpisodeProgress extends _Progress {
   final Map<int, ProgressModel> records = {};
   @override
@@ -107,6 +115,69 @@ void main() {
     Scene(sceneKey: 'scene:branch', orderIndex: 1, title: 'Ветка', texts: ['Ветка'], nextSceneKey: 'scene:ending'),
     Scene(sceneKey: 'scene:ending', orderIndex: 2, title: 'Конец', texts: ['Конец']),
   ]);
+
+  for (final fails in [false, true]) {
+    test('После dispose игнорирую ${fails ? 'ошибку' : 'ответ'} загрузки эпизода', () async {
+      final episode = mapper.toDomain(story());
+      final repository = _PendingEpisodes(episode);
+      final vm = GameViewModel(repository);
+      var notifications = 0;
+      vm.addListener(() => notifications++);
+      final loading = vm.loadEpisode(1);
+      while (!repository.pending.containsKey(1)) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      final previous = vm.state;
+      final count = notifications;
+      vm.dispose();
+      if (fails) {
+        repository.pending[1]!.completeError(StateError('Канал закрыт'));
+      } else {
+        repository.pending[1]!.complete(episode);
+      }
+      await loading;
+      expect(vm.state, same(previous));
+      expect(notifications, count);
+    });
+  }
+
+  test('После закрытия во время чтения хранилища не начинаю сетевую загрузку', () async {
+    final path = Completer<String>();
+    final reading = Completer<void>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (_) {
+      if (!reading.isCompleted) reading.complete();
+      return path.future;
+    });
+    final repository = _PendingEpisodes(mapper.toDomain(story()));
+    final vm = GameViewModel(repository);
+    final loading = vm.loadEpisode(1);
+    await reading.future;
+    vm.dispose();
+    path.complete(temp.path);
+    await loading;
+    expect(repository.pending, isEmpty);
+  });
+
+  test('Поздний ответ старой загрузки не заменяет новый эпизод', () async {
+    final repository = _PendingEpisodes(mapper.toDomain(story()));
+    final vm = GameViewModel(repository);
+    addTearDown(vm.dispose);
+    final first = vm.loadEpisode(1);
+    while (!repository.pending.containsKey(1)) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    final second = vm.loadEpisode(2);
+    while (!repository.pending.containsKey(2)) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    final newer = story()..id = 2;
+    repository.pending[2]!.complete(mapper.toDomain(newer));
+    await second;
+    repository.pending[1]!.complete(mapper.toDomain(story()));
+    await first;
+    expect(vm.state.data!.id, 2);
+  });
 
   test('Сохраняю строковые ключи в Protobuf и доменных моделях', () {
     final proto = Episode.fromBuffer(story().writeToBuffer());

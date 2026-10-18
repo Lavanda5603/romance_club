@@ -167,13 +167,11 @@ class GameViewModel extends ChangeNotifier {
     _completed = false;
     notifyListeners();
 
-    // Загружаю player_id из Storage
-    _playerId = await StorageService.loadPlayerId();
-    if (_playerId.isEmpty) {
-      _playerId = 'player:1';
-    }
-
     try {
+      // После чтения хранилища тоже проверяю, что загрузка ещё нужна
+      final playerId = await StorageService.loadPlayerId();
+      if (_disposed || loadId != _loadId) return;
+      _playerId = playerId.isEmpty ? 'player:1' : playerId;
       final episode = await _repository.getEpisode(id);
       if (_disposed || loadId != _loadId) return;
 

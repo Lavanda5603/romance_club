@@ -8,7 +8,8 @@ import '../src/data/repositories/admin_repository_remote.dart'; // Импорт 
 
 // Экран режима разработчика
 class ProgrammerScreen extends StatefulWidget {
-  const ProgrammerScreen({super.key});
+  final EpisodeGrpcService? episodeService;
+  const ProgrammerScreen({super.key, this.episodeService});
 
   @override
   State<ProgrammerScreen> createState() => _ProgrammerScreenState();
@@ -23,12 +24,13 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
 
   bool _isLoading = true; // Флаг загрузки
   String? _error; // Ошибка
+  int _loadId = 0; // Номер актуальной загрузки
 
   @override
   void initState() {
     super.initState();
     // Создаю сервисы
-    _service = EpisodeGrpcService();
+    _service = widget.episodeService ?? EpisodeGrpcService();
     _adminService = AdminGrpcService();
     _adminRepository = AdminRepositoryRemote(_adminService);
     // Загружаю эпизоды
@@ -46,16 +48,17 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
   // Загрузка эпизодов с сервера
   Future<void> _loadEpisodes() async {
     if (!mounted) return;
+    final loadId = ++_loadId;
     setState(() { _isLoading = true; _error = null; });
     try {
       final episodes = await _service.getAllEpisodes();
-      if (!mounted) return;
+      if (!mounted || loadId != _loadId) return;
       setState(() {
         _episodes = List.from(episodes); // Создаю новый список
         _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || loadId != _loadId) return;
       setState(() {
         _error = networkError(e);
         _isLoading = false;

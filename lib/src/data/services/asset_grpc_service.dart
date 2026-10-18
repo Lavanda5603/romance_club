@@ -7,6 +7,7 @@ import '../../../generated/asset_api.pbgrpc.dart'; // Импорт gRPC-клие
 
 // Сервис для работы с gRPC (транспортный слой)
 class AssetGrpcService {
+  static const maxUploadBytes = 5 * 1024 * 1024;
   final String host;
   final int port;
   Future<String> cacheScope() async => '$host:$port:${await StorageService.loadToken()}';
@@ -59,6 +60,9 @@ class AssetGrpcService {
     required Uint8List fileData,
     required String fileName,
   }) async {
+    if (fileData.length > maxUploadBytes) {
+      throw const GrpcError.invalidArgument('Файл больше 5 MiB (5 242 880 байт)');
+    }
     // Создаю запрос
     final request = UploadAssetRequest(
       type: type,

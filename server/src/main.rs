@@ -27,7 +27,6 @@ use romance_club::achievement_api_server::AchievementApiServer; // Импорт 
 use shop_service::ShopApiService; // Импорт сервиса магазина
 use romance_club::shop_api_server::ShopApiServer; // Импорт gRPC-сервера магазина
 use asset_service::AssetApiService; // Импорт сервиса ассетов
-use romance_club::asset_api_server::AssetApiServer; // Импорт gRPC-сервера ассетов
 use admin_service::AdminApiService; // Импорт сервиса админа
 use romance_club::admin_api_server::AdminApiServer; // Импорт gRPC-сервера админа
 
@@ -441,7 +440,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .add_service(AuthApiServer::new(auth_service)) // Сервис авторизации (без интерцептора)
         .add_service(AchievementApiServer::with_interceptor(achievement_service, interceptor.clone())) // Сервис достижений
         .add_service(ShopApiServer::with_interceptor(shop_service, interceptor.clone())) // Сервис магазина
-        .add_service(AssetApiServer::with_interceptor(asset_service, interceptor.clone())) // Сервис ассетов
+        .add_service(tonic::service::interceptor::InterceptedService::new(asset_service.into_server(), interceptor.clone())) // Сервис ассетов
         .add_service(AdminApiServer::with_interceptor(admin_service, interceptor)) // Сервис админа
         .serve(addr)
         .await?;

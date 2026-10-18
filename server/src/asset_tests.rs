@@ -136,6 +136,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     assert_eq!(exact.id, other.id);
     api.delete_asset(admin(DeleteAssetRequest {id: upload.id.clone()})).await?;
     assert_eq!(api.get_asset(Request::new(GetAssetRequest {id: upload.id, ..Default::default()})).await.unwrap_err().code(), tonic::Code::NotFound);
+    grpc_upload_limits(db).await?;
     Ok(())
 }
 
@@ -151,4 +152,64 @@ async fn paged_previews_and_selected_original() -> TestResult<()> {
     let result = tokio::spawn(scenarios(db.clone())).await;
     db.query(format!("REMOVE DATABASE {name};")).await?.check()?;
     result?
+}
+
+// Проверяю размер по настоящему gRPC, с теми же лимитами, что в main
+async fn grpc_upload_limits(db: Surreal<Client>) -> TestResult<()> {
+    use crate::romance_club::asset_api_client::AssetApiClient;
+    use tonic::{transport::Server, service::interceptor::InterceptedService};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
+    let addr = listener.local_addr()?;
+    drop(listener);
+    let jwt = crate::jwt::JwtKeys::from_secret("asset-size-test-key-only-0123456789")?;
+    let token = jwt.create_token("player:test", "test", true)?;
+    let service = InterceptedService::new(AssetApiService::new(db.clone()).into_server(), crate::AuthInterceptor { jwt });
+    let (shutdown, stopped) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(Server::builder().add_service(service).serve_with_shutdown(addr, async { let _ = stopped.await; }));
+    let result: TestResult<()> = async {
+        let endpoint = format!("http://{addr}");
+        let mut client = loop {
+            match AssetApiClient::connect(endpoint.clone()).await {
+                Ok(client) => break client.max_decoding_message_size(MAX_MESSAGE_BYTES),
+                Err(_) if !server.is_finished() => tokio::time::sleep(std::time::Duration::from_millis(10)).await,
+                Err(error) => return Err(error.into()),
+            }
+        };
+        for size in [4 * 1024 * 1024 + 512 * 1024, MAX_UPLOAD_BYTES] {
+            let mut bytes = picture(7);
+            bytes.resize(size, 0);
+            let mut request = Request::new(UploadAssetRequest {
+                r#type: "background".into(), name: format!("large_{size}"),
+                episode_id: "episode:9".into(), file_data: bytes.clone(), ..Default::default()
+            });
+            request.metadata_mut().insert("authorization", format!("Bearer {token}").parse()?);
+            let uploaded = client.upload_asset(request).await?.into_inner().asset.unwrap();
+            assert!(uploaded.file_data.is_empty(), "После загрузки возвращаю метаданные без копии оригинала");
+            assert_eq!(uploaded.episode_id, "episode:9");
+            let mut request = Request::new(GetAssetRequest { id: uploaded.id, ..Default::default() });
+            request.metadata_mut().insert("authorization", format!("Bearer {token}").parse()?);
+            assert!(client.get_asset(request).await?.into_inner().file_data == bytes, "Оригинал должен вернуться без изменений");
+        }
+        let mut request = Request::new(UploadAssetRequest {
+            r#type: "background".into(), name: "too_large".into(),
+            file_data: vec![0; MAX_UPLOAD_BYTES + 1], ..Default::default()
+        });
+        request.metadata_mut().insert("authorization", format!("Bearer {token}").parse()?);
+        let error = client.upload_asset(request).await.unwrap_err();
+        assert_eq!(error.code(), tonic::Code::InvalidArgument);
+        assert!(error.message().contains("5 MiB"), "Отказ должен прийти из проверки размера файла");
+        let mut request = Request::new(UploadAssetRequest {
+            r#type: "background".into(), name: "transport_limit".into(),
+            file_data: vec![0; MAX_MESSAGE_BYTES + 1], ..Default::default()
+        });
+        request.metadata_mut().insert("authorization", format!("Bearer {token}").parse()?);
+        assert_eq!(client.upload_asset(request).await.unwrap_err().code(), tonic::Code::OutOfRange);
+        let mut response = db.query("SELECT * FROM asset WHERE name IN ['too_large', 'transport_limit'];").await?.check()?;
+        let rows: Vec<Value> = response.take(0)?;
+        assert!(rows.is_empty());
+        Ok(())
+    }.await;
+    let _ = shutdown.send(());
+    server.await??;
+    result
 }

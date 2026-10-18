@@ -111,6 +111,11 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     final file = result.files.first;
 
+    if (!mounted) return;
+    if (file.size > AssetGrpcService.maxUploadBytes) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Файл больше 5 MiB (5 242 880 байт)')));
+      return;
+    }
     Uint8List? bytes = file.bytes;
     if (bytes == null && file.path != null) {
       bytes = await File(file.path!).readAsBytes();
@@ -126,6 +131,10 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     if (!mounted) return;
 
+    if (bytes.length > AssetGrpcService.maxUploadBytes) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Файл больше 5 MiB (5 242 880 байт)')));
+      return;
+    }
     final nameController = TextEditingController();
     final displayController = TextEditingController(text: file.name);
     final emotionController = TextEditingController();

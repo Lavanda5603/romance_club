@@ -88,13 +88,15 @@ class _TimeoutPickerRepository extends _PickerRepository {
 }
 
 class _Files extends FilePicker {
+  final int size;
+  _Files([this.size = 3]);
   @override
   Future<FilePickerResult?> pickFiles({String? dialogTitle, String? initialDirectory,
     FileType type = FileType.any, List<String>? allowedExtensions,
     Function(FilePickerStatus)? onFileLoading, bool allowCompression = false,
     int compressionQuality = 0, bool allowMultiple = false, bool withData = false,
     bool withReadStream = false, bool lockParentWindow = false, bool readSequential = false}) async =>
-    FilePickerResult([PlatformFile(name: 'room.png', size: 3, bytes: Uint8List.fromList([1, 2, 3]))]);
+    FilePickerResult([PlatformFile(name: 'room.png', size: size, bytes: Uint8List(size))]);
 }
 
 class _Uploads extends _PickerRepository {
@@ -116,6 +118,45 @@ class _Uploads extends _PickerRepository {
 }
 
 void main() {
+  test('Сервис отклоняет лишний байт до авторизации и отправки', () async {
+    final service = AssetGrpcService(host: '127.0.0.1', port: 1);
+    try {
+      await expectLater(service.uploadAsset(type: 'background', name: 'large', emotion: '',
+        displayName: 'large', episodeId: 'episode:2', fileName: 'large.png',
+        fileData: Uint8List(AssetGrpcService.maxUploadBytes + 1)),
+        throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.invalidArgument)));
+    } finally {
+      await service.close();
+    }
+  });
+  testWidgets('Picker принимает до 5 MiB и не отправляет файл больше лимита', (tester) async {
+    final previous = FilePicker.platform;
+    addTearDown(() => FilePicker.platform = previous);
+    for (final size in [4 * 1024 * 1024 + 512 * 1024, AssetGrpcService.maxUploadBytes, AssetGrpcService.maxUploadBytes + 1]) {
+      FilePicker.platform = _Files(size);
+      final repo = _Uploads('');
+      await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(key: ValueKey(size),
+        type: 'background', title: 'Фоны', episodeId: 'episode:2', repository: repo)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.upload));
+      await tester.pumpAndSettle();
+      if (size > AssetGrpcService.maxUploadBytes) {
+        expect(find.text('Файл больше 5 MiB (5 242 880 байт)'), findsOneWidget);
+        expect(repo.uploadedName, isNull);
+        expect(find.byType(AlertDialog), findsNothing);
+      } else {
+        await tester.enterText(find.byType(TextField).first, 'large');
+        await tester.tap(find.text('Загрузить'));
+        await tester.pumpAndSettle();
+        expect(repo.uploadedName, 'large');
+      }
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
+
   setUpAll(() { FilePicker.platform = _Files(); });
   testWidgets('Загрузка фона передаёт текущий эпизод без префикса ep1', (tester) async {
     final previous = FilePicker.platform;

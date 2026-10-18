@@ -4,6 +4,10 @@ use serde_json::Value;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use crate::{asset_preview, romance_club::{asset_api_server::AssetApi, *}};
 
+pub const MAX_UPLOAD_BYTES: usize = 5 * 1024 * 1024;
+// Оставляю место для полей Protobuf и превью в ответе
+const MAX_MESSAGE_BYTES: usize = MAX_UPLOAD_BYTES + 1024 * 1024;
+
 pub struct AssetApiService { db: Surreal<Client> }
 const CATALOG_FIELDS: &str = "id, type, name, emotion, url, display_name, episode_id, preview_data, version";
 fn text(row: &Value, field: &str) -> String { row[field].as_str().unwrap_or_default().to_owned() }
@@ -21,6 +25,12 @@ fn asset(row: &Value, original: bool) -> Result<Asset, Status> {
 
 impl AssetApiService {
     pub fn new(db: Surreal<Client>) -> Self { Self { db } }
+
+    pub fn into_server(self) -> asset_api_server::AssetApiServer<Self> {
+        asset_api_server::AssetApiServer::new(self)
+            .max_decoding_message_size(MAX_MESSAGE_BYTES)
+            .max_encoding_message_size(MAX_MESSAGE_BYTES)
+    }
 
     // Старый оригинал читаю только тогда, когда записи нужно превью
     async fn preview(&self, mut row: Value) -> Result<Value, Status> {
@@ -108,7 +118,7 @@ impl AssetApi for AssetApiService {
         if !matches!(req.r#type.as_str(), "background" | "character") || req.name.is_empty() || req.file_data.is_empty() {
             return Err(Status::invalid_argument("Нужны тип, имя и изображение"));
         }
-        if req.file_data.len() > 5 * 1024 * 1024 { return Err(Status::invalid_argument("Файл больше 5 МБ")); }
+        if req.file_data.len() > MAX_UPLOAD_BYTES { return Err(Status::invalid_argument("Файл больше 5 MiB (5 242 880 байт)")); }
         let (preview, version) = asset_preview::make(req.file_data.clone()).await?;
         let mut response = self.db.query("SELECT id FROM asset WHERE type = $type AND name = $name AND (emotion ?? '') = $emotion AND episode_id = (IF $ep = '' { NONE } ELSE { type::record($ep) }) LIMIT 1")
             .bind(("type", req.r#type.clone())).bind(("name", req.name.clone()))

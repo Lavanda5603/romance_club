@@ -1,3 +1,4 @@
+import 'package:grpc/grpc.dart';
 import 'asset_repository_remote.dart';
 import '../../domain/repositories/admin_repository.dart'; // Импорт контракта
 import '../services/admin_grpc_service.dart'; // Импорт gRPC-сервиса
@@ -16,7 +17,8 @@ class AdminRepositoryRemote implements AdminRepository {
       final response = await _service.deleteAsset(assetId);
       if (response.success) AssetRepositoryRemote.invalidateCache();
       return response.success;
-    } catch (e) {
+    } on GrpcError catch (e) {
+      if (e.code != StatusCode.permissionDenied) rethrow;
       return false;
     }
   }
@@ -27,7 +29,8 @@ class AdminRepositoryRemote implements AdminRepository {
     try {
       final response = await _service.deleteEpisode(episodeId);
       return response.success;
-    } catch (e) {
+    } on GrpcError catch (e) {
+      if (e.code != StatusCode.permissionDenied) rethrow;
       return false;
     }
   }

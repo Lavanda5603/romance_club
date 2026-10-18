@@ -1,3 +1,4 @@
+import '../../data/services/rpc_policy.dart';
 import 'package:flutter/foundation.dart'; // Импорт для ChangeNotifier и debugPrint
 import '../../core/async_state.dart'; // Импорт состояния
 import '../../domain/models/episode_model.dart'; // Импорт доменных моделей
@@ -230,7 +231,7 @@ class GameViewModel extends ChangeNotifier {
       _currentTextIndex = 0;
     } catch (e) {
       if (_disposed || loadId != _loadId) return;
-      _state = AsyncState.failure(e.toString());
+      _state = AsyncState.failure(networkError(e));
     }
 
     notifyListeners();
@@ -552,7 +553,7 @@ class GameViewModel extends ChangeNotifier {
         ));
       } catch (e) {
         // Не отправляю следующие старые снимки после неудачной записи
-        _saveError = 'Не удалось сохранить прогресс: $e';
+        _saveError = 'Не удалось сохранить прогресс: ${networkError(e)}';
         debugPrint(_saveError);
         notifyListeners();
       }

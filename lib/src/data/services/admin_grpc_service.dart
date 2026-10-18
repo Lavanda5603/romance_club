@@ -1,3 +1,4 @@
+import 'rpc_policy.dart';
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/admin_api.pbgrpc.dart'; // Импорт gRPC-клиента
 import '../../../services/storage_service.dart'; // Импорт StorageService
@@ -8,7 +9,7 @@ class AdminGrpcService {
   late final AdminApiClient _client; // gRPC-клиент
 
   // Конструктор класса AdminGrpcService
-  AdminGrpcService({String host = '10.0.2.2', int port = 50051}) {
+  AdminGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
     _channel = ClientChannel(
       host,
       port: port,
@@ -16,7 +17,7 @@ class AdminGrpcService {
         credentials: ChannelCredentials.insecure(),
       ),
     );
-    _client = AdminApiClient(_channel);
+    _client = AdminApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 
   // Метаданные с токеном
@@ -44,6 +45,6 @@ class AdminGrpcService {
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown();
+    await _channel.terminate();
   }
 }

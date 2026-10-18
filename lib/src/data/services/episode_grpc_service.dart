@@ -1,3 +1,4 @@
+import 'rpc_policy.dart';
 import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
@@ -9,7 +10,7 @@ class EpisodeGrpcService {
   late final EpisodeApiClient _client; // gRPC-клиент
 
   // Конструктор класса EpisodeGrpcService
-  EpisodeGrpcService({String host = '10.0.2.2', int port = 50051}) {
+  EpisodeGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
     // Создаю канал связи с сервером
     _channel = ClientChannel(
       host,
@@ -20,7 +21,7 @@ class EpisodeGrpcService {
     );
 
     // Создаю gRPC-клиент
-    _client = EpisodeApiClient(_channel);
+    _client = EpisodeApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 
   // Получить эпизод по ID
@@ -64,6 +65,6 @@ class EpisodeGrpcService {
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown(); // Закрываю канал
+    await _channel.terminate(); // Закрываю канал
   }
 }

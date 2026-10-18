@@ -1,3 +1,5 @@
+import 'package:grpc/grpc.dart';
+import '../src/data/services/rpc_policy.dart';
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'dart:typed_data'; // Импорт Uint8List
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
@@ -50,6 +52,7 @@ class _GameScreenState extends State<GameScreen> {
 
   bool _assetsLoaded = false;
   String _assetScene = '';
+  String? _assetError;
   bool _leaving = false;
   bool _allowPop = false;
 
@@ -106,12 +109,14 @@ class _GameScreenState extends State<GameScreen> {
     if (_assetScene == key) return;
     _assetScene = key;
     _assetsLoaded = false;
+    String? error;
     Future<Uint8List?> load(String type, String name, String emotion) async {
       if (name.isEmpty) return null;
       try {
         return (await _assetRepository.getAsset(type: type, name: name, emotion: emotion,
           episodeId: 'episode:${widget.episode.id}')).fileData;
       } catch (e) {
+        if (e is GrpcError && (e.code == StatusCode.deadlineExceeded || e.code == StatusCode.unavailable)) error = networkError(e);
         debugPrint('Ошибка загрузки картинки сцены: $e');
         return null;
       }
@@ -122,6 +127,7 @@ class _GameScreenState extends State<GameScreen> {
     ]);
     if (!mounted || _assetScene != key) return;
     setState(() {
+      _assetError = error;
       _backgroundsCache.clear();
       _charactersCache.clear();
       if (images[0] != null) _backgroundsCache[scene.background] = images[0]!;
@@ -219,14 +225,23 @@ class _GameScreenState extends State<GameScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (state.error != null) {
+          if (state.error != null || _assetError != null) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Ошибка: ${state.error}', style: const TextStyle(color: Colors.red)),
+                    Text('Ошибка: ${state.error ?? _assetError}', style: const TextStyle(color: Colors.red)),
+                    if (!_viewModel.progressSceneMissing)
+                      TextButton(onPressed: () {
+                        if (state.error != null) {
+                          _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
+                        } else {
+                          setState(() { _assetScene = ''; _assetError = null; });
+                          _loadAssets();
+                        }
+                      }, child: const Text('Повторить')),
                     if (_viewModel.progressSceneMissing) ...[
                       const SizedBox(height: 16),
                       ElevatedButton(

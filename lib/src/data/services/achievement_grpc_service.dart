@@ -1,3 +1,4 @@
+import 'rpc_policy.dart';
 import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/achievement_api.pbgrpc.dart'; // Импорт gRPC-клиента
@@ -8,7 +9,7 @@ class AchievementGrpcService {
   late final AchievementApiClient _client; // gRPC-клиент
 
   // Конструктор класса AchievementGrpcService
-  AchievementGrpcService({String host = '10.0.2.2', int port = 50051}) {
+  AchievementGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
     // Создаю канал связи
     _channel = ClientChannel(
       host,
@@ -18,7 +19,7 @@ class AchievementGrpcService {
       ),
     );
     // Создаю gRPC-клиент
-    _client = AchievementApiClient(_channel);
+    _client = AchievementApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 
   // Получить достижения игрока
@@ -41,6 +42,6 @@ class AchievementGrpcService {
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown();
+    await _channel.terminate();
   }
 }

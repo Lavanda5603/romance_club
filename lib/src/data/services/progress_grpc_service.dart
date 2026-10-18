@@ -1,3 +1,4 @@
+import 'rpc_policy.dart';
 import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/progress.pb.dart'; // Импорт Protobuf-модели Progress
@@ -9,7 +10,7 @@ class ProgressGrpcService {
   late final ProgressApiClient _client; // gRPC-клиент
 
   // Конструктор класса ProgressGrpcService
-  ProgressGrpcService({String host = '10.0.2.2', int port = 50051}) {
+  ProgressGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
     // Создаю канал связи
     _channel = ClientChannel(
       host,
@@ -19,7 +20,7 @@ class ProgressGrpcService {
       ),
     );
     // Создаю gRPC-клиент
-    _client = ProgressApiClient(_channel);
+    _client = ProgressApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 
   // Получить прогресс
@@ -64,6 +65,6 @@ class ProgressGrpcService {
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown();
+    await _channel.terminate();
   }
 }

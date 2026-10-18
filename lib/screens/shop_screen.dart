@@ -1,3 +1,4 @@
+import '../src/data/services/rpc_policy.dart';
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../services/storage_service.dart'; // Импорт сервиса хранения
@@ -60,6 +61,8 @@ class _ShopScreenState extends State<ShopScreen> {
 
   // Загрузка данных (баланс, подписка, эпизоды если подписка есть)
   Future<void> _loadData() async {
+    if (!mounted) return;
+    setState(() { _isLoading = true; });
     try {
       // Загружаю player_id из Storage
       _playerId = await StorageService.loadPlayerId();
@@ -103,9 +106,9 @@ class _ShopScreenState extends State<ShopScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() { _isLoading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(e)),
+        action: SnackBarAction(label: 'Повторить', onPressed: _loadData)));
     }
   }
 
@@ -170,7 +173,7 @@ class _ShopScreenState extends State<ShopScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
+        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
       );
     }
   }
@@ -205,7 +208,7 @@ class _ShopScreenState extends State<ShopScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
+        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
       );
     }
   }

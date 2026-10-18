@@ -1,3 +1,4 @@
+import 'package:grpc/grpc.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -76,7 +77,29 @@ class _AdminService extends AdminGrpcService {
   Future<AdminResponse> deleteAsset(String assetId) async => AdminResponse(success: true);
 }
 
+class _TimeoutPickerRepository extends _PickerRepository {
+  int attempts = 0;
+  @override
+  Future<AssetPage> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24}) async {
+    if (++attempts == 1) throw const GrpcError.deadlineExceeded();
+    return AssetPage([], '');
+  }
+}
+
 void main() {
+  testWidgets('После deadline сетка снимает загрузку и позволяет повторить', (tester) async {
+    final repo = _TimeoutPickerRepository();
+    await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(type: 'background', title: 'Фоны', repository: repo)));
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.textContaining('Сервер не ответил вовремя'), findsOneWidget);
+    await tester.tap(find.text('Повторить'));
+    await tester.pumpAndSettle();
+    expect(repo.attempts, 2);
+    expect(find.text('нет ассетов'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   late _Service service;
   late AssetRepositoryRemote repository;
   setUp(() {

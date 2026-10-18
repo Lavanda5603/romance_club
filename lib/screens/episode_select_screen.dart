@@ -1,3 +1,5 @@
+import 'package:grpc/grpc.dart';
+import '../src/data/services/rpc_policy.dart';
 import '../src/domain/repositories/progress_repository.dart';
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
@@ -89,7 +91,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _isLoading = false; });
+      setState(() { _error = networkError(e); _isLoading = false; });
     }
   }
 
@@ -118,7 +120,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
       });
     } catch (e) {
       if (!mounted || generation != _summaryGeneration) return;
-      setState(() { _progressLoading = false; _progressError = 'Не удалось загрузить статус эпизодов'; });
+      setState(() { _progressLoading = false; _progressError = e is GrpcError ? networkError(e) : 'Не удалось загрузить статус эпизодов'; });
     }
   }
 
@@ -170,7 +172,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
         if (!mounted) return;
         setState(() { _progressLoading = false; _progressError = 'Не удалось обновить статус эпизодов'; });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
+          SnackBar(content: Text('Ошибка: ${networkError(e)}')),
         );
       }
     }

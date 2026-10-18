@@ -1,3 +1,5 @@
+import 'package:grpc/grpc.dart';
+import '../src/data/services/rpc_policy.dart';
 import '../generated/episode.pb.dart';
 import '../src/domain/repositories/auth_repository.dart';
 import '../src/domain/repositories/progress_repository.dart';
@@ -110,9 +112,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
         _statsLoading = false;
         _achievementsLoading = false;
-        _profileError = 'Не удалось загрузить профиль';
-        _statsError = 'Не удалось загрузить прогресс';
-        _achievementsError = 'Не удалось загрузить достижения';
+        _profileError = e is GrpcError ? networkError(e) : 'Не удалось загрузить профиль';
+        _statsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить прогресс';
+        _achievementsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить достижения';
       });
     }
   }
@@ -131,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _isLoading = false; _profileError = 'Не удалось загрузить профиль'; });
+      setState(() { _isLoading = false; _profileError = e is GrpcError ? networkError(e) : 'Не удалось загрузить профиль'; });
     }
   }
 
@@ -152,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _statsLoading = false; _statsError = 'Не удалось загрузить прогресс'; });
+      setState(() { _statsLoading = false; _statsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить прогресс'; });
     }
   }
 
@@ -168,7 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _achievementsLoading = false; _achievementsError = 'Не удалось загрузить достижения'; });
+      setState(() { _achievementsLoading = false; _achievementsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить достижения'; });
     }
   }
 

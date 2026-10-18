@@ -1,3 +1,4 @@
+import 'rpc_policy.dart';
 import 'auth_options.dart'; // Метаданные с токеном
 import '../../../services/storage_service.dart';
 import 'package:grpc/grpc.dart'; // Импорт gRPC
@@ -13,7 +14,7 @@ class AssetGrpcService {
   late final AssetApiClient _client; // gRPC-клиент
 
   // Конструктор класса AssetGrpcService
-  AssetGrpcService({this.host = '10.0.2.2', this.port = 50051}) {
+  AssetGrpcService({this.host = '10.0.2.2', this.port = 50051, RpcDeadline? deadlines}) {
     // Создаю канал связи с сервером
     _channel = ClientChannel(
       host,
@@ -24,7 +25,7 @@ class AssetGrpcService {
     );
 
     // Создаю gRPC-клиент
-    _client = AssetApiClient(_channel);
+    _client = AssetApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 
   // Получить ассеты по типу
@@ -84,6 +85,6 @@ class AssetGrpcService {
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown(); // Закрываю канал
+    await _channel.terminate(); // Закрываю канал
   }
 }

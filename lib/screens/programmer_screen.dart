@@ -1,3 +1,4 @@
+import '../src/data/services/rpc_policy.dart';
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import 'episode_editor_screen.dart'; // Импорт экрана редактирования эпизода
@@ -44,21 +45,25 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
 
   // Загрузка эпизодов с сервера
   Future<void> _loadEpisodes() async {
+    if (!mounted) return;
+    setState(() { _isLoading = true; _error = null; });
     try {
       final episodes = await _service.getAllEpisodes();
+      if (!mounted) return;
       setState(() {
         _episodes = List.from(episodes); // Создаю новый список
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = networkError(e);
         _isLoading = false;
       });
       // Показываю SnackBar с ошибкой
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка загрузки эпизодов: $e')),
+        SnackBar(content: Text('Ошибка загрузки эпизодов: ${networkError(e)}')),
       );
     }
   }
@@ -89,7 +94,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
+        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
       );
     }
   }
@@ -126,7 +131,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка загрузки эпизода: $e')),
+        SnackBar(content: Text('Ошибка загрузки эпизода: ${networkError(e)}')),
       );
     }
   }
@@ -159,7 +164,13 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       final episodeId = _episodes[index].id;
 
       // Вызываю АДМИН-репозиторий (проверка прав на сервере)
-      final success = await _adminRepository.deleteEpisode(episodeId);
+      bool success;
+      try {
+        success = await _adminRepository.deleteEpisode(episodeId);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(e))));
+        return;
+      }
 
       if (!mounted) return;
 
@@ -258,10 +269,10 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                               ? const Center(child: CircularProgressIndicator(color: Color(0xFFD30010)))
                               : _error != null
                                   ? Center(
-                                      child: Text(
-                                        'Ошибка: $_error',
-                                        style: const TextStyle(color: Colors.red),
-                                      ),
+                                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                        Text('Ошибка: $_error', style: const TextStyle(color: Colors.red)),
+                                        TextButton(onPressed: _loadEpisodes, child: const Text('Повторить')),
+                                      ]),
                                     )
                                   : _episodes.isEmpty
                                       ? const Center(

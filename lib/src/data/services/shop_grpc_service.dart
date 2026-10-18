@@ -1,3 +1,4 @@
+import 'rpc_policy.dart';
 import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/shop_api.pbgrpc.dart'; // Импорт gRPC-клиента
@@ -8,7 +9,7 @@ class ShopGrpcService {
   late final ShopApiClient _client; // gRPC-клиент
 
   // Конструктор класса ShopGrpcService
-  ShopGrpcService({String host = '10.0.2.2', int port = 50051}) {
+  ShopGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
     // Создаю канал связи
     _channel = ClientChannel(
       host,
@@ -18,7 +19,7 @@ class ShopGrpcService {
       ),
     );
     // Создаю gRPC-клиент
-    _client = ShopApiClient(_channel);
+    _client = ShopApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 
   // Получить покупки
@@ -49,6 +50,6 @@ class ShopGrpcService {
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown();
+    await _channel.terminate();
   }
 }

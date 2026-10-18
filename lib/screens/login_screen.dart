@@ -1,3 +1,4 @@
+import '../src/data/services/rpc_policy.dart';
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'register_screen.dart'; // Импорт экрана регистрации
 import 'main_menu_screen.dart'; // Импорт главного меню
@@ -95,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
+        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
       );
     }
 

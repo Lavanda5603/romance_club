@@ -1,3 +1,4 @@
+import '../src/data/services/rpc_policy.dart';
 import '../src/core/scene_links.dart'; // Ключи переходов
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
@@ -120,7 +121,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка сохранения: $e')),
+        SnackBar(content: Text('Ошибка сохранения: ${networkError(e)}')),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);

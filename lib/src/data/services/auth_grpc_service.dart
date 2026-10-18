@@ -1,3 +1,4 @@
+import 'rpc_policy.dart';
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/auth_api.pbgrpc.dart'; // Импорт gRPC-клиента
 import '../../../services/storage_service.dart'; // Импорт StorageService
@@ -8,7 +9,7 @@ class AuthGrpcService {
   late final AuthApiClient _client; // gRPC-клиент
 
   // Конструктор класса AuthGrpcService
-  AuthGrpcService({String host = '10.0.2.2', int port = 50051}) {
+  AuthGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
     // Создаю канал связи
     _channel = ClientChannel(
       host,
@@ -18,7 +19,7 @@ class AuthGrpcService {
       ),
     );
     // Создаю gRPC-клиент
-    _client = AuthApiClient(_channel);
+    _client = AuthApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 
   // Создать метаданные с JWT-токеном (для авторизованных запросов)
@@ -67,6 +68,6 @@ class AuthGrpcService {
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown();
+    await _channel.terminate();
   }
 }

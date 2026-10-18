@@ -1,3 +1,4 @@
+import '../src/data/services/rpc_policy.dart';
 import '../src/domain/repositories/asset_repository.dart';
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'package:file_picker/file_picker.dart'; // Импорт выбора файла
@@ -77,7 +78,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
         _nextCursor = page.nextCursor;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = networkError(e));
     } finally {
       _loadingPage = false;
       if (mounted) setState(() => _isLoading = false);
@@ -92,7 +93,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       final original = await _repository.getAsset(id: asset.id, type: asset.type, version: asset.version);
       if (mounted) Navigator.pop(context, original);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка загрузки: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка загрузки: ${networkError(e)}')));
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -208,29 +209,21 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     final fullName = widget.type == 'background' ? 'ep1/$name' : name;
 
-    final asset = await _repository.uploadAsset(
-      type: widget.type,
-      name: fullName,
-      emotion: emotionController.text.trim(),
-      displayName: displayController.text.trim(),
-      episodeId: widget.episodeId,
-      fileData: bytes,
-      fileName: file.name,
-    ).catchError((_) => null);
-
-    if (!mounted) return;
-    setState(() => _isUploading = false);
-
-    if (asset != null) {
+    try {
+      final asset = await _repository.uploadAsset(
+        type: widget.type, name: fullName, emotion: emotionController.text.trim(),
+        displayName: displayController.text.trim(), episodeId: widget.episodeId,
+        fileData: bytes, fileName: file.name,
+      );
+      if (asset == null) throw StateError('Не удалось загрузить ассет');
+      if (!mounted) return;
       await _loadAssets();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ассет загружен')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ошибка загрузки')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ассет загружен')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(e))));
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -261,21 +254,17 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     // Вызываю Админ-репозиторий (проверка прав на сервере)
     setState(() => _isUploading = true);
-    final success = await _adminRepository.deleteAsset(asset.id);
-
-    if (!mounted) return;
-    setState(() => _isUploading = false);
-
-    if (success) {
-      await _loadAssets();
+    try {
+      final success = await _adminRepository.deleteAsset(asset.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ассет удалён')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Нет прав на удаление')),
-      );
+      if (success) await _loadAssets();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+        success ? 'Ассет удалён' : 'Нет прав на удаление')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(e))));
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -464,6 +453,8 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                               },
                             ),
                           ),
+                        if (!_isLoading && _assets.isEmpty && _error.isNotEmpty)
+                          TextButton(onPressed: () => _loadAssets(), child: const Text('Повторить')),
                         if (!_isLoading && _assets.isNotEmpty && (_nextCursor.isNotEmpty || _error.isNotEmpty))
                           Column(children: [
                             if (_error.isNotEmpty) Text(_error, style: const TextStyle(color: Colors.red)),

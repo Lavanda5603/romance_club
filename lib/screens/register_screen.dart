@@ -1,3 +1,4 @@
+import '../src/data/services/rpc_policy.dart';
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'login_screen.dart'; // Импорт экрана авторизации
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория
@@ -121,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
+        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
       );
     }
 

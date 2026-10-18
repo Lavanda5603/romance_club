@@ -38,10 +38,10 @@ class AssetRepositoryRemote implements AssetRepository {
   }
 
   @override
-  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = ''}) async {
+  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = '', String variant = '', int targetWidth = 0, int targetHeight = 0}) async {
     final scope = await _service.cacheScope();
-    String originalKey(String assetId, String revision) => jsonEncode([scope, assetId, revision]);
-    final lookup = jsonEncode(id.isEmpty ? [scope, 'name', type, episodeId, name, emotion] : [scope, 'id', id]);
+    String originalKey(String assetId, String revision) => jsonEncode([scope, assetId, revision, variant, targetWidth, targetHeight]);
+    final lookup = jsonEncode(id.isEmpty ? [scope, 'name', type, episodeId, name, emotion, variant, targetWidth, targetHeight] : [scope, 'id', id, variant, targetWidth, targetHeight]);
     final knownKey = id.isNotEmpty && version.isNotEmpty ? originalKey(id, version) : _lookups.get(lookup);
     if (knownKey != null) {
       final cached = _originals.get(knownKey);
@@ -60,14 +60,14 @@ class AssetRepositoryRemote implements AssetRepository {
         return cached;
       }
     }
-    final response = await _service.getAsset(id: targetId);
+    final response = await _service.getAsset(id: targetId, variant: variant, targetWidth: targetWidth, targetHeight: targetHeight);
     final model = toDomain(response);
     if (generation == _generation) {
-      // Редактор, сетка и игра используют один буфер для ID и версии
+      // Каждый размер храню отдельно, чтобы не подменить его оригиналом
       final key = originalKey(model.id, model.version);
       _originals.put(key, model.type, model, model.fileData.length + (model.previewData?.length ?? 0));
       _lookups.put(lookup, model.type, key, key.length * 2);
-      _lookups.put(jsonEncode([scope, 'id', model.id]), model.type, key, key.length * 2);
+      _lookups.put(jsonEncode([scope, 'id', model.id, variant, targetWidth, targetHeight]), model.type, key, key.length * 2);
     }
     return model;
   }

@@ -5,7 +5,7 @@ import '../models/asset_model.dart'; // Импорт доменной модел
 abstract class AssetRepository {
   // Получить ассеты по типу (background, character, sound)
   Future<AssetPage> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24});
-  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = ''});
+  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = '', String variant = '', int targetWidth = 0, int targetHeight = 0});
 
   // Загрузить новый ассет
   Future<AssetModel?> uploadAsset({

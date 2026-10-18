@@ -20,6 +20,7 @@ import 'package:romance_club/src/domain/repositories/asset_repository.dart';
 class _Service extends AssetGrpcService {
   int pages = 0;
   int originals = 0;
+  final sizes = <String>[];
   int lookups = 0;
   String scope = 'test';
   Completer<GetAssetsResponse>? pending;
@@ -32,13 +33,14 @@ class _Service extends AssetGrpcService {
     return GetAssetsResponse(assets: [Asset(id: 'asset:1', type: type, version: 'v1', previewData: [1])]);
   }
   @override
-  Future<Asset> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', bool metadataOnly = false}) async {
+  Future<Asset> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', bool metadataOnly = false, String variant = '', int targetWidth = 0, int targetHeight = 0}) async {
     if (metadataOnly) {
       lookups++;
       return Asset(id: 'asset:1', type: type, name: name, emotion: emotion, version: 'v1');
     }
     originals++;
-    return Asset(id: id, type: type.isEmpty ? 'background' : type, fileData: [2, 3], version: 'v1');
+    sizes.add('$variant|$targetWidth|$targetHeight');
+    return Asset(id: id, type: type.isEmpty ? 'background' : type, fileData: variant == 'screen' ? [4, 5] : [2, 3], version: 'v1');
   }
   @override
   Future<UploadAssetResponse> uploadAsset({required String type, required String name, required String emotion,
@@ -62,7 +64,7 @@ class _PickerRepository implements AssetRepository {
     return cursor.isEmpty ? AssetPage([model('asset:first')], 'next') : second.future;
   }
   @override
-  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = ''}) async {
+  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = '', String variant = '', int targetWidth = 0, int targetHeight = 0}) async {
     originals++;
     return model(id);
   }
@@ -118,6 +120,22 @@ class _Uploads extends _PickerRepository {
 }
 
 void main() {
+  test('Экранный размер и оригинал храню в разных записях кэша', () async {
+    final service = _Service();
+    addTearDown(service.close);
+    AssetRepositoryRemote.invalidateCache();
+    final repository = AssetRepositoryRemote(service);
+    final original = await repository.getAsset(id:'asset:1', version:'v1');
+    final screen = await repository.getAsset(id:'asset:1', version:'v1', variant:'screen', targetWidth:720, targetHeight:1280);
+    final again = await repository.getAsset(id:'asset:1', version:'v1', variant:'screen', targetWidth:720, targetHeight:1280);
+    expect(original.fileData, [2,3]);
+    expect(screen.fileData, [4,5]);
+    expect(identical(screen.fileData, again.fileData), isTrue);
+    expect(service.originals, 2);
+    expect(service.sizes, ['|0|0','screen|720|1280']);
+    await repository.getAsset(id:'asset:1', version:'v1', variant:'screen', targetWidth:1080, targetHeight:1920);
+    expect(service.originals, 3);
+  });
   test('Сервис отклоняет лишний байт до авторизации и отправки', () async {
     final service = AssetGrpcService(host: '127.0.0.1', port: 1);
     try {

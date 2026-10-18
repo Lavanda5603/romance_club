@@ -115,7 +115,9 @@ class _GameScreenState extends State<GameScreen> {
       if (name.isEmpty) return null;
       try {
         return (await _assetRepository.getAsset(type: type, name: name, emotion: emotion,
-          episodeId: 'episode:${widget.episode.id}')).fileData;
+          episodeId: 'episode:${widget.episode.id}', variant: 'screen',
+          targetWidth: View.of(context).physicalSize.width.ceil(),
+          targetHeight: View.of(context).physicalSize.height.ceil())).fileData;
       } catch (e) {
         if (e is GrpcError && (e.code == StatusCode.deadlineExceeded || e.code == StatusCode.unavailable)) error = networkError(e);
         debugPrint('Ошибка загрузки картинки сцены: $e');

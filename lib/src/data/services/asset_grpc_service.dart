@@ -46,8 +46,8 @@ class AssetGrpcService {
     return response;
   }
 
-  Future<Asset> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', bool metadataOnly = false}) async {
-    return _client.getAsset(GetAssetRequest(id: id, type: type, name: name, emotion: emotion, episodeId: episodeId, metadataOnly: metadataOnly), options: await authOptions());
+  Future<Asset> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', bool metadataOnly = false, String variant = '', int targetWidth = 0, int targetHeight = 0}) async {
+    return _client.getAsset(GetAssetRequest(id: id, type: type, name: name, emotion: emotion, episodeId: episodeId, metadataOnly: metadataOnly, variant: variant, targetWidth: targetWidth, targetHeight: targetHeight), options: await authOptions());
   }
 
   // Загрузить новый ассет

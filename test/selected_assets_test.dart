@@ -17,14 +17,16 @@ import 'package:romance_club/src/core/async_state.dart';
 class _Assets implements AssetRepository {
   final Uint8List bytes;
   final requests = <String>[];
+  final sizes = <String>[];
   final waits = <String, Completer<AssetModel>>{};
   int pages = 0;
   _Assets(this.bytes);
   AssetModel model(String name) => AssetModel(id: 'asset:$name', type: 'background', name: name,
     emotion: '', url: '', displayName: name, episodeId: 'episode:7', fileData: bytes, previewData: bytes);
   @override
-  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = ''}) async {
+  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = '', String variant = '', int targetWidth = 0, int targetHeight = 0}) async {
     requests.add('$type|$name|$emotion|$episodeId');
+    sizes.add('$variant|$targetWidth|$targetHeight');
     return waits[name]?.future ?? model(name);
   }
   @override
@@ -140,6 +142,8 @@ void main() {
     expect(assets.requests, containsAll(['background|city||episode:7', 'character|hero|happy|episode:7']));
     expect(assets.requests, hasLength(2));
     expect(assets.pages, 0);
+    expect(assets.sizes.every((size) => size.startsWith('screen|')), isTrue);
+    expect(assets.sizes.every((size) => !size.contains('|0|')), isTrue);
     game.nextScene();
     await tester.pumpAndSettle();
     expect(assets.requests.last, 'background|room||episode:7');

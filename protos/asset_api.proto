@@ -14,6 +14,11 @@ message Asset {
   bytes file_data = 8; // Байты файла (сама картинка)
   bytes preview_data = 9; // Маленькое превью для сетки
   string version = 10; // Версия содержимого
+  string variant = 11; // original или размер для экрана
+  int32 width = 12;
+  int32 height = 13;
+  string mime = 14;
+  int32 byte_length = 15;
 }
 
 // Запрос на получение ассетов по типу
@@ -37,6 +42,9 @@ message GetAssetRequest {
   string emotion = 4;
   string episode_id = 5;
   bool metadata_only = 6; // Поиск без повторной передачи оригинала
+  string variant = 7; // Пусто: original, screen: размер для игры
+  int32 target_width = 8; // Физические пиксели экрана
+  int32 target_height = 9;
 }
 
 // Запрос на загрузку нового ассета

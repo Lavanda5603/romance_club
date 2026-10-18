@@ -29,6 +29,11 @@ class Asset extends $pb.GeneratedMessage {
     $core.List<$core.int>? fileData,
     $core.List<$core.int>? previewData,
     $core.String? version,
+    $core.String? variant,
+    $core.int? width,
+    $core.int? height,
+    $core.String? mime,
+    $core.int? byteLength,
   }) {
     final result = Asset._();
     if (id != null) result.id = id;
@@ -41,6 +46,11 @@ class Asset extends $pb.GeneratedMessage {
     if (fileData != null) result.fileData = fileData;
     if (previewData != null) result.previewData = previewData;
     if (version != null) result.version = version;
+    if (variant != null) result.variant = variant;
+    if (width != null) result.width = width;
+    if (height != null) result.height = height;
+    if (mime != null) result.mime = mime;
+    if (byteLength != null) result.byteLength = byteLength;
     return result;
   }
 
@@ -69,6 +79,11 @@ class Asset extends $pb.GeneratedMessage {
     ..a<$core.List<$core.int>>(
         9, _omitFieldNames ? '' : 'previewData', $pb.PbFieldType.OY)
     ..aOS(10, _omitFieldNames ? '' : 'version')
+    ..aOS(11, _omitFieldNames ? '' : 'variant')
+    ..aI(12, _omitFieldNames ? '' : 'width')
+    ..aI(13, _omitFieldNames ? '' : 'height')
+    ..aOS(14, _omitFieldNames ? '' : 'mime')
+    ..aI(15, _omitFieldNames ? '' : 'byteLength')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -180,6 +195,51 @@ class Asset extends $pb.GeneratedMessage {
   $core.bool hasVersion() => $_has(9);
   @$pb.TagNumber(10)
   void clearVersion() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get variant => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set variant($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasVariant() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearVariant() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.int get width => $_getIZ(11);
+  @$pb.TagNumber(12)
+  set width($core.int value) => $_setSignedInt32(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasWidth() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearWidth() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.int get height => $_getIZ(12);
+  @$pb.TagNumber(13)
+  set height($core.int value) => $_setSignedInt32(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasHeight() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearHeight() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.String get mime => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set mime($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasMime() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearMime() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.int get byteLength => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set byteLength($core.int value) => $_setSignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasByteLength() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearByteLength() => $_clearField(15);
 }
 
 /// Запрос на получение ассетов по типу
@@ -349,6 +409,9 @@ class GetAssetRequest extends $pb.GeneratedMessage {
     $core.String? emotion,
     $core.String? episodeId,
     $core.bool? metadataOnly,
+    $core.String? variant,
+    $core.int? targetWidth,
+    $core.int? targetHeight,
   }) {
     final result = GetAssetRequest._();
     if (id != null) result.id = id;
@@ -357,6 +420,9 @@ class GetAssetRequest extends $pb.GeneratedMessage {
     if (emotion != null) result.emotion = emotion;
     if (episodeId != null) result.episodeId = episodeId;
     if (metadataOnly != null) result.metadataOnly = metadataOnly;
+    if (variant != null) result.variant = variant;
+    if (targetWidth != null) result.targetWidth = targetWidth;
+    if (targetHeight != null) result.targetHeight = targetHeight;
     return result;
   }
 
@@ -379,6 +445,9 @@ class GetAssetRequest extends $pb.GeneratedMessage {
     ..aOS(4, _omitFieldNames ? '' : 'emotion')
     ..aOS(5, _omitFieldNames ? '' : 'episodeId')
     ..aOB(6, _omitFieldNames ? '' : 'metadataOnly')
+    ..aOS(7, _omitFieldNames ? '' : 'variant')
+    ..aI(8, _omitFieldNames ? '' : 'targetWidth')
+    ..aI(9, _omitFieldNames ? '' : 'targetHeight')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -456,6 +525,33 @@ class GetAssetRequest extends $pb.GeneratedMessage {
   $core.bool hasMetadataOnly() => $_has(5);
   @$pb.TagNumber(6)
   void clearMetadataOnly() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get variant => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set variant($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasVariant() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearVariant() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get targetWidth => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set targetWidth($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasTargetWidth() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearTargetWidth() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.int get targetHeight => $_getIZ(8);
+  @$pb.TagNumber(9)
+  set targetHeight($core.int value) => $_setSignedInt32(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasTargetHeight() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearTargetHeight() => $_clearField(9);
 }
 
 /// Запрос на загрузку нового ассета

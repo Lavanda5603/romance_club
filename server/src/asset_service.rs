@@ -26,6 +26,7 @@ struct AssetRow {
     version: Option<String>,
     file_data: Option<Bytes>,
     preview_data: Option<Bytes>,
+    variants: Option<Vec<asset_preview::Variant>>,
 }
 
 fn asset(row: &AssetRow, original: bool) -> Result<Asset, Status> {
@@ -35,11 +36,28 @@ fn asset(row: &AssetRow, original: bool) -> Result<Asset, Status> {
         episode_id: row.episode_id.as_ref().map(ToSql::to_sql).unwrap_or_default(),
         version: row.version.clone().unwrap_or_default(), preview_data: row.preview_data.as_ref().map(|b| b.to_vec()).unwrap_or_default(),
         file_data: if original { row.file_data.as_ref().map(|b| b.to_vec()).unwrap_or_default() } else { Vec::new() },
+        variant: if original { "original".into() } else { String::new() },
+        width: 0, height: 0, mime: String::new(), byte_length: 0,
     })
 }
 
 impl AssetApiService {
     pub fn new(db: Surreal<Client>) -> Self { Self { db } }
+
+    // Для старых ассетов создаю варианты один раз, новый upload готовит их до записи
+    async fn prepare_variants(&self, id: &str) -> Result<(), Status> {
+        let mut response = self.db.query("SELECT id,type,name,emotion,url,display_name,episode_id,version,file_data FROM type::record($id)")
+            .bind(("id", id.to_owned())).await.map_err(internal)?.check().map_err(internal)?;
+        let row: Option<AssetRow> = response.take(0).map_err(internal)?;
+        let row = row.ok_or_else(|| Status::not_found("Ассет не найден"))?;
+        let source = row.file_data.ok_or_else(|| Status::not_found("Нет изображения"))?;
+        let prepared = asset_preview::make_variants(source.to_vec(), &row.r#type).await?;
+        self.db.query("UPDATE type::record($id) SET variants=$variants, preview_data=$preview, version=$version WHERE file_data=$source AND (variants=NONE OR array::len(variants)=0)")
+            .bind(("id", id.to_owned())).bind(("source", source)).bind(("variants", prepared.variants))
+            .bind(("preview", Bytes::from(prepared.preview))).bind(("version", prepared.version))
+            .await.map_err(internal)?.check().map_err(internal)?;
+        Ok(())
+    }
 
     pub fn into_server(self) -> asset_api_server::AssetApiServer<Self> {
         asset_api_server::AssetApiServer::new(self)
@@ -112,17 +130,56 @@ impl AssetApi for AssetApiService {
 
     async fn get_asset(&self, request: Request<GetAssetRequest>) -> Result<Response<Asset>, Status> {
         let req = request.into_inner();
+        if !matches!(req.variant.as_str(), "" | "original" | "screen") || req.target_width < 0 || req.target_height < 0 {
+            return Err(Status::invalid_argument("Неверный вариант или размер изображения"));
+        }
         if req.id.is_empty() && (req.name.is_empty() || req.r#type.is_empty()) {
             return Err(Status::invalid_argument("Нужен ID или имя ассета с типом"));
         }
         if !req.id.is_empty() && !req.id.starts_with("asset:") { return Err(Status::invalid_argument("Неверный ID ассета")); }
-        let fields = if req.metadata_only { "id, type, name, emotion, url, display_name, episode_id, version" } else { "*" };
+        let screen = req.variant == "screen" && !req.metadata_only;
+        let metadata = "id,type,name,emotion,url,display_name,episode_id,version";
+        let fields = if req.metadata_only { metadata.to_owned() } else if screen {
+            format!("{metadata},array::map(variants ?? [], |$v| {{name:$v.name,width:$v.width,height:$v.height,mime:$v.mime,byte_length:$v.byte_length,hash:$v.hash}}) AS variants")
+        } else { format!("{metadata},file_data,preview_data") };
         let mut response = self.db.query(format!("SELECT {fields} FROM asset WHERE ($id != '' AND id = type::record($id)) OR ($id = '' AND type = $type AND name = $name AND (emotion ?? '') = $emotion AND ($ep = '' OR episode_id = type::record($ep) OR episode_id = NONE)) ORDER BY episode_id DESC, id LIMIT 1"))
             .bind(("id", req.id)).bind(("type", req.r#type)).bind(("name", req.name))
             .bind(("emotion", req.emotion)).bind(("ep", req.episode_id))
             .await.map_err(internal)?.check().map_err(internal)?;
-        let rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
-        let row = rows.first().ok_or_else(|| Status::not_found("Ассет не найден"))?;
+        let mut rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
+        let row = rows.first_mut().ok_or_else(|| Status::not_found("Ассет не найден"))?;
+        if screen {
+            let id = row.id.to_sql();
+            if row.variants.as_ref().is_none_or(|items| items.is_empty()) {
+                self.prepare_variants(&id).await?;
+                let mut result = self.db.query("SELECT VALUE array::map(variants ?? [], |$v| {name:$v.name,width:$v.width,height:$v.height,mime:$v.mime,byte_length:$v.byte_length,hash:$v.hash}) FROM ONLY type::record($id)")
+                    .bind(("id", id.clone())).await.map_err(internal)?.check().map_err(internal)?;
+                row.variants = Some(result.take(0).map_err(internal)?);
+                let mut result = self.db.query("SELECT VALUE version FROM ONLY type::record($id)").bind(("id", id.clone()))
+                    .await.map_err(internal)?.check().map_err(internal)?;
+                row.version = result.take(0).map_err(internal)?;
+            }
+            let variants = row.variants.as_ref().unwrap();
+            let target_width = req.target_width.max(1);
+            let target_height = req.target_height.max(1);
+            let enough = |v: &&asset_preview::Variant| if row.r#type == "background" {
+                v.width >= target_width && v.height >= target_height
+            } else { v.width.max(v.height) >= target_width.max(target_height) };
+            let selected = variants.iter().filter(enough).min_by_key(|v| i64::from(v.width)*i64::from(v.height))
+                .or_else(|| variants.iter().max_by_key(|v| i64::from(v.width)*i64::from(v.height)))
+                .ok_or_else(|| Status::not_found("Нет размера для экрана"))?;
+            let mut result = self.db.query("SELECT VALUE variants[WHERE name=$name][0] FROM ONLY type::record($id) WHERE version=$version")
+                .bind(("id", id)).bind(("name", selected.name.clone())).bind(("version", row.version.clone()))
+                .await.map_err(internal)?.check().map_err(internal)?;
+            let variant: Option<asset_preview::Variant> = result.take(0).map_err(internal)?;
+            let variant = variant.ok_or_else(|| Status::aborted("Картинка изменилась, повторите загрузку"))?;
+            let mut response = asset(row, false)?;
+            response.file_data = variant.data.ok_or_else(|| Status::internal("Нет данных варианта"))?.to_vec();
+            response.variant = variant.name;
+            response.width = variant.width; response.height = variant.height;
+            response.mime = variant.mime; response.byte_length = variant.byte_length;
+            return Ok(Response::new(response));
+        }
         Ok(Response::new(asset(row, !req.metadata_only)?))
     }
 
@@ -133,7 +190,7 @@ impl AssetApi for AssetApiService {
             return Err(Status::invalid_argument("Нужны тип, имя и изображение"));
         }
         if req.file_data.len() > MAX_UPLOAD_BYTES { return Err(Status::invalid_argument("Файл больше 5 MiB (5 242 880 байт)")); }
-        let (preview, version) = asset_preview::make(req.file_data.clone()).await?;
+        let prepared = asset_preview::make_variants(req.file_data.clone(), &req.r#type).await?;
         let mut response = self.db.query("SELECT id FROM asset WHERE type = $type AND name = $name AND (emotion ?? '') = $emotion AND episode_id = (IF $ep = '' { NONE } ELSE { type::record($ep) }) LIMIT 1")
             .bind(("type", req.r#type.clone())).bind(("name", req.name.clone()))
             .bind(("emotion", req.emotion.clone())).bind(("ep", req.episode_id.clone()))
@@ -143,10 +200,11 @@ impl AssetApi for AssetApiService {
         let display = if req.display_name.is_empty() { req.name.clone() } else { req.display_name };
         let url = format!("assets/{}/{}", req.r#type, req.name);
         // Оригинал и превью заменяю одной записью
-        let mut response = self.db.query("UPSERT type::record($id) MERGE {type:$type, name:$name, emotion:(IF $emotion='' { NONE } ELSE { $emotion }), episode_id:(IF $ep='' { NONE } ELSE { type::record($ep) }), url:$url, display_name:$display, file_data:$file, preview_data:$preview, version:$version} RETURN AFTER")
+        let mut response = self.db.query("UPSERT type::record($id) MERGE {type:$type, name:$name, emotion:(IF $emotion='' { NONE } ELSE { $emotion }), episode_id:(IF $ep='' { NONE } ELSE { type::record($ep) }), url:$url, display_name:$display, file_data:$file, preview_data:$preview, version:$version, variants:$variants} RETURN AFTER")
             .bind(("id", id)).bind(("type", req.r#type)).bind(("name", req.name)).bind(("emotion", req.emotion))
             .bind(("ep", req.episode_id)).bind(("url", url)).bind(("display", display))
-            .bind(("file", Bytes::from(req.file_data))).bind(("preview", Bytes::from(preview))).bind(("version", version))
+            .bind(("file", Bytes::from(req.file_data))).bind(("preview", Bytes::from(prepared.preview))).bind(("version", prepared.version))
+            .bind(("variants", prepared.variants))
             .await.map_err(internal)?.check().map_err(internal)?;
         let rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
         let row = rows.first().ok_or_else(|| Status::internal("Ассет не сохранён"))?;

@@ -52,6 +52,49 @@ async fn crosswalk_preview_limits_decoded_pixels() {
     assert!((preview.as_raw().len() as u64) < original_rgba_bytes);
 }
 
+#[tokio::test]
+async fn screen_sizes_preserve_alpha_and_do_not_enlarge_images() {
+    let source = picture(20);
+    let prepared = asset_preview::make_variants(source.clone(), "character").await.unwrap();
+    assert_eq!(prepared.variants.len(), 2);
+    for variant in &prepared.variants {
+        let data = variant.data.as_ref().unwrap();
+        let image = image::load_from_memory(data).unwrap().into_rgba8();
+        assert_eq!((image.width(), image.height()), (variant.width as u32, variant.height as u32));
+        assert_eq!(variant.byte_length as usize, data.len());
+        assert_eq!(variant.mime, "image/png");
+        assert!(image.pixels().any(|pixel| pixel.0[3] < 255));
+        assert!(image.width() <= 640 && image.height() <= 480);
+    }
+    assert_eq!(prepared.variants[0].width, 512);
+    assert_eq!(prepared.variants[1].width, 640);
+    let source = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/images/ep1/crosswalk.png")).unwrap();
+    let prepared = asset_preview::make_variants(source.clone(), "background").await.unwrap();
+    assert_eq!(prepared.variants[0].width, 720);
+    assert!(prepared.variants.iter().all(|v| v.width <= 915));
+    // Если исходник меньше нового размера, не создаю одинаковые копии
+    assert_eq!(prepared.variants.len(), 2);
+    assert!(prepared.variants[0].data.as_ref().unwrap().len() < source.len());
+    assert!(asset_preview::make_variants(b"broken".to_vec(), "background").await.is_err());
+}
+
+#[tokio::test]
+async fn screen_and_preview_apply_exif_orientation() {
+    let image = image::RgbImage::from_pixel(16, 8, image::Rgb([20,40,60]));
+    let mut jpeg = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new(&mut jpeg).encode_image(&image).unwrap();
+    let mut rotated = jpeg[..2].to_vec();
+    // EXIF Orientation=6: поворот на 90 градусов
+    let exif = [b'E',b'x',b'i',b'f',0,0,b'I',b'I',42,0,8,0,0,0,1,0,0x12,1,3,0,1,0,0,0,6,0,0,0,0,0,0,0];
+    rotated.extend_from_slice(&[0xff,0xe1,0,34]);
+    rotated.extend_from_slice(&exif);
+    rotated.extend_from_slice(&jpeg[2..]);
+    let prepared = asset_preview::make_variants(rotated, "character").await.unwrap();
+    assert_eq!((prepared.variants[0].width, prepared.variants[0].height), (8,16));
+    let preview = image::load_from_memory(&prepared.preview).unwrap();
+    assert_eq!((preview.width(),preview.height()),(8,16));
+}
+
 async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     // Старые строки переношу без изменения байтов, ключей и метаданных
     db.query(include_str!("../migrations/009_asset.surql")).await?.check()?;
@@ -127,6 +170,27 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     let stored = stored.unwrap();
     assert_eq!(stored.file_data.unwrap().to_vec(), replaced);
     assert_eq!(stored.preview_data.unwrap().to_vec(), upload.preview_data);
+    assert!(!stored.variants.unwrap().is_empty());
+    let screen_request = || Request::new(GetAssetRequest { id:upload.id.clone(), variant:"screen".into(), target_width:320, target_height:240, ..Default::default() });
+    let screen = api.get_asset(screen_request()).await?.into_inner();
+    assert!(screen.width > 0 && screen.width <= 640);
+    assert!(screen.height > 0 && screen.height <= 480);
+    assert!(!screen.variant.is_empty());
+    assert_eq!(screen.byte_length as usize, screen.file_data.len());
+    let repeated = api.get_asset(screen_request()).await?.into_inner();
+    assert_eq!(screen.file_data, repeated.file_data);
+    assert_eq!(screen.version, repeated.version);
+    db.query("DEFINE EVENT fail_variant_publish ON asset WHEN $event='UPDATE' THEN { THROW 'publish_refused'; };").await?.check()?;
+    assert!(api.upload_asset(admin(UploadAssetRequest { r#type:"background".into(),name:"old_1".into(),file_data:picture(8),..Default::default() })).await.is_err());
+    db.query("REMOVE EVENT fail_variant_publish ON asset;").await?.check()?;
+    let unchanged = api.get_asset(screen_request()).await?.into_inner();
+    assert_eq!(unchanged.file_data, screen.file_data);
+    assert_eq!(unchanged.version, screen.version);
+    let original = api.get_asset(Request::new(GetAssetRequest {id:upload.id.clone(),..Default::default()})).await?.into_inner();
+    assert_eq!(original.file_data, replaced);
+    // Старый ассет обрабатываю один раз, затем возвращаю сохранённый размер
+    let old = api.get_asset(Request::new(GetAssetRequest { r#type:"background".into(),name:"old_2".into(),variant:"screen".into(),target_width:300,target_height:300,..Default::default() })).await?.into_inner();
+    assert!(!old.file_data.is_empty());
     assert_eq!(full.version, upload.version);
     let scoped = api.upload_asset(admin(UploadAssetRequest {
         r#type:"background".into(),name:"old_1".into(),episode_id:"episode:3".into(),file_data:picture(3), ..Default::default()

@@ -15,6 +15,71 @@ fn picture(seed: u8) -> Vec<u8> {
     DynamicImage::ImageRgba8(image).write_to(&mut bytes, ImageFormat::Png).unwrap();
     bytes.into_inner()
 }
+
+fn png_chunk(kind: &[u8; 4], data: &[u8]) -> Vec<u8> {
+    let mut result = (data.len() as u32).to_be_bytes().to_vec();
+    result.extend_from_slice(kind);
+    result.extend_from_slice(data);
+    let mut crc = u32::MAX;
+    for &byte in &result[4..] {
+        crc ^= u32::from(byte);
+        for _ in 0..8 { crc = (crc >> 1) ^ (0xedb88320u32.wrapping_mul(crc & 1)); }
+    }
+    result.extend_from_slice(&(!crc).to_be_bytes());
+    result
+}
+
+fn animated_png() -> Vec<u8> {
+    let png = picture(10);
+    let mut result = png[..33].to_vec();
+    result.extend_from_slice(&png_chunk(b"acTL", &[0,0,0,2,0,0,0,0]));
+    result.extend_from_slice(&png[33..]);
+    result
+}
+
+fn too_many_pixels() -> Vec<u8> {
+    let image = image::GrayImage::new(4001, 4000);
+    let mut output = Cursor::new(Vec::new());
+    DynamicImage::ImageLuma8(image).write_to(&mut output, ImageFormat::Png).unwrap();
+    output.into_inner()
+}
+
+#[tokio::test]
+async fn reject_invalid_oversized_and_animated_images_before_variants() {
+    for bytes in [b"not an image".to_vec(), b"GIF89a".to_vec(), picture(1)[..40].to_vec()] {
+        assert_eq!(asset_preview::make_variants(bytes,"background").await.err().unwrap().code(), tonic::Code::InvalidArgument);
+    }
+    let pixels = too_many_pixels();
+    assert!(pixels.len() < MAX_UPLOAD_BYTES);
+    let error = asset_preview::make_variants(pixels,"background").await.err().unwrap();
+    assert_eq!(error.code(), tonic::Code::InvalidArgument);
+    assert!(error.message().contains("16 000 000"));
+    let png = picture(1);
+    for (width,height) in [(8193u32,1u32),(1,8193)] {
+        let mut data = png[16..29].to_vec();
+        data[..4].copy_from_slice(&width.to_be_bytes());
+        data[4..8].copy_from_slice(&height.to_be_bytes());
+        let mut large = png[..8].to_vec();
+        large.extend_from_slice(&png_chunk(b"IHDR",&data));
+        large.extend_from_slice(&png[33..]);
+        let error = asset_preview::make_variants(large,"background").await.err().unwrap();
+        assert_eq!(error.code(), tonic::Code::InvalidArgument);
+        assert!(error.message().contains("8192"));
+    }
+    let error = asset_preview::make_variants(animated_png(),"character").await.err().unwrap();
+    assert_eq!(error.code(), tonic::Code::InvalidArgument);
+    assert!(error.message().contains("кадром"));
+    let mut header = png[16..29].to_vec();
+    header[..4].copy_from_slice(&4000u32.to_be_bytes());
+    header[4..8].copy_from_slice(&3000u32.to_be_bytes());
+    header[8] = 16;
+    let mut deep = png[..8].to_vec();
+    deep.extend_from_slice(&png_chunk(b"IHDR", &header));
+    deep.extend_from_slice(&png[33..]);
+    let error = asset_preview::make_variants(deep,"character").await.err().unwrap();
+    assert_eq!(error.code(), tonic::Code::InvalidArgument);
+    assert!(error.message().contains("64 MiB"));
+}
 fn admin<T>(body: T) -> Request<T> {
     let mut req = Request::new(body);
     req.extensions_mut().insert(Claims { sub: "player:test".into(), login: "test".into(), is_admin: true, exp: usize::MAX });
@@ -270,6 +335,18 @@ async fn grpc_upload_limits(db: Surreal<Client>) -> TestResult<()> {
                 Err(error) => return Err(error.into()),
             }
         };
+        // Прямой RPC тоже проверяет содержимое, независимо от расширения файла
+        let compressed = too_many_pixels();
+        for bytes in [b"not an image".to_vec(), picture(1)[..40].to_vec(), animated_png(), compressed] {
+            let mut request = Request::new(UploadAssetRequest {
+                r#type:"background".into(), name:"invalid-content".into(), file_name:"image.png".into(),
+                file_data:bytes, ..Default::default()
+            });
+            request.metadata_mut().insert("authorization",format!("Bearer {token}").parse()?);
+            assert_eq!(client.upload_asset(request).await.unwrap_err().code(), tonic::Code::InvalidArgument);
+        }
+        let mut invalid = db.query("SELECT * FROM asset WHERE name='invalid-content';").await?.check()?;
+        assert!(invalid.take::<Vec<AssetRow>>(0)?.is_empty());
         for size in [4 * 1024 * 1024 + 512 * 1024, MAX_UPLOAD_BYTES] {
             let mut bytes = picture(7);
             bytes.resize(size, 0);

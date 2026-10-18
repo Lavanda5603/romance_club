@@ -1,4 +1,6 @@
 #[cfg(test)]
+mod shop_transaction_tests;
+#[cfg(test)]
 mod operation_result_tests;
 mod progress_service; // Модуль прогресса
 mod auth_service; // Модуль авторизации

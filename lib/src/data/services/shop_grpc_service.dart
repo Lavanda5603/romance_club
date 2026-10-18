@@ -1,4 +1,5 @@
 import 'rpc_policy.dart';
+import 'dart:math';
 import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/shop_api.pbgrpc.dart'; // Импорт gRPC-клиента
@@ -33,11 +34,13 @@ class ShopGrpcService {
     required String playerId,
     required String itemId,
     required String itemType,
+    String? requestId,
   }) async {
     final request = PurchaseRequest(
       playerId: playerId,
       itemId: itemId,
       itemType: itemType,
+      requestId: requestId ?? List.generate(16, (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0')).join(),
     );
     return await _client.purchase(request, options: await authOptions());
   }

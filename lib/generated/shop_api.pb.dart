@@ -283,11 +283,13 @@ class PurchaseRequest extends $pb.GeneratedMessage {
     $core.String? playerId,
     $core.String? itemId,
     $core.String? itemType,
+    $core.String? requestId,
   }) {
     final result = PurchaseRequest._();
     if (playerId != null) result.playerId = playerId;
     if (itemId != null) result.itemId = itemId;
     if (itemType != null) result.itemType = itemType;
+    if (requestId != null) result.requestId = requestId;
     return result;
   }
 
@@ -307,6 +309,7 @@ class PurchaseRequest extends $pb.GeneratedMessage {
     ..aOS(1, _omitFieldNames ? '' : 'playerId')
     ..aOS(2, _omitFieldNames ? '' : 'itemId')
     ..aOS(3, _omitFieldNames ? '' : 'itemType')
+    ..aOS(4, _omitFieldNames ? '' : 'requestId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -357,6 +360,15 @@ class PurchaseRequest extends $pb.GeneratedMessage {
   $core.bool hasItemType() => $_has(2);
   @$pb.TagNumber(3)
   void clearItemType() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get requestId => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set requestId($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasRequestId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearRequestId() => $_clearField(4);
 }
 
 /// Ответ после покупки

@@ -41,45 +41,7 @@ impl ShopApiService {
         })
     }
 
-    // Установить баланс игрока
-    async fn set_diamonds_internal(
-        &self,
-        player_id: &str,
-        diamonds: i32,
-    ) -> Result<(), String> {
-        // Проверяю, есть ли запись
-        let mut check = self
-            .db
-            .query("SELECT * FROM player_currency WHERE player_id = type::record($player_id) LIMIT 1")
-            .bind(("player_id", player_id.to_string()))
-            .await
-            .map_err(|e| e.to_string())?
-            .check().map_err(|e| e.to_string())?;
 
-        let existing: Option<Value> = check.take(0).map_err(|e| e.to_string())?;
-
-        if existing.is_some() {
-            // Обновляю
-            self.db
-                .query("UPDATE player_currency SET diamonds = $diamonds, updated_at = time::now() WHERE player_id = type::record($player_id)")
-                .bind(("player_id", player_id.to_string()))
-                .bind(("diamonds", diamonds))
-                .await
-                .map_err(|e| e.to_string())?
-                .check().map_err(|e| e.to_string())?;
-        } else {
-            // Создаю
-            self.db
-                .query("CREATE player_currency CONTENT { player_id: type::record($player_id), diamonds: $diamonds, updated_at: time::now() }")
-                .bind(("player_id", player_id.to_string()))
-                .bind(("diamonds", diamonds))
-                .await
-                .map_err(|e| e.to_string())?
-                .check().map_err(|e| e.to_string())?;
-        }
-
-        Ok(())
-    }
 }
 
 #[tonic::async_trait]
@@ -139,120 +101,61 @@ impl ShopApi for ShopApiService {
 
         println!("[PURCHASE] player={}, item={}, type={}", player_id, item_id, item_type);
 
-        // Получаю баланс
-        let mut balance = self
-            .get_diamonds_internal(&player_id)
-            .await
-            .map_err(|e| Status::internal(e))?;
-
-        // Определяю цену
-        let price = match item_type.as_str() {
-            "episode" => EPISODE_PRICE,
-            "subscription" => SUBSCRIPTION_PRICE,
-            "currency" => 0, // Покупка валюты - бесплатно
-            _ => 0,
+        // Цену определяю на сервере
+        let (price, amount) = match item_type.as_str() {
+            "episode" if !item_id.is_empty() => (EPISODE_PRICE, 0),
+            "subscription" if !item_id.is_empty() => (SUBSCRIPTION_PRICE, 0),
+            "currency" => {
+                let amount = item_id.strip_prefix("diamonds_").and_then(|s| s.parse::<i32>().ok())
+                    .filter(|amount| *amount > 0)
+                    .ok_or_else(|| Status::invalid_argument("Неверное количество алмазов"))?;
+                if req.request_id.is_empty() {
+                    return Err(Status::invalid_argument("Нужен ключ запроса покупки"));
+                }
+                (0, amount)
+            },
+            _ => return Err(Status::invalid_argument("Неизвестный товар")),
         };
 
-        // Если валюта - начисляю алмазы
-        if item_type == "currency" {
-            // Парсю количество из item_id (diamonds_100 - 100)
-            let amount: i32 = item_id
-                .strip_prefix("diamonds_")
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0);
-
-            balance += amount;
-            self.set_diamonds_internal(&player_id, balance)
-                .await
-                .map_err(|e| Status::internal(e))?;
-
-            // Создаю запись о покупке
-            self.db
-                .query("CREATE purchase CONTENT { player_id: type::record($player_id), item_id: $item_id, item_type: $item_type, purchased_at: time::now() }")
+        // Баланс и покупку меняю вместе. Повтор не списывает алмазы ещё раз
+        for attempt in 0..8 {
+            let mut result = self.db.query(include_str!("purchase.surql"))
                 .bind(("player_id", player_id.clone()))
                 .bind(("item_id", item_id.clone()))
                 .bind(("item_type", item_type.clone()))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?
-                .check().map_err(|e| Status::internal(e.to_string()))?;
-
-            let currency = Currency {
-                player_id: player_id.clone(),
-                diamonds: balance,
-            };
-
+                .bind(("request_id", req.request_id.clone()))
+                .bind(("price", price))
+                .bind(("amount", amount))
+                .await.map_err(|e| Status::internal(e.to_string()))?;
+            let errors = result.take_errors();
+            if !errors.is_empty() {
+                let messages = errors.values().map(ToString::to_string).collect::<Vec<_>>().join("; ");
+                let conflict = messages.contains("SHOP_BALANCE_CONFLICT") || errors.values().any(|e|
+                    matches!(e.query_details(), Some(surrealdb::types::QueryError::TransactionConflict)));
+                if conflict {
+                    if attempt < 7 { continue; }
+                    return Err(Status::aborted("Баланс изменился. Повторите покупку"));
+                }
+                if messages.contains("SHOP_REQUEST_REUSED") || messages.contains("SHOP_BALANCE_OVERFLOW") {
+                    return Err(Status::invalid_argument("Неверный запрос покупки"));
+                }
+                return Err(Status::internal(messages));
+            }
+            let mut output = None;
+            for index in 0..result.num_statements() {
+                if let Ok(value) = result.take::<Option<Value>>(index) {
+                    if value.as_ref().is_some_and(|v| v.get("success").is_some()) { output = value; }
+                }
+            }
+            let value = output.ok_or_else(|| Status::internal("База не вернула результат покупки"))?;
             return Ok(Response::new(PurchaseResponse {
-                success: true,
-                message: format!("Начислено {} алмазов", amount),
-                currency: Some(currency),
+                success: value["success"].as_bool().unwrap_or(false),
+                message: value["message"].as_str().unwrap_or_default().into(),
+                currency: Some(Currency { player_id, diamonds: value["diamonds"].as_i64()
+                    .and_then(|n| i32::try_from(n).ok()).ok_or_else(|| Status::internal("Неверный баланс"))? }),
             }));
         }
-
-        // Проверяю, хватает ли алмазов
-        if balance < price {
-            let currency = Currency {
-                player_id: player_id.clone(),
-                diamonds: balance,
-            };
-
-            return Ok(Response::new(PurchaseResponse {
-                success: false,
-                message: format!("Не хватает алмазов. Нужно {}, у вас {}", price, balance),
-                currency: Some(currency),
-            }));
-        }
-
-        // Проверяю, не куплено ли уже
-        let mut check = self
-            .db
-            .query("SELECT * FROM purchase WHERE player_id = type::record($player_id) AND item_id = $item_id LIMIT 1")
-            .bind(("player_id", player_id.clone()))
-            .bind(("item_id", item_id.clone()))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?
-            .check().map_err(|e| Status::internal(e.to_string()))?;
-
-        let existing: Option<Value> = check
-            .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        if existing.is_some() {
-            return Ok(Response::new(PurchaseResponse {
-                success: false,
-                message: "Уже куплено".to_string(),
-                currency: Some(Currency {
-                    player_id: player_id.clone(),
-                    diamonds: balance,
-                }),
-            }));
-        }
-
-        // Списание алмазов
-        balance -= price;
-        self.set_diamonds_internal(&player_id, balance)
-            .await
-            .map_err(|e| Status::internal(e))?;
-
-        // Создаю запись о покупке
-        self.db
-            .query("CREATE purchase CONTENT { player_id: type::record($player_id), item_id: $item_id, item_type: $item_type, purchased_at: time::now() }")
-            .bind(("player_id", player_id.clone()))
-            .bind(("item_id", item_id.clone()))
-            .bind(("item_type", item_type.clone()))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?
-            .check().map_err(|e| Status::internal(e.to_string()))?;
-
-        let currency = Currency {
-            player_id: player_id.clone(),
-            diamonds: balance,
-        };
-
-        Ok(Response::new(PurchaseResponse {
-            success: true,
-            message: "Покупка успешна".to_string(),
-            currency: Some(currency),
-        }))
+        Err(Status::aborted("Не удалось завершить покупку"))
     }
 
     // Получить баланс игрока

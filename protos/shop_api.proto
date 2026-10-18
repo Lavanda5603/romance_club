@@ -30,6 +30,7 @@ message PurchaseRequest {
   string player_id = 1; // ID игрока
   string item_id = 2; // ID предмета
   string item_type = 3; // Тип (episode, subscription, currency)
+  string request_id = 4; // Один ключ для повторов одной покупки
 }
 
 // Ответ после покупки

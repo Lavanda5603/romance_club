@@ -38,7 +38,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult {
 
     let shop = ShopApiService::new(db.clone());
     db.query("DEFINE FIELD OVERWRITE diamonds ON player_currency TYPE int ASSERT $value < 50;").await?.check()?;
-    assert_eq!(shop.purchase(own(PurchaseRequest { player_id:"player:test".into(), item_id:"diamonds_100".into(), item_type:"currency".into() })).await.unwrap_err().code(), Code::Internal);
+    assert_eq!(shop.purchase(own(PurchaseRequest { player_id:"player:test".into(), item_id:"diamonds_100".into(), item_type:"currency".into(), request_id:"test-topup".into() })).await.unwrap_err().code(), Code::Internal);
     let mut result = db.query("SELECT * FROM purchase; SELECT * FROM player_currency;").await?.check()?;
     let purchases: Vec<Value> = result.take(0)?;
     let balances: Vec<Value> = result.take(1)?;

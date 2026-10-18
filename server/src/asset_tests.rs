@@ -83,6 +83,10 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     assert_eq!(api.get_assets(page(String::new(), -1)).await.unwrap_err().code(), tonic::Code::InvalidArgument);
     let selected = api.get_asset(Request::new(GetAssetRequest { r#type:"background".into(), name:"old_1".into(), ..Default::default() })).await?.into_inner();
     assert_eq!(selected.file_data, original, "Оригинал сохраняется без изменений");
+    let metadata = api.get_asset(Request::new(GetAssetRequest { r#type:"background".into(), name:"old_1".into(), metadata_only:true, ..Default::default() })).await?.into_inner();
+    assert_eq!(metadata.id, selected.id);
+    assert_eq!(metadata.version, selected.version);
+    assert!(metadata.file_data.is_empty() && metadata.preview_data.is_empty());
     let replaced = picture(2);
     let upload = api.upload_asset(admin(UploadAssetRequest {
         r#type:"background".into(),name:"old_1".into(),file_data:replaced.clone(), ..Default::default()

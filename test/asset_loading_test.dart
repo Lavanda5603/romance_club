@@ -18,6 +18,7 @@ import 'package:romance_club/src/domain/repositories/asset_repository.dart';
 class _Service extends AssetGrpcService {
   int pages = 0;
   int originals = 0;
+  int lookups = 0;
   String scope = 'test';
   Completer<GetAssetsResponse>? pending;
   @override
@@ -29,9 +30,13 @@ class _Service extends AssetGrpcService {
     return GetAssetsResponse(assets: [Asset(id: 'asset:1', type: type, version: 'v1', previewData: [1])]);
   }
   @override
-  Future<Asset> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = ''}) async {
+  Future<Asset> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', bool metadataOnly = false}) async {
+    if (metadataOnly) {
+      lookups++;
+      return Asset(id: 'asset:1', type: type, name: name, emotion: emotion, version: 'v1');
+    }
     originals++;
-    return Asset(id: id, type: type, fileData: [2, 3], version: 'v1');
+    return Asset(id: id, type: type.isEmpty ? 'background' : type, fileData: [2, 3], version: 'v1');
   }
   @override
   Future<UploadAssetResponse> uploadAsset({required String type, required String name, required String emotion,
@@ -96,6 +101,32 @@ void main() {
     service.scope = 'another user';
     await repository.getAssetPage('background', episodeId: 'episode:1');
     expect(service.pages, 2);
+  });
+
+  test('Холодный поиск по имени не загружает каталог и переиспользует оригинал по ID', () async {
+    final selected = await repository.getAsset(id: 'asset:1', type: 'background', version: 'v1');
+    final inEditor = await AssetRepositoryRemote(service).getAsset(type: 'background', name: 'city', episodeId: 'episode:1');
+    expect(service.pages, 0);
+    expect(service.lookups, 1);
+    expect(service.originals, 1);
+    expect(inEditor.fileData, same(selected.fileData));
+    final inGame = await repository.getAsset(type: 'background', name: 'city', episodeId: 'episode:1');
+    expect(service.lookups, 1);
+    expect(inGame.fileData, same(selected.fileData));
+  });
+
+  test('Холодный поиск по имени скачивает ровно один оригинал без каталога', () async {
+    final original = await repository.getAsset(type: 'background', name: 'city', episodeId: 'episode:1');
+    expect(service.pages, 0);
+    expect(service.lookups, 1);
+    expect(service.originals, 1);
+    final selected = await repository.getAsset(id: 'asset:1', type: 'background', version: 'v1');
+    expect(selected.fileData, same(original.fileData));
+    expect(service.originals, 1);
+    AssetRepositoryRemote.invalidateCache('background');
+    await repository.getAsset(type: 'background', name: 'city', episodeId: 'episode:1');
+    expect(service.lookups, 2);
+    expect(service.originals, 2);
   });
 
   test('Загрузка общего ассета сбрасывает все эпизоды и страницы типа', () async {

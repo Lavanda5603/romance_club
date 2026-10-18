@@ -10,10 +10,13 @@ import '../src/data/services/progress_grpc_service.dart'; // Импорт gRPC-�
 import '../src/data/services/achievement_grpc_service.dart'; // Импорт gRPC-сервиса достижений
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
 import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
+import '../src/domain/repositories/asset_repository.dart';
 import 'episode_end_screen.dart'; // Иморт экрана конца эпизода
 
 // Игровой экран
 class GameScreen extends StatefulWidget {
+  final AssetRepository? assetRepository;
+  final GameViewModel? viewModel;
   final Episode episode; // Эпизод (Protobuf)
   final bool startFromBeginning;
 
@@ -21,6 +24,8 @@ class GameScreen extends StatefulWidget {
   const GameScreen({
     super.key,
     required this.episode,
+    this.assetRepository,
+    this.viewModel,
     this.startFromBeginning = false,
   });
 
@@ -37,7 +42,7 @@ class _GameScreenState extends State<GameScreen> {
   late EpisodeRepositoryRemote _episodeRepository; // Репозиторий эпизодов
   late ProgressRepositoryRemote _progressRepository; // Репозиторий прогресса
   late AchievementRepositoryRemote _achievementRepository; // Репозиторий достижений
-  late AssetRepositoryRemote _assetRepository; // Репозиторий ассетов
+  late AssetRepository _assetRepository; // Репозиторий ассетов
 
   // Кэш картинок
   final Map<String, Uint8List> _backgroundsCache = {};
@@ -72,8 +77,8 @@ class _GameScreenState extends State<GameScreen> {
     _episodeRepository = EpisodeRepositoryRemote(_episodeService);
     _progressRepository = ProgressRepositoryRemote(_progressService);
     _achievementRepository = AchievementRepositoryRemote(_achievementService);
-    _assetRepository = AssetRepositoryRemote(_assetService);
-    _viewModel = GameViewModel(_episodeRepository, _progressRepository, _achievementRepository);
+    _assetRepository = widget.assetRepository ?? AssetRepositoryRemote(_assetService);
+    _viewModel = widget.viewModel ?? GameViewModel(_episodeRepository, _progressRepository, _achievementRepository);
     _viewModel.addListener(_loadAssets);
     _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
     _loadAssets();
@@ -86,7 +91,7 @@ class _GameScreenState extends State<GameScreen> {
     _viewModel.flushProgress().then((_) => _progressService.close());
     _achievementService.close();
     _assetService.close();
-    _viewModel.dispose();
+    if (widget.viewModel == null) _viewModel.dispose();
     super.dispose();
   }
 

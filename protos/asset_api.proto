@@ -36,6 +36,7 @@ message GetAssetRequest {
   string name = 3;
   string emotion = 4;
   string episode_id = 5;
+  bool metadata_only = 6; // Поиск без повторной передачи оригинала
 }
 
 // Запрос на загрузку нового ассета

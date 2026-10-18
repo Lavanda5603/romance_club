@@ -87,6 +87,7 @@ const GetAssetRequest$json = {
     {'1': 'name', '3': 3, '4': 1, '5': 9, '10': 'name'},
     {'1': 'emotion', '3': 4, '4': 1, '5': 9, '10': 'emotion'},
     {'1': 'episode_id', '3': 5, '4': 1, '5': 9, '10': 'episodeId'},
+    {'1': 'metadata_only', '3': 6, '4': 1, '5': 8, '10': 'metadataOnly'},
   ],
 };
 
@@ -94,7 +95,8 @@ const GetAssetRequest$json = {
 final $typed_data.Uint8List getAssetRequestDescriptor = $convert.base64Decode(
     'Cg9HZXRBc3NldFJlcXVlc3QSDgoCaWQYASABKAlSAmlkEhIKBHR5cGUYAiABKAlSBHR5cGUSEg'
     'oEbmFtZRgDIAEoCVIEbmFtZRIYCgdlbW90aW9uGAQgASgJUgdlbW90aW9uEh0KCmVwaXNvZGVf'
-    'aWQYBSABKAlSCWVwaXNvZGVJZA==');
+    'aWQYBSABKAlSCWVwaXNvZGVJZBIjCg1tZXRhZGF0YV9vbmx5GAYgASgIUgxtZXRhZGF0YU9ubH'
+    'k=');
 
 @$core.Deprecated('Use uploadAssetRequestDescriptor instead')
 const UploadAssetRequest$json = {

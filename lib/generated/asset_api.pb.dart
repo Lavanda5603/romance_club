@@ -348,6 +348,7 @@ class GetAssetRequest extends $pb.GeneratedMessage {
     $core.String? name,
     $core.String? emotion,
     $core.String? episodeId,
+    $core.bool? metadataOnly,
   }) {
     final result = GetAssetRequest._();
     if (id != null) result.id = id;
@@ -355,6 +356,7 @@ class GetAssetRequest extends $pb.GeneratedMessage {
     if (name != null) result.name = name;
     if (emotion != null) result.emotion = emotion;
     if (episodeId != null) result.episodeId = episodeId;
+    if (metadataOnly != null) result.metadataOnly = metadataOnly;
     return result;
   }
 
@@ -376,6 +378,7 @@ class GetAssetRequest extends $pb.GeneratedMessage {
     ..aOS(3, _omitFieldNames ? '' : 'name')
     ..aOS(4, _omitFieldNames ? '' : 'emotion')
     ..aOS(5, _omitFieldNames ? '' : 'episodeId')
+    ..aOB(6, _omitFieldNames ? '' : 'metadataOnly')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -444,6 +447,15 @@ class GetAssetRequest extends $pb.GeneratedMessage {
   $core.bool hasEpisodeId() => $_has(4);
   @$pb.TagNumber(5)
   void clearEpisodeId() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.bool get metadataOnly => $_getBF(5);
+  @$pb.TagNumber(6)
+  set metadataOnly($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasMetadataOnly() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearMetadataOnly() => $_clearField(6);
 }
 
 /// Запрос на загрузку нового ассета

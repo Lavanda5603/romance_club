@@ -92,13 +92,14 @@ impl AssetApi for AssetApiService {
             return Err(Status::invalid_argument("Нужен ID или имя ассета с типом"));
         }
         if !req.id.is_empty() && !req.id.starts_with("asset:") { return Err(Status::invalid_argument("Неверный ID ассета")); }
-        let mut response = self.db.query("SELECT * FROM asset WHERE ($id != '' AND id = type::record($id)) OR ($id = '' AND type = $type AND name = $name AND (emotion ?? '') = $emotion AND ($ep = '' OR episode_id = type::record($ep) OR episode_id = NONE)) ORDER BY episode_id DESC, id LIMIT 1")
+        let fields = if req.metadata_only { "id, type, name, emotion, url, display_name, episode_id, version" } else { "*" };
+        let mut response = self.db.query(format!("SELECT {fields} FROM asset WHERE ($id != '' AND id = type::record($id)) OR ($id = '' AND type = $type AND name = $name AND (emotion ?? '') = $emotion AND ($ep = '' OR episode_id = type::record($ep) OR episode_id = NONE)) ORDER BY episode_id DESC, id LIMIT 1"))
             .bind(("id", req.id)).bind(("type", req.r#type)).bind(("name", req.name))
             .bind(("emotion", req.emotion)).bind(("ep", req.episode_id))
             .await.map_err(internal)?.check().map_err(internal)?;
         let rows: Vec<Value> = response.take(0).map_err(internal)?;
         let row = rows.first().ok_or_else(|| Status::not_found("Ассет не найден"))?;
-        Ok(Response::new(asset(row, true)?))
+        Ok(Response::new(asset(row, !req.metadata_only)?))
     }
 
     async fn upload_asset(&self, request: Request<UploadAssetRequest>) -> Result<Response<UploadAssetResponse>, Status> {

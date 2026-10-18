@@ -5,11 +5,13 @@ import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
 import '../src/data/repositories/asset_repository_remote.dart'; // Импорт репозитория ассетов
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
 import '../src/domain/models/asset_model.dart'; // Импорт доменной модели
+import '../src/domain/repositories/asset_repository.dart';
 import 'choice_editor_screen.dart'; // Импорт экрана редактора выбора
 import 'asset_picker_screen.dart'; // Импорт экрана выбора ассета
 
 // Экран редактирования сцены
 class SceneEditorScreen extends StatefulWidget {
+  final AssetRepository? assetRepository;
   final Scene scene; // Сцена
   final Function(Scene) onSave; // Функция, вызывается при сохранении
   final String episodeId; // ID эпизода (для фильтра ассетов)
@@ -20,6 +22,7 @@ class SceneEditorScreen extends StatefulWidget {
     super.key,
     required this.scene,
     required this.onSave,
+    this.assetRepository,
     this.episodeId = '',
     this.allScenes = const [],
   });
@@ -36,7 +39,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   late List<TextEditingController> _textControllers; // Контроллеры текстов сцены
 
   late AssetGrpcService _assetService; // gRPC-сервис ассетов
-  late AssetRepositoryRemote _assetRepository; // Репозиторий ассетов
+  late AssetRepository _assetRepository; // Репозиторий ассетов
 
   String _selectedBackground = ''; // Выбранный фон
   Uint8List? _selectedBackgroundBytes; // Байты фона (для предпросмотра)
@@ -127,7 +130,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
     // Создаю сервисы
     _assetService = AssetGrpcService();
-    _assetRepository = AssetRepositoryRemote(_assetService);
+    _assetRepository = widget.assetRepository ?? AssetRepositoryRemote(_assetService);
 
     // Загружаю выбранные ассеты
     _loadSelectedAssets();
@@ -148,6 +151,9 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
   // Запрашиваю только выбранный фон и персонажа
   Future<void> _loadSelectedAssets() async {
+    final background = _selectedBackground;
+    final character = _selectedCharacter;
+    final emotion = _selectedEmotion;
     Future<AssetModel?> load(String type, String name, String emotion) async {
       if (name.isEmpty) return null;
       try {
@@ -158,13 +164,14 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       }
     }
     final selected = await Future.wait([
-      load('background', _selectedBackground, ''),
-      load('character', _selectedCharacter, _selectedEmotion),
+      load('background', background, ''),
+      load('character', character, emotion),
     ]);
     if (!mounted) return;
     setState(() {
-      _selectedBackgroundBytes = selected[0]?.fileData;
-      _selectedCharacterBytes = selected[1]?.fileData;
+      // Старый ответ не должен заменять уже выбранную картинку
+      if (_selectedBackground == background) _selectedBackgroundBytes = selected[0]?.fileData;
+      if (_selectedCharacter == character && _selectedEmotion == emotion) _selectedCharacterBytes = selected[1]?.fileData;
     });
   }
 
@@ -192,11 +199,12 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
           type: 'background',
           title: 'Выбор фона',
           episodeId: widget.episodeId,
+          repository: _assetRepository,
         ),
       ),
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() {
         _selectedBackground = result.name;
         _selectedBackgroundBytes = result.fileData.isNotEmpty
@@ -214,11 +222,13 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         builder: (context) => AssetPickerScreen(
           type: 'character',
           title: 'Выбор персонажа',
+          episodeId: widget.episodeId,
+          repository: _assetRepository,
         ),
       ),
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() {
         _selectedCharacter = result.name;
         _selectedEmotion = result.emotion;

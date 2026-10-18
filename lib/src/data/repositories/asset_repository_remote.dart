@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import '../../domain/models/asset_model.dart';
 import '../../domain/repositories/asset_repository.dart';
 import '../services/asset_grpc_service.dart';
@@ -9,6 +10,7 @@ class AssetRepositoryRemote implements AssetRepository {
   final AssetGrpcService _service;
   static final _pages = AssetCache<AssetPage>(maxBytes: 8 * 1024 * 1024, maxEntries: 16);
   static final _originals = AssetCache<AssetModel>(maxBytes: 24 * 1024 * 1024);
+  static final _lookups = AssetCache<String>(maxBytes: 64 * 1024, maxEntries: 256);
   static int _generation = 0;
   AssetRepositoryRemote(this._service);
 
@@ -17,6 +19,7 @@ class AssetRepositoryRemote implements AssetRepository {
     _generation++;
     _pages.invalidate(type);
     _originals.invalidate(type);
+    _lookups.invalidate(type);
   }
 
   @override
@@ -37,13 +40,35 @@ class AssetRepositoryRemote implements AssetRepository {
   @override
   Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = ''}) async {
     final scope = await _service.cacheScope();
-    final key = '$scope|$type|$episodeId|$id|$name|$emotion|$version';
-    final cached = _originals.get(key);
-    if (cached != null) return cached;
+    String originalKey(String assetId, String revision) => jsonEncode([scope, assetId, revision]);
+    final lookup = jsonEncode(id.isEmpty ? [scope, 'name', type, episodeId, name, emotion] : [scope, 'id', id]);
+    final knownKey = id.isNotEmpty && version.isNotEmpty ? originalKey(id, version) : _lookups.get(lookup);
+    if (knownKey != null) {
+      final cached = _originals.get(knownKey);
+      if (cached != null) return cached;
+    }
     final generation = _generation;
-    final response = await _service.getAsset(id: id, type: type, name: name, emotion: emotion, episodeId: episodeId);
+    var targetId = id;
+    if (id.isEmpty) {
+      // По имени получаю только ID и версию, без каталога и байтов картинки
+      final metadata = await _service.getAsset(type: type, name: name, emotion: emotion, episodeId: episodeId, metadataOnly: true);
+      targetId = metadata.id;
+      final key = originalKey(metadata.id, metadata.version);
+      final cached = _originals.get(key);
+      if (cached != null) {
+        if (generation == _generation) _lookups.put(lookup, cached.type, key, key.length * 2);
+        return cached;
+      }
+    }
+    final response = await _service.getAsset(id: targetId);
     final model = toDomain(response);
-    if (generation == _generation) _originals.put(key, model.type, model, model.fileData.length + (model.previewData?.length ?? 0));
+    if (generation == _generation) {
+      // Редактор, сетка и игра используют один буфер для ID и версии
+      final key = originalKey(model.id, model.version);
+      _originals.put(key, model.type, model, model.fileData.length + (model.previewData?.length ?? 0));
+      _lookups.put(lookup, model.type, key, key.length * 2);
+      _lookups.put(jsonEncode([scope, 'id', model.id]), model.type, key, key.length * 2);
+    }
     return model;
   }
 

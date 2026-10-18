@@ -31,10 +31,11 @@ class _Progress implements ProgressRepository {
   Completer<Set<int>> pending = Completer<Set<int>>();
   int summaries = 0;
   int singles = 0;
+  bool wasReset = false;
   @override
   Future<Set<int>> getProgressSummary(String playerId) {
     summaries++;
-    return pending.future;
+    return wasReset ? Future.value(<int>{}) : pending.future;
   }
   @override
   Future<ProgressModel> getProgress(String playerId, int episodeId) async {
@@ -44,7 +45,17 @@ class _Progress implements ProgressRepository {
   @override
   Future<int> saveProgress(ProgressModel progress) async => 1;
   @override
-  Future<bool> resetProgress(String playerId) async => true;
+  Future<bool> resetProgress(String playerId) async { wasReset = true; return true; }
+}
+
+class _RefusedReset extends _Progress {
+  final bool throwsError;
+  _RefusedReset(this.throwsError);
+  @override
+  Future<bool> resetProgress(String playerId) async {
+    if (throwsError) throw StateError('БД недоступна');
+    return false;
+  }
 }
 
 const player = AuthModel(success: true, message: '', playerId: 'player:test', login: 'tester',
@@ -82,6 +93,27 @@ class _SummaryService extends ProgressGrpcService {
 }
 
 void main() {
+  for (final throwsError in [false, true]) {
+    testWidgets('Отказ сброса сохраняет отметки: ошибка=$throwsError', (tester) async {
+      final episodes = _Episodes(3);
+      addTearDown(episodes.close);
+      final progress = _RefusedReset(throwsError)..pending.complete({1});
+      await tester.pumpWidget(MaterialApp(home: EpisodeSelectScreen(
+        episodeService: episodes, progressRepository: progress, loadPlayerId: () async => 'player:test')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('сбросить\nпрогресс'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Сбросить'));
+      await tester.pumpAndSettle();
+      final button = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Эпизод 1'));
+      expect(button.style!.backgroundColor!.resolve({}), const Color(0xFFD30010));
+      expect(find.text('Прогресс сброшен'), findsNothing);
+      expect(find.textContaining('Ошибка:'), findsOneWidget);
+      expect(progress.summaries, 1);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('50 эпизодов видны до сводки, запрос прогресса только один', (tester) async {
     final episodes = _Episodes(50);
     addTearDown(episodes.close);
@@ -189,6 +221,8 @@ void main() {
     expect(button.style!.backgroundColor!.resolve({}), const Color(0xFF534F50));
     expect(find.text('Статус эпизодов загружается...'), findsNothing);
     expect(progress.singles, 0);
+    expect(progress.summaries, 2);
+    expect(find.text('Прогресс сброшен'), findsOneWidget);
   });
 
   testWidgets('Ошибка необязательных данных не скрывает профиль и не выдаёт ложный ноль', (tester) async {

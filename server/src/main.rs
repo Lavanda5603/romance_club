@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod operation_result_tests;
 mod progress_service; // Модуль прогресса
 mod auth_service; // Модуль авторизации
 mod achievement_service; // Модуль достижений
@@ -229,7 +231,8 @@ impl EpisodeApi for EpisodeApiService {
             .db
             .query("SELECT * FROM episode ORDER BY created_at ASC")
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
 
         let records: Vec<Value> = response
             .take(0)
@@ -296,16 +299,18 @@ impl EpisodeApi for EpisodeApiService {
                 .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)))")
                 .bind(("id", id_i64))
                 .await
-                .map_err(|e| Status::internal(e.to_string()))?;
+                .map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
 
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            let ids: Vec<surrealdb::types::RecordId> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
 
             if !ids.is_empty() {
                 self.db
                     .query("DELETE $ids")
                     .bind(("ids", ids))
                     .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
+                    .map_err(|e| Status::internal(e.to_string()))?
+                    .check().map_err(|e| Status::internal(e.to_string()))?;
             }
         }
 
@@ -316,16 +321,18 @@ impl EpisodeApi for EpisodeApiService {
                 .query("SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id))")
                 .bind(("id", id_i64))
                 .await
-                .map_err(|e| Status::internal(e.to_string()))?;
+                .map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
 
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            let ids: Vec<surrealdb::types::RecordId> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
 
             if !ids.is_empty() {
                 self.db
                     .query("DELETE $ids")
                     .bind(("ids", ids))
                     .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
+                    .map_err(|e| Status::internal(e.to_string()))?
+                    .check().map_err(|e| Status::internal(e.to_string()))?;
             }
         }
 
@@ -336,16 +343,18 @@ impl EpisodeApi for EpisodeApiService {
                 .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
                 .bind(("id", id_i64))
                 .await
-                .map_err(|e| Status::internal(e.to_string()))?;
+                .map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
 
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            let ids: Vec<surrealdb::types::RecordId> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
 
             if !ids.is_empty() {
                 self.db
                     .query("DELETE $ids")
                     .bind(("ids", ids))
                     .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
+                    .map_err(|e| Status::internal(e.to_string()))?
+                    .check().map_err(|e| Status::internal(e.to_string()))?;
             }
         }
 
@@ -354,7 +363,8 @@ impl EpisodeApi for EpisodeApiService {
             .query("DELETE type::record('episode', $id)")
             .bind(("id", id_i64))
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
 
         println!("[DELETE_EPISODE] Эпизод удалён");
 

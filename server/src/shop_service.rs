@@ -30,7 +30,8 @@ impl ShopApiService {
             .query("SELECT * FROM player_currency WHERE player_id = type::record($player_id) LIMIT 1")
             .bind(("player_id", player_id.to_string()))
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?
+            .check().map_err(|e| e.to_string())?;
 
         let result: Option<Value> = response.take(0).map_err(|e| e.to_string())?;
 
@@ -52,7 +53,8 @@ impl ShopApiService {
             .query("SELECT * FROM player_currency WHERE player_id = type::record($player_id) LIMIT 1")
             .bind(("player_id", player_id.to_string()))
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?
+            .check().map_err(|e| e.to_string())?;
 
         let existing: Option<Value> = check.take(0).map_err(|e| e.to_string())?;
 
@@ -63,7 +65,8 @@ impl ShopApiService {
                 .bind(("player_id", player_id.to_string()))
                 .bind(("diamonds", diamonds))
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| e.to_string())?
+                .check().map_err(|e| e.to_string())?;
         } else {
             // Создаю
             self.db
@@ -71,7 +74,8 @@ impl ShopApiService {
                 .bind(("player_id", player_id.to_string()))
                 .bind(("diamonds", diamonds))
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| e.to_string())?
+                .check().map_err(|e| e.to_string())?;
         }
 
         Ok(())
@@ -94,7 +98,8 @@ impl ShopApi for ShopApiService {
             .query("SELECT * FROM purchase WHERE player_id = type::record($player_id)")
             .bind(("player_id", player_id.clone()))
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
 
         let values: Vec<Value> = response
             .take(0)
@@ -168,7 +173,8 @@ impl ShopApi for ShopApiService {
                 .bind(("item_id", item_id.clone()))
                 .bind(("item_type", item_type.clone()))
                 .await
-                .map_err(|e| Status::internal(e.to_string()))?;
+                .map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
 
             let currency = Currency {
                 player_id: player_id.clone(),
@@ -203,7 +209,8 @@ impl ShopApi for ShopApiService {
             .bind(("player_id", player_id.clone()))
             .bind(("item_id", item_id.clone()))
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
 
         let existing: Option<Value> = check
             .take(0)
@@ -233,7 +240,8 @@ impl ShopApi for ShopApiService {
             .bind(("item_id", item_id.clone()))
             .bind(("item_type", item_type.clone()))
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
 
         let currency = Currency {
             player_id: player_id.clone(),

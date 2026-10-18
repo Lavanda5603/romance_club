@@ -158,12 +158,9 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
 
         if (!mounted) return;
 
-        // Очищаю локальный список пройденных
-        setState(() {
-          _passedEpisodes.clear();
-          _progressLoading = false;
-          _progressError = null;
-        });
+        // После успешного сброса перечитываю состояние сервера
+        await _loadProgressSummary();
+        if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Прогресс сброшен')),

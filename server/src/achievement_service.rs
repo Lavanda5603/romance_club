@@ -94,17 +94,18 @@ impl AchievementApi for AchievementApiService {
         }
 
         // Создаю достижение
-        let result = self
+        let mut result = self
             .db
-            .query("CREATE achievement CONTENT { player_id: type::record($player_id), name: $name, unlocked_at: time::now() }")
+            .query("CREATE achievement CONTENT { player_id: type::record($player_id), name: $name, unlocked_at: time::now() } RETURN AFTER")
             .bind(("player_id", player_id.clone()))
             .bind(("name", name.clone()))
-            .await;
-
-        match result {
-            Ok(_) => println!("[UNLOCK_ACHIEVEMENT] Открыто: {}", name),
-            Err(e) => println!("[UNLOCK_ACHIEVEMENT] ОШИБКА: {}", e),
+            .await.map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
+        let saved: Vec<Value> = result.take(0).map_err(|e| Status::internal(e.to_string()))?;
+        if saved.len() != 1 {
+            return Err(Status::internal("Достижение не сохранено"));
         }
+        println!("[UNLOCK_ACHIEVEMENT] Открыто: {}", name);
 
         Ok(Response::new(UnlockAchievementResponse {
             success: true,

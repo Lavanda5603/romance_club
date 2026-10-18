@@ -72,6 +72,12 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     foreign_scene.get_mut().scene_id = "scene:missing".into();
     assert_eq!(api.save_progress(foreign_scene).await.unwrap_err().code(), Code::InvalidArgument);
     assert_eq!(read(&api).await?.counters["points"], 50);
+    // Отказ SQL при сбросе не должен превращаться в успех
+    db.query("DEFINE FIELD OVERWRITE revision ON progress TYPE int DEFAULT 0 ASSERT $value < 3;").await?.check()?;
+    assert_eq!(api.reset_progress(request(ResetProgressRequest { player_id: "player:test".into() })).await.unwrap_err().code(), Code::Internal);
+    assert_eq!(read(&api).await?.revision, 2);
+    assert_eq!(read(&api).await?.counters["points"], 50);
+    db.query("DEFINE FIELD OVERWRITE revision ON progress TYPE int DEFAULT 0;").await?.check()?;
     api.reset_progress(request(ResetProgressRequest { player_id: "player:test".into() })).await?;
     let reset = read(&api).await?;
     assert!(reset.scene_id.is_empty());

@@ -1,7 +1,6 @@
 use tonic::{Request, Response, Status}; // Импорт tonic
 use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
 use surrealdb::Surreal; // Импорт Surreal
-use serde_json::Value; // Импорт Value
 use crate::romance_club::admin_api_server::AdminApi; // Импорт трейта AdminApi
 use crate::romance_club::{
     AdminDeleteAssetRequest, AdminDeleteEpisodeRequest, AdminResponse,
@@ -77,16 +76,18 @@ impl AdminApi for AdminApiService {
                 .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)))")
                 .bind(("id", id_i64))
                 .await
-                .map_err(|e| Status::internal(e.to_string()))?;
+                .map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
 
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            let ids: Vec<surrealdb::types::RecordId> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
 
             if !ids.is_empty() {
                 self.db
                     .query("DELETE $ids")
                     .bind(("ids", ids))
                     .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
+                    .map_err(|e| Status::internal(e.to_string()))?
+                    .check().map_err(|e| Status::internal(e.to_string()))?;
             }
         }
 
@@ -97,16 +98,18 @@ impl AdminApi for AdminApiService {
                 .query("SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id))")
                 .bind(("id", id_i64))
                 .await
-                .map_err(|e| Status::internal(e.to_string()))?;
+                .map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
 
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            let ids: Vec<surrealdb::types::RecordId> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
 
             if !ids.is_empty() {
                 self.db
                     .query("DELETE $ids")
                     .bind(("ids", ids))
                     .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
+                    .map_err(|e| Status::internal(e.to_string()))?
+                    .check().map_err(|e| Status::internal(e.to_string()))?;
             }
         }
 
@@ -117,16 +120,18 @@ impl AdminApi for AdminApiService {
                 .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
                 .bind(("id", id_i64))
                 .await
-                .map_err(|e| Status::internal(e.to_string()))?;
+                .map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
 
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            let ids: Vec<surrealdb::types::RecordId> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
 
             if !ids.is_empty() {
                 self.db
                     .query("DELETE $ids")
                     .bind(("ids", ids))
                     .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
+                    .map_err(|e| Status::internal(e.to_string()))?
+                    .check().map_err(|e| Status::internal(e.to_string()))?;
             }
         }
 
@@ -135,7 +140,8 @@ impl AdminApi for AdminApiService {
             .query("DELETE type::record('episode', $id)")
             .bind(("id", id_i64))
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
 
         println!("[ADMIN_DELETE_EPISODE] Эпизод удалён");
 

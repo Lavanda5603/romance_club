@@ -16,6 +16,7 @@ fn save(revision: i32, points: i32) -> Request<SaveProgressRequest> {
         player_id: "player:test".into(), episode_id: 1, scene_id: "scene:test".into(),
         expected_revision: revision,
         completed: false,
+        ending: String::new(),
         flags: [("chosen".into(), true)].into(),
         counters: [("points".into(), points)].into(),
     })
@@ -29,6 +30,7 @@ async fn read(api: &ProgressApiService) -> Result<Progress, Status> {
 async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     db.query(include_str!("../migrations/006_progress.surql")).await?.check()?;
     db.query(include_str!("../migrations/016_progress_completed.surql")).await?.check()?;
+    db.query("DEFINE FIELD IF NOT EXISTS ending ON progress TYPE string DEFAULT '';").await?.check()?;
     // Дубли специально создаю до миграции и проверяю сохранность обеих версий
     db.query("CREATE progress:old CONTENT {player_id:player:test,episode_id:episode:1,scene_id:scene:test,flags:{},counters:{points:1},updated_at:d'2026-01-01T00:00:00Z'}; CREATE progress:new CONTENT {player_id:player:test,episode_id:episode:1,scene_id:scene:test,flags:{chosen:true},counters:{points:2},updated_at:d'2026-01-02T00:00:00Z'};").await?.check()?;
     db.query(include_str!("../migrations/014_progress_atomic.surql")).await?.check()?;
@@ -102,6 +104,9 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     assert_eq!(summary.episode_ids, vec![3]);
     api.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})).await?;
     assert!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
+    db.query(include_str!("../migrations/007_achievement.surql")).await?.check()?;
+    db.query("DEFINE TABLE action SCHEMALESS; DEFINE TABLE choice SCHEMALESS;").await?.check()?;
+    db.query(include_str!("../migrations/017_episode_completion.surql")).await?.check()?;
     // Начатые и старые записи не считаю завершёнными
     assert!(!read(&api).await?.completed);
     let mut completion = save(read(&api).await?.revision, 5);

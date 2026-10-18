@@ -1,3 +1,5 @@
+import 'package:romance_club/src/domain/repositories/achievement_repository.dart';
+import 'package:romance_club/src/domain/models/achievement_model.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart' hide Action;
@@ -52,6 +54,14 @@ class _Progress implements ProgressRepository {
   }
   @override
   Future<bool> resetProgress(String playerId) async => true;
+}
+
+class _Achievements extends AchievementRepository {
+  final calls = <String>[];
+  @override
+  Future<List<AchievementModel>> getAchievements(String playerId) async => [];
+  @override
+  Future<bool> unlockAchievement(String playerId, String name) async { calls.add(name); return true; }
 }
 
 void main() {
@@ -301,6 +311,27 @@ void main() {
     expect(vm.completed, isFalse);
     expect(progress.saved.completed, isFalse);
     expect(vm.saveError, isNotNull);
+  });
+
+  test('Не выдаю достижения «все» до чтения, концовку передаю с завершением', () async {
+    final proto = story();
+    proto.scenes[0].choices[0].actions.add(Action(type:'ending', title:'Секрет'));
+    final progress = _Progress();
+    final achievements = _Achievements();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(proto)), progress, achievements);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.onChoiceSelected(0);
+    await vm.flushProgress();
+    expect(progress.saved.completed, isFalse);
+    expect(progress.saved.ending, isEmpty);
+    expect(achievements.calls, isNot(contains('all_episodes')));
+    expect(achievements.calls, isNot(contains('all_endings')));
+    expect(await vm.completeEpisode(), isTrue);
+    expect(progress.saved.ending, 'Секрет');
+    await vm.loadEpisode(1);
+    expect(vm.determineEnding(), 'Секрет');
+    expect(achievements.calls, isNot(contains('all_endings')));
   });
 
   test('Медленные записи идут по очереди со своими снимками и версиями', () async {

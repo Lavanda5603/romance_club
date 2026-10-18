@@ -25,6 +25,7 @@ message SaveProgressRequest {
   string scene_id = 3; // ID сцены как строка
   map<string, bool> flags = 4; // Флаги
   map<string, int32> counters = 5; // Счётчики (баллы)
+  string ending = 8; // Концовка подтверждённого прохождения
   bool completed = 7; // Эпизод завершён
   int32 expected_revision = 6; // Версия, которую загрузил клиент
 }

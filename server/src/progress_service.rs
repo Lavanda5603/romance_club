@@ -100,6 +100,7 @@ impl ProgressApi for ProgressApiService {
                     flags: flags_map,
                     counters: counters_map,
                     updated_at: v.get("updated_at").and_then(Value::as_str).unwrap_or_default().to_owned(),
+                    ending: v.get("ending").and_then(Value::as_str).unwrap_or_default().to_owned(),
                     completed: v.get("completed").and_then(Value::as_bool).unwrap_or(false),
                     revision: v.get("revision").and_then(Value::as_i64).unwrap_or(0) as i32,
                 }
@@ -114,6 +115,7 @@ impl ProgressApi for ProgressApiService {
                 updated_at: String::new(),
                 revision: 0,
                 completed: false,
+                ending: String::new(),
             },
         };
 
@@ -152,6 +154,7 @@ impl ProgressApi for ProgressApiService {
             .bind(("episode_id", episode_id))
             .bind(("scene_id", scene_id))
             .bind(("completed", req.completed))
+            .bind(("ending", req.ending))
             .bind(("flags", flags_json))
             .bind(("counters", counters_json))
             .bind(("expected_revision", req.expected_revision))
@@ -187,7 +190,7 @@ impl ProgressApi for ProgressApiService {
 
         // Оставляю версию сброса, чтобы старый клиент не вернул прежний прогресс
         self.db
-            .query("UPDATE progress SET scene_id = NONE, completed = false, flags = {}, counters = {}, revision = (revision ?? 0) + 1, updated_at = time::now() WHERE player_id = type::record($player_id)")
+            .query("UPDATE progress SET scene_id = NONE, completed = false, ending = '', flags = {}, counters = {}, revision = (revision ?? 0) + 1, updated_at = time::now() WHERE player_id = type::record($player_id)")
             .bind(("player_id", player_id))
             .await.map_err(|e| Status::internal(e.to_string()))?
             .check().map_err(|e| Status::internal(e.to_string()))?;

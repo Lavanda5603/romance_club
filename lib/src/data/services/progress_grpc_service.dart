@@ -44,6 +44,7 @@ class ProgressGrpcService {
     required String sceneId,
     required int expectedRevision,
     bool completed = false,
+    String ending = '',
     required Map<String, bool> flags,
     required Map<String, int> counters,
   }) async {
@@ -53,6 +54,7 @@ class ProgressGrpcService {
       sceneId: sceneId,
       expectedRevision: expectedRevision,
       completed: completed,
+      ending: ending,
       flags: flags.entries.toList(),
       counters: counters.entries.toList(),
     );

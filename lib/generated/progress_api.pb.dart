@@ -213,6 +213,7 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
     $core.Iterable<$core.MapEntry<$core.String, $core.int>>? counters,
     $core.int? expectedRevision,
     $core.bool? completed,
+    $core.String? ending,
   }) {
     final result = SaveProgressRequest._();
     if (playerId != null) result.playerId = playerId;
@@ -222,6 +223,7 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
     if (counters != null) result.counters.addEntries(counters);
     if (expectedRevision != null) result.expectedRevision = expectedRevision;
     if (completed != null) result.completed = completed;
+    if (ending != null) result.ending = ending;
     return result;
   }
 
@@ -253,6 +255,7 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
         packageName: const $pb.PackageName('romance_club'))
     ..aI(6, _omitFieldNames ? '' : 'expectedRevision')
     ..aOB(7, _omitFieldNames ? '' : 'completed')
+    ..aOS(8, _omitFieldNames ? '' : 'ending')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -328,6 +331,15 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
   $core.bool hasCompleted() => $_has(6);
   @$pb.TagNumber(7)
   void clearCompleted() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get ending => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set ending($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasEnding() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearEnding() => $_clearField(8);
 }
 
 /// Ответ после сохранения

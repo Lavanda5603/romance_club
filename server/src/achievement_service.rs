@@ -34,7 +34,7 @@ impl AchievementApi for AchievementApiService {
         // Запрашиваю достижения игрока
         let mut response = self
             .db
-            .query("SELECT * FROM achievement WHERE player_id = type::record($player_id)")
+            .query("SELECT * FROM achievement WHERE player_id = type::record($player_id) AND (name NOT IN ['all_episodes', 'all_endings'] OR fn::can_unlock_all(type::record($player_id), name))")
             .bind(("player_id", player_id.clone()))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
@@ -71,6 +71,16 @@ impl AchievementApi for AchievementApiService {
         let name = req.name;
 
         println!("[UNLOCK_ACHIEVEMENT] player={}, name={}", player_id, name);
+
+        // Для достижений «все» проверяю всю историю игрока
+        if matches!(name.as_str(), "all_episodes" | "all_endings") {
+            let mut response = self.db.query("RETURN fn::can_unlock_all(type::record($player_id), $name);")
+                .bind(("player_id", player_id.clone())).bind(("name", name.clone()))
+                .await.map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
+            let allowed: Option<bool> = response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            if allowed != Some(true) { return Err(Status::failed_precondition("Условия достижения ещё не выполнены")); }
+        }
 
         // Проверяю, есть ли уже такое достижение
         let mut check_response = self
@@ -113,3 +123,6 @@ impl AchievementApi for AchievementApiService {
         }))
     }
 }
+#[cfg(test)]
+#[path = "achievement_tests.rs"]
+mod tests;

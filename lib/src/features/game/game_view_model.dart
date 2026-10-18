@@ -203,6 +203,7 @@ class GameViewModel extends ChangeNotifier {
         try {
           final progress = loadedProgress!;
           _completed = progress.completed;
+          _ending = progress.ending;
 
           if (progress.sceneId.isNotEmpty) {
             // Восстанавливаю позицию по постоянному ключу, даже после перестановки
@@ -509,19 +510,9 @@ class GameViewModel extends ChangeNotifier {
     if (_state.data == null) return;
 
     try {
-      // Достижение: все эпизоды
-      if (isLastScene) {
-        await _achievementRepository.unlockAchievement(_playerId, 'all_episodes');
-      }
-
       // Достижение: максимум баллов
       if (_points >= 100) {
         await _achievementRepository.unlockAchievement(_playerId, 'max_points');
-      }
-
-      // Достижение: все концовки
-      if (_ending.isNotEmpty) {
-        await _achievementRepository.unlockAchievement(_playerId, 'all_endings');
       }
 
       // Достижение: секретная сцена
@@ -567,6 +558,7 @@ class GameViewModel extends ChangeNotifier {
     final episodeId = _state.data!.id;
     final sceneId = _currentSceneIdStr;
     final completed = _completed;
+    final ending = completed ? determineEnding() : '';
     final flags = Map<String, bool>.unmodifiable(_flags);
     final counters = Map<String, int>.unmodifiable({'points': _points, ..._counters});
     _saveQueue = _saveQueue.then((_) async {
@@ -574,7 +566,7 @@ class GameViewModel extends ChangeNotifier {
       try {
         _revision = await _progressRepository.saveProgress(ProgressModel(
           playerId: playerId, episodeId: episodeId, sceneId: sceneId,
-          flags: flags, counters: counters, revision: _revision, completed: completed,
+          flags: flags, counters: counters, revision: _revision, completed: completed, ending: ending,
         ));
       } catch (e) {
         // Не отправляю следующие старые снимки после неудачной записи

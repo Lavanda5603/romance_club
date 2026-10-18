@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -42,11 +43,12 @@ class _Service extends AssetGrpcService {
 
 class _PickerRepository implements AssetRepository {
   Uint8List? previewBytes;
+  Uint8List? originalBytes;
   final pages = <String>[];
   int originals = 0;
   final second = Completer<AssetPage>();
   AssetModel model(String id) => AssetModel(id: id, type: 'background', name: id, emotion: '', url: '',
-    displayName: id, episodeId: '', fileData: Uint8List(0), previewData: previewBytes);
+    displayName: id, episodeId: '', fileData: originalBytes ?? Uint8List(0), previewData: previewBytes);
   @override
   Future<AssetPage> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24}) async {
     pages.add(cursor);
@@ -211,6 +213,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(provider().bytes, same(bytes));
     expect(await provider().obtainKey(ImageConfiguration.empty), key);
+    expect(repo.originals, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('При DPR 3 сетка декодирует миниатюру вместо большого оригинала', (tester) async {
+    tester.view.devicePixelRatio = 3;
+    tester.view.physicalSize = const Size(1200, 2400);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final preview = await tester.runAsync(() async {
+      final image = await createTestImage(width: 122, height: 160);
+      try {
+        final data = (await image.toByteData(format: ui.ImageByteFormat.png))!;
+        return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+      } finally {
+        image.dispose();
+      }
+    });
+    final repo = _PickerRepository()
+      ..previewBytes = preview
+      ..originalBytes = await tester.runAsync(() => File('assets/images/ep1/crosswalk.png').readAsBytes());
+    await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(type: 'background', title: 'Фоны', repository: repo)));
+    await tester.pumpAndSettle();
+    final provider = tester.widget<Image>(find.byWidgetPredicate(
+      (widget) => widget is Image && widget.image is MemoryImage,
+    ).first).image as MemoryImage;
+    expect(provider.bytes, same(preview));
+    expect(provider.bytes, isNot(same(repo.originalBytes)));
+    await tester.runAsync(() async {
+      final ready = Completer<ImageInfo>();
+      final stream = provider.resolve(ImageConfiguration.empty);
+      final listener = ImageStreamListener((info, _) {
+        if (!ready.isCompleted) ready.complete(info.clone());
+      }, onError: (Object error, StackTrace? stack) {
+        if (!ready.isCompleted) ready.completeError(error, stack);
+      });
+      stream.addListener(listener);
+      try {
+        final info = await ready.future;
+        try {
+          expect(info.image.width, lessThanOrEqualTo(160));
+          expect(info.image.height, lessThanOrEqualTo(160));
+          expect(info.image.width * info.image.height * 4, lessThanOrEqualTo(102400));
+        } finally {
+          info.dispose();
+        }
+      } finally {
+        stream.removeListener(listener);
+      }
+    });
     expect(repo.originals, 0);
     expect(tester.takeException(), isNull);
   });

@@ -37,6 +37,20 @@ async fn preview_is_small_and_keeps_transparency() {
     assert!(asset_preview::make(b"invalid image".to_vec()).await.is_err());
 }
 
+#[tokio::test]
+async fn crosswalk_preview_limits_decoded_pixels() {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/images/ep1/crosswalk.png");
+    let original = std::fs::read(path).unwrap();
+    let full = image::load_from_memory(&original).unwrap();
+    let original_rgba_bytes = u64::from(full.width()) * u64::from(full.height()) * 4;
+    assert!(original_rgba_bytes > 4 * 1024 * 1024);
+    let (bytes, _) = asset_preview::make(original).await.unwrap();
+    let preview = image::load_from_memory(&bytes).unwrap().into_rgba8();
+    assert!(preview.width() <= 160 && preview.height() <= 160);
+    assert!(preview.as_raw().len() <= 160 * 160 * 4);
+    assert!((preview.as_raw().len() as u64) < original_rgba_bytes);
+}
+
 async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     crate::apply_migrations(&db).await.map_err(|e| e.to_string())?;
     let original = picture(1);

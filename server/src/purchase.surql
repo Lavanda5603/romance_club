@@ -1,4 +1,6 @@
 BEGIN TRANSACTION;
+-- Проверяю существование эпизода в той же транзакции, что и оплату
+IF $item_type = 'episode' AND !record::exists(type::record('episode', $episode_id)) { THROW 'SHOP_UNKNOWN_SKU'; };
 LET $player = type::record($player_id);
 LET $wallets = SELECT * FROM player_currency WHERE player_id = $player;
 IF array::len($wallets) > 1 { THROW 'SHOP_DUPLICATE_WALLET'; };

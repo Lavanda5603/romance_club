@@ -6,11 +6,15 @@ import '../src/data/repositories/shop_repository_remote.dart'; // Импорт �
 import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
 import '../src/data/services/shop_grpc_service.dart'; // Импорт gRPC-сервиса магазина
 import 'game_screen.dart'; // Импорт игрового экрана
+import '../src/domain/repositories/shop_repository.dart'; // Импорт интерфейса магазина
 
 // Экран магазина
 class ShopScreen extends StatefulWidget {
   // Конструктор
-  const ShopScreen({super.key});
+  final ShopRepository? repository;
+  final EpisodeGrpcService? episodeService;
+  final Future<String> Function()? loadPlayerId;
+  const ShopScreen({super.key, this.repository, this.episodeService, this.loadPlayerId});
 
   // Создаю состояние экрана
   @override
@@ -38,15 +42,15 @@ class _ShopScreenState extends State<ShopScreen> {
   late EpisodeGrpcService _episodeService;
 
   // Репозиторий магазина
-  late ShopRepositoryRemote _shopRepository;
+  late ShopRepository _shopRepository;
 
   @override
   void initState() {
     super.initState();
     // Создаю сервисы и репозиторий
     _shopService = ShopGrpcService();
-    _episodeService = EpisodeGrpcService();
-    _shopRepository = ShopRepositoryRemote(_shopService);
+    _episodeService = widget.episodeService ?? EpisodeGrpcService();
+    _shopRepository = widget.repository ?? ShopRepositoryRemote(_shopService);
     // Загружаю данные
     _loadData();
   }
@@ -55,7 +59,7 @@ class _ShopScreenState extends State<ShopScreen> {
   void dispose() {
     // Закрываю соединения
     _shopService.close();
-    _episodeService.close();
+    if (widget.episodeService == null) _episodeService.close();
     super.dispose();
   }
 
@@ -65,7 +69,7 @@ class _ShopScreenState extends State<ShopScreen> {
     setState(() { _isLoading = true; });
     try {
       // Загружаю player_id из Storage
-      _playerId = await StorageService.loadPlayerId();
+      _playerId = await (widget.loadPlayerId ?? StorageService.loadPlayerId)();
 
       if (_playerId.isEmpty) {
         if (!mounted) return;
@@ -82,7 +86,7 @@ class _ShopScreenState extends State<ShopScreen> {
       final purchases = await _shopRepository.getPurchases(_playerId);
       bool hasSub = false;
       for (final p in purchases) {
-        if (p.itemId == 'subscription') {
+        if (p.isActiveSubscription) {
           hasSub = true;
           break;
         }
@@ -155,7 +159,13 @@ class _ShopScreenState extends State<ShopScreen> {
         return;
       }
 
-      // Загружаю эпизоды после покупки подписки
+      // Подписку подтверждает сервер, одного успешного изменения баланса мало
+      final purchases = await _shopRepository.getPurchases(_playerId);
+      if (!mounted) return;
+      if (!purchases.any((p) => p.isActiveSubscription)) {
+        throw StateError('Сервер не подтвердил подписку');
+      }
+      // Загружаю эпизоды после подтверждения подписки
       final episodes = await _episodeService.getAllEpisodes();
 
       if (!mounted) return;

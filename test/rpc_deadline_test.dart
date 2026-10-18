@@ -41,14 +41,17 @@ void main() {
     final server = Server.create(services: [handler]);
     await server.serve(address: '127.0.0.1', port: 0);
     final service = AuthGrpcService(host: '127.0.0.1', port: server.port!,
-      deadlines: RpcDeadline(write: const Duration(milliseconds: 250)));
+      deadlines: RpcDeadline(write: const Duration(seconds: 1)));
     try {
+      // Сначала открываю соединение, чтобы проверять зависший ответ, а не первое подключение
+      expect((await service.login(login: 'retry', password: 'test')).success, isTrue);
       final pending = service.login(login: 'hang', password: 'test');
       await expectLater(pending, throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.deadlineExceeded)));
       expect(handler.started.isCompleted, isTrue);
+      expect(handler.requests, 2);
       expect(handler.call!.deadline, isNotNull);
       expect((await service.login(login: 'retry', password: 'test')).success, isTrue);
-      expect(handler.requests, 2);
+      expect(handler.requests, 3);
     } finally {
       handler.finish.complete(AuthResponse());
       await service.close();
@@ -80,6 +83,8 @@ void main() {
       options: const ChannelOptions(credentials: ChannelCredentials.insecure()));
     final api = AuthApiClient(channel, interceptors: [RpcDeadline()]);
     try {
+      // Короткий срок проверяю на уже открытом соединении
+      await api.login(LoginRequest(login: 'retry'), options: CallOptions(timeout: const Duration(seconds: 3)));
       await expectLater(api.login(LoginRequest(login: 'hang'), options: CallOptions(
         timeout: const Duration(milliseconds: 250), metadata: {'authorization': 'Bearer test-token'})),
         throwsA(isA<GrpcError>().having((e) => e.code, 'code', StatusCode.deadlineExceeded)));

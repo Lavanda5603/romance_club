@@ -22,13 +22,21 @@ const Purchase$json = {
     {'1': 'item_id', '3': 1, '4': 1, '5': 9, '10': 'itemId'},
     {'1': 'item_type', '3': 2, '4': 1, '5': 9, '10': 'itemType'},
     {'1': 'purchased_at', '3': 3, '4': 1, '5': 9, '10': 'purchasedAt'},
+    {
+      '1': 'entitlement_active',
+      '3': 4,
+      '4': 1,
+      '5': 8,
+      '10': 'entitlementActive'
+    },
   ],
 };
 
 /// Descriptor for `Purchase`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List purchaseDescriptor = $convert.base64Decode(
     'CghQdXJjaGFzZRIXCgdpdGVtX2lkGAEgASgJUgZpdGVtSWQSGwoJaXRlbV90eXBlGAIgASgJUg'
-    'hpdGVtVHlwZRIhCgxwdXJjaGFzZWRfYXQYAyABKAlSC3B1cmNoYXNlZEF0');
+    'hpdGVtVHlwZRIhCgxwdXJjaGFzZWRfYXQYAyABKAlSC3B1cmNoYXNlZEF0Ei0KEmVudGl0bGVt'
+    'ZW50X2FjdGl2ZRgEIAEoCFIRZW50aXRsZW1lbnRBY3RpdmU=');
 
 @$core.Deprecated('Use currencyDescriptor instead')
 const Currency$json = {

@@ -8,9 +8,8 @@ use crate::romance_club::{
     PurchaseRequest, PurchaseResponse, GetCurrencyRequest,
 }; // Импорт структур
 
-// Цены (в алмазах)
-const EPISODE_PRICE: i32 = 100; // Эпизод
-const SUBSCRIPTION_PRICE: i32 = 500; // Подписка
+use crate::shop_catalog::Product; // Подключаю серверный каталог товаров
+use surrealdb::types::{RecordId, ToSql}; // Подключаю ключи эпизодов
 
 // Сервис для работы с магазином
 pub struct ShopApiService {
@@ -57,7 +56,7 @@ impl ShopApi for ShopApiService {
 
         let mut response = self
             .db
-            .query("SELECT * FROM purchase WHERE player_id = type::record($player_id)")
+            .query("SELECT * FROM purchase WHERE player_id = type::record($player_id); SELECT VALUE id FROM episode;")
             .bind(("player_id", player_id.clone()))
             .await
             .map_err(|e| Status::internal(e.to_string()))?
@@ -66,6 +65,7 @@ impl ShopApi for ShopApiService {
         let values: Vec<Value> = response
             .take(0)
             .map_err(|e| Status::internal(e.to_string()))?;
+        let episodes: Vec<RecordId> = response.take(1).map_err(|e| Status::internal(e.to_string()))?;
 
         let purchases = values
             .into_iter()
@@ -78,10 +78,15 @@ impl ShopApi for ShopApiService {
                     .map(|s| s.to_string())
                     .unwrap_or_default();
 
+                // Старые записи с неправильным SKU или типом не выдают право
+                let entitlement_active = Product::find(&item_id).is_ok_and(|product|
+                    product.kind == item_type && (product.kind == "subscription" ||
+                        (product.kind == "episode" && episodes.iter().any(|id| id.to_sql() == item_id))));
                 Purchase {
                     item_id,
                     item_type,
                     purchased_at,
+                    entitlement_active,
                 }
             })
             .collect();
@@ -97,25 +102,17 @@ impl ShopApi for ShopApiService {
         let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
         let req = request.into_inner();
         let item_id = req.item_id;
-        let item_type = req.item_type;
+        let product = Product::find(&item_id)?;
+        if req.item_type != product.kind {
+            return Err(Status::invalid_argument("Тип покупки не соответствует товару"));
+        }
+        let item_type = product.kind.to_owned();
 
         println!("[PURCHASE] player={}, item={}, type={}", player_id, item_id, item_type);
 
-        // Цену определяю на сервере
-        let (price, amount) = match item_type.as_str() {
-            "episode" if !item_id.is_empty() => (EPISODE_PRICE, 0),
-            "subscription" if !item_id.is_empty() => (SUBSCRIPTION_PRICE, 0),
-            "currency" => {
-                let amount = item_id.strip_prefix("diamonds_").and_then(|s| s.parse::<i32>().ok())
-                    .filter(|amount| *amount > 0)
-                    .ok_or_else(|| Status::invalid_argument("Неверное количество алмазов"))?;
-                if req.request_id.is_empty() {
-                    return Err(Status::invalid_argument("Нужен ключ запроса покупки"));
-                }
-                (0, amount)
-            },
-            _ => return Err(Status::invalid_argument("Неизвестный товар")),
-        };
+        if product.kind == "currency" && req.request_id.is_empty() {
+            return Err(Status::invalid_argument("Нужен ключ запроса покупки"));
+        }
 
         // Баланс и покупку меняю вместе. Повтор не списывает алмазы ещё раз
         for attempt in 0..8 {
@@ -124,8 +121,9 @@ impl ShopApi for ShopApiService {
                 .bind(("item_id", item_id.clone()))
                 .bind(("item_type", item_type.clone()))
                 .bind(("request_id", req.request_id.clone()))
-                .bind(("price", price))
-                .bind(("amount", amount))
+                .bind(("price", product.price))
+                .bind(("amount", product.amount))
+                .bind(("episode_id", product.episode_id))
                 .await.map_err(|e| Status::internal(e.to_string()))?;
             let errors = result.take_errors();
             if !errors.is_empty() {
@@ -136,6 +134,7 @@ impl ShopApi for ShopApiService {
                     if attempt < 7 { continue; }
                     return Err(Status::aborted("Баланс изменился. Повторите покупку"));
                 }
+                if messages.contains("SHOP_UNKNOWN_SKU") { return Err(Status::invalid_argument("Эпизод не существует")); }
                 if messages.contains("SHOP_REQUEST_REUSED") || messages.contains("SHOP_BALANCE_OVERFLOW") {
                     return Err(Status::invalid_argument("Неверный запрос покупки"));
                 }

@@ -19,6 +19,7 @@ class ShopRepositoryRemote implements ShopRepository {
         itemId: p.itemId,
         itemType: p.itemType,
         purchasedAt: p.purchasedAt,
+        entitlementActive: p.entitlementActive,
       );
     }).toList();
   }

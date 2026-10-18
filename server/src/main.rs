@@ -6,6 +6,7 @@ mod progress_service; // Модуль прогресса
 mod auth_service; // Модуль авторизации
 mod achievement_service; // Модуль достижений
 mod shop_service; // Модуль магазина
+mod shop_catalog; // Серверный каталог товаров и цен
 mod asset_service; // Модуль ассетов
 mod asset_preview; // Подготовка размеров и превью картинок
 mod asset_delete; // Проверка ID и удаление только ассетов

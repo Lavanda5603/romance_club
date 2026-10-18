@@ -20,6 +20,7 @@ async fn balance(shop: &ShopApiService) -> i32 {
 
 async fn scenarios(db: Surreal<Client>) -> TestResult {
     db.query(include_str!("../migrations/008_purchase.surql")).await?.check()?;
+    db.query("CREATE episode:1; CREATE episode:2; CREATE episode:3; CREATE episode:4; CREATE episode:5; CREATE episode:6; CREATE episode:7;").await?.check()?;
     db.query("CREATE player_currency:old CONTENT {player_id:player:test,diamonds:500};").await?.check()?;
     let shop = ShopApiService::new(db.clone());
     let (a,b) = tokio::join!(shop.purchase(buy("episode:1","episode","a")), shop.purchase(buy("episode:2","episode","b")));
@@ -37,23 +38,54 @@ async fn scenarios(db: Surreal<Client>) -> TestResult {
     let (a,b) = tokio::join!(shop.purchase(buy("diamonds_100","currency","topup")), shop.purchase(buy("diamonds_100","currency","topup")));
     assert!(a?.into_inner().success && b?.into_inner().success);
     assert_eq!(balance(&shop).await, 150);
-    assert!(shop.purchase(buy("diamonds_200","currency","topup")).await.is_err());
+    assert!(shop.purchase(buy("diamonds_250","currency","topup")).await.is_err());
     assert_eq!(balance(&shop).await, 150);
     db.query("DEFINE EVENT fail_purchase ON purchase WHEN $event='CREATE' THEN { THROW 'test_refusal'; };").await?.check()?;
-    assert!(shop.purchase(buy("episode:rollback","episode","fail")).await.is_err());
+    assert!(shop.purchase(buy("episode:6","episode","fail")).await.is_err());
     assert_eq!(balance(&shop).await, 150);
-    let mut rows = db.query("SELECT * FROM purchase WHERE item_id='episode:rollback';").await?.check()?;
+    let mut rows = db.query("SELECT * FROM purchase WHERE item_id='episode:6';").await?.check()?;
     assert!(rows.take::<Vec<Value>>(0)?.is_empty());
     db.query("REMOVE EVENT fail_purchase ON purchase;").await?.check()?;
     // Сохраняю старые покупки с обычными ключами
-    db.query("CREATE purchase:old CONTENT {player_id:player:test,item_id:'episode:legacy',item_type:'episode'};").await?.check()?;
-    assert!(shop.purchase(buy("episode:legacy","episode","old")).await?.into_inner().success);
+    db.query("CREATE purchase:old CONTENT {player_id:player:test,item_id:'episode:7',item_type:'episode'};").await?.check()?;
+    assert!(shop.purchase(buy("episode:7","episode","old")).await?.into_inner().success);
     assert_eq!(balance(&shop).await, 150);
     // Первый кошелёк создаётся вместе с пополнением
     db.query("DELETE player_currency;").await?.check()?;
     assert!(shop.purchase(buy("diamonds_100","currency","new-wallet")).await?.into_inner().success);
     assert_eq!(balance(&shop).await, 100);
+    // Неизвестный SKU, тип или отсутствующий эпизод не меняют баланс и покупки
+    let mut before = db.query("SELECT * FROM purchase ORDER BY id;").await?.check()?;
+    let before: Vec<Value> = before.take(0)?;
+    for (sku, kind) in [("subscription","unknown"),("subscription","episode"),("episode:1","subscription"),
+        ("fake_subscription","subscription"),("diamonds_999999","currency"),("episode:999","episode"),
+        ("episode:01","episode"),("subscription","")] {
+        assert_eq!(shop.purchase(buy(sku,kind,"invalid")).await.unwrap_err().code(),tonic::Code::InvalidArgument);
+        assert_eq!(balance(&shop).await,100);
+    }
+    let mut after = db.query("SELECT * FROM purchase ORDER BY id;").await?.check()?;
+    assert_eq!(after.take::<Vec<Value>>(0)?,before);
+    // Старая поддельная запись остаётся в истории, но подписку не даёт
+    db.query("CREATE purchase:fake CONTENT {player_id:player:test,item_id:'subscription',item_type:'unknown'}; CREATE purchase:wrong CONTENT {player_id:player:test,item_id:'subscription',item_type:'episode'};").await?.check()?;
+    assert!(!purchases(&shop).await?.iter().any(|p|p.item_id=="subscription" && p.entitlement_active));
+    // Не хватает средств: право не появляется
+    assert!(!shop.purchase(buy("subscription","subscription","sub")).await?.into_inner().success);
+    assert!(!purchases(&shop).await?.iter().any(|p|p.item_id=="subscription" && p.entitlement_active));
+    shop.purchase(buy("diamonds_500","currency","for-sub")).await?;
+    assert!(shop.purchase(buy("subscription","subscription","sub")).await?.into_inner().success);
+    assert_eq!(balance(&shop).await,100);
+    let all = purchases(&shop).await?;
+    assert_eq!(all.iter().filter(|p|p.item_id=="subscription" && p.entitlement_active).count(),1);
+    assert!(all.iter().filter(|p|p.item_type=="currency").all(|p|!p.entitlement_active));
+    assert!(shop.purchase(buy("subscription","subscription","retry")).await?.into_inner().success);
+    assert_eq!(balance(&shop).await,100);
     Ok(())
+}
+
+async fn purchases(shop: &ShopApiService) -> Result<Vec<Purchase>,tonic::Status> {
+    let mut req = Request::new(GetPurchasesRequest {player_id:"player:test".into()});
+    req.extensions_mut().insert(Claims {sub:"player:test".into(),login:"test".into(),is_admin:false,exp:usize::MAX});
+    Ok(shop.get_purchases(req).await?.into_inner().purchases)
 }
 
 #[tokio::test]

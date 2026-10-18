@@ -7,6 +7,7 @@ message Purchase {
   string item_id = 1; // ID предмета (episode:1, subscription, diamonds_100)
   string item_type = 2; // Тип (episode, subscription, currency)
   string purchased_at = 3; // Дата покупки
+  bool entitlement_active = 4; // Сервер подтвердил право на подписку или эпизод
 }
 
 // Валюта игрока

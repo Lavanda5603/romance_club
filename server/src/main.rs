@@ -15,6 +15,8 @@ use surrealdb::engine::remote::ws::{Client, Ws}; // Импорт клиента 
 use surrealdb::opt::auth::Root; // Импорт Root-авторизации
 use surrealdb::Surreal; // Импорт Surreal
 use surrealdb::types::SurrealValue; // Импорт SurrealValue
+use surrealdb::types::ToSql;
+use std::collections::HashMap;
 use serde_json::Value; // Импорт Value
 use progress_service::ProgressApiService; // Импорт сервиса прогресса
 use romance_club::progress_api_server::ProgressApiServer; // Импорт gRPC-сервера прогресса
@@ -67,6 +69,7 @@ struct EpisodeRecord {
 // Структура действия (то, что хранится в SurrealDB)
 #[derive(Debug, SurrealValue)]
 struct ActionRecord {
+    choice_id: surrealdb::types::RecordId,
     r#type: String, // Тип действия
     scene_id: Option<i64>, // ID сцены
     scene_key: Option<String>, // Ключ сцены
@@ -101,29 +104,35 @@ impl EpisodeApi for EpisodeApiService {
         let id = request.into_inner().id;
         println!("[GET_EPISODE] Запрос на эпизод ID: {}", id);
 
-        // 1. Загружаю эпизод
-        let episode_record: Option<EpisodeRecord> = self
-            .db
-            .select(("episode", i64::from(id)))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        // Загружаю дерево одним запросом в общей транзакции
+        let mut response = self.db.query(
+            "BEGIN TRANSACTION;
+             SELECT * FROM type::record('episode', $id);
+             LET $scenes = SELECT * FROM scene WHERE episode_id = type::record('episode', $id) ORDER BY order_index;
+             SELECT * FROM $scenes;
+             LET $choices = SELECT * FROM choice WHERE scene_id IN $scenes.id ORDER BY order_index;
+             SELECT * FROM $choices;
+             SELECT * FROM action WHERE choice_id IN $choices.id;
+             COMMIT TRANSACTION;"
+        ).bind(("id", i64::from(id))).await
+            .map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
+        let records: Vec<EpisodeRecord> = response.take(1).map_err(|e| Status::internal(e.to_string()))?;
+        let episode_record = records.into_iter().next().ok_or_else(|| Status::not_found("Эпизод не найден"))?;
+        let scene_values: Vec<Value> = response.take(3).map_err(|e| Status::internal(e.to_string()))?;
+        let choice_values: Vec<Value> = response.take(5).map_err(|e| Status::internal(e.to_string()))?;
+        let action_records: Vec<ActionRecord> = response.take(6).map_err(|e| Status::internal(e.to_string()))?;
 
-        let episode_record = match episode_record {
-            Some(r) => r,
-            None => return Err(Status::not_found("Эпизод не найден")),
-        };
-
-        // 2. Загружаю сцены эпизода
-        let mut sc_response = self
-            .db
-            .query("SELECT * FROM scene WHERE episode_id = type::record('episode', $id) ORDER BY order_index")
-            .bind(("id", i64::from(id)))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let scene_values: Vec<Value> = sc_response
-            .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
+        // Группирую выборы и действия, сохраняя их порядок
+        let mut choices_by_scene: HashMap<String, Vec<Value>> = HashMap::new();
+        for choice in choice_values {
+            let key = choice.get("scene_id").and_then(Value::as_str).unwrap_or_default().to_string();
+            choices_by_scene.entry(key).or_default().push(choice);
+        }
+        let mut actions_by_choice: HashMap<String, Vec<ActionRecord>> = HashMap::new();
+        for action in action_records {
+            actions_by_choice.entry(action.choice_id.to_sql()).or_default().push(action);
+        }
 
         println!("[GET_EPISODE] Найдено сцен: {}", scene_values.len());
 
@@ -147,17 +156,7 @@ impl EpisodeApi for EpisodeApiService {
                 .map(|arr| arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
                 .unwrap_or_default();
 
-            // Загружаю выборы сцены
-            let mut ch_response = self
-                .db
-                .query("SELECT * FROM choice WHERE scene_id = type::record($scene_id) ORDER BY order_index")
-                .bind(("scene_id", scene_id_str.clone()))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let choice_values: Vec<Value> = ch_response
-                .take(0)
-                .map_err(|e| Status::internal(e.to_string()))?;
+            let choice_values = choices_by_scene.remove(&scene_id_str).unwrap_or_default();
 
             let mut choices: Vec<Choice> = Vec::new();
 
@@ -166,17 +165,7 @@ impl EpisodeApi for EpisodeApiService {
                 let text = choice_value.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
                 let choice_title = choice_value.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
-                // Загружаю действия выбора
-                let mut ac_response = self
-                    .db
-                    .query("SELECT * FROM action WHERE choice_id = type::record($choice_id)")
-                    .bind(("choice_id", choice_id_str.clone()))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-
-                let action_records: Vec<ActionRecord> = ac_response
-                    .take(0)
-                    .map_err(|e| Status::internal(e.to_string()))?;
+                let action_records = actions_by_choice.remove(&choice_id_str).unwrap_or_default();
 
                 // Собираю действия
                 let actions = action_records

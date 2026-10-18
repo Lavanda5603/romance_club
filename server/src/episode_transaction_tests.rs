@@ -82,6 +82,45 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     assert!(after[1].iter().any(|row| row["title"] == "Новая сцена"));
     assert_eq!(after[2][0]["title"], "Новый выбор");
     assert_eq!(after[3][0]["counter_value"], 5);
+    // Проверяю пакетную загрузку: порядок, пустые ветки и чужой эпизод
+    let tree = Episode {
+        id: 2, title: "Проверка загрузки".into(), version: 3,
+        scenes: vec![
+            Scene { scene_key: "draft:z".into(), title: "Сначала".into(),
+                texts: vec!["Текст".into()], background: "room".into(), character: "hero".into(),
+                next_scene_key: "draft:a".into(), choices: vec![
+                    Choice { text: "Первый".into(), title: "С действиями".into(), actions: vec![
+                        Action { r#type: "setFlag".into(), flag_name: "met".into(), flag_value: true, title: "Флаг".into(), ..Default::default() },
+                        Action { r#type: "changeCounter".into(), counter_name: "score".into(), counter_value: -3, title: "Баллы".into(), ..Default::default() },
+                    ] },
+                    Choice { text: "Второй".into(), title: "Без действий".into(), ..Default::default() },
+                ], ..Default::default() },
+            Scene { scene_key: "draft:a".into(), title: "Потом".into(), ..Default::default() },
+        ],
+    };
+    api.save_episode(admin(SaveEpisodeRequest { episode: Some(tree) })).await?;
+    api.save_episode(admin(SaveEpisodeRequest { episode: Some(Episode { id: 3, title: "Пустой".into(), version: 1, scenes: vec![] }) })).await?;
+    let loaded = api.get_episode(admin(GetEpisodeRequest { id: 2 })).await?.into_inner();
+    assert_eq!(loaded.title, "Проверка загрузки");
+    assert_eq!(loaded.version, 3);
+    assert_eq!(loaded.scenes.len(), 2);
+    assert_eq!(loaded.scenes[0].title, "Сначала");
+    assert_eq!(loaded.scenes[1].title, "Потом");
+    assert_eq!(loaded.scenes[0].next_scene_key, loaded.scenes[1].scene_key);
+    assert_eq!(loaded.scenes[0].texts, vec!["Текст"]);
+    assert_eq!(loaded.scenes[0].background, "room");
+    assert_eq!(loaded.scenes[0].character, "hero");
+    assert!(loaded.scenes[1].choices.is_empty());
+    let choices = &loaded.scenes[0].choices;
+    assert_eq!(choices.len(), 2);
+    assert_eq!(choices[0].text, "Первый");
+    assert_eq!(choices[1].text, "Второй");
+    assert!(choices[1].actions.is_empty());
+    assert_eq!(choices[0].actions.len(), 2);
+    assert!(choices[0].actions.iter().any(|a| a.flag_name == "met" && a.flag_value));
+    assert!(choices[0].actions.iter().any(|a| a.counter_name == "score" && a.counter_value == -3));
+    assert!(api.get_episode(admin(GetEpisodeRequest { id: 3 })).await?.into_inner().scenes.is_empty());
+    assert_eq!(api.get_episode(admin(GetEpisodeRequest { id: 404 })).await.unwrap_err().code(), Code::NotFound);
     Ok(())
 }
 

@@ -44,6 +44,7 @@ class _GameScreenState extends State<GameScreen> {
   final Map<String, Uint8List> _charactersCache = {};
 
   bool _assetsLoaded = false;
+  String _assetScene = '';
   bool _leaving = false;
   bool _allowPop = false;
 
@@ -73,12 +74,14 @@ class _GameScreenState extends State<GameScreen> {
     _achievementRepository = AchievementRepositoryRemote(_achievementService);
     _assetRepository = AssetRepositoryRemote(_assetService);
     _viewModel = GameViewModel(_episodeRepository, _progressRepository, _achievementRepository);
+    _viewModel.addListener(_loadAssets);
     _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
     _loadAssets();
   }
 
   @override
   void dispose() {
+    _viewModel.removeListener(_loadAssets);
     _episodeService.close();
     _viewModel.flushProgress().then((_) => _progressService.close());
     _achievementService.close();
@@ -87,39 +90,40 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
-  // Загрузка всех ассетов в кэш
+  // Для сцены загружаю два оригинала вместо всего каталога
   Future<void> _loadAssets() async {
-    try {
-      final backgrounds = await _assetRepository.getAssets('background');
-      for (final a in backgrounds) {
-        if (a.fileData.isNotEmpty) {
-          _backgroundsCache[a.name] = Uint8List.fromList(a.fileData);
-        }
-      }
-
-      final characters = await _assetRepository.getAssets('character');
-      for (final a in characters) {
-        if (a.fileData.isNotEmpty) {
-          final key = a.emotion.isEmpty ? a.name : '${a.name}_${a.emotion}';
-          _charactersCache[key] = Uint8List.fromList(a.fileData);
-        }
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _assetsLoaded = true;
-      });
-    } catch (e) {
-      debugPrint('Ошибка загрузки ассетов: $e');
-      if (!mounted) return;
-      setState(() {
-        _assetsLoaded = true;
-      });
-      // Показываю SnackBar с ошибкой
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка загрузки ассетов: $e')),
-      );
+    final scene = _viewModel.currentScene;
+    if (scene == null) {
+      if (!_viewModel.state.isLoading) _assetsLoaded = true;
+      return;
     }
+    final key = '${scene.sceneKey}|${scene.background}|${scene.character}|${scene.characterEmotion}';
+    if (_assetScene == key) return;
+    _assetScene = key;
+    _assetsLoaded = false;
+    Future<Uint8List?> load(String type, String name, String emotion) async {
+      if (name.isEmpty) return null;
+      try {
+        return (await _assetRepository.getAsset(type: type, name: name, emotion: emotion,
+          episodeId: 'episode:${widget.episode.id}')).fileData;
+      } catch (e) {
+        debugPrint('Ошибка загрузки картинки сцены: $e');
+        return null;
+      }
+    }
+    final images = await Future.wait([
+      load('background', scene.background, ''),
+      load('character', scene.character, scene.characterEmotion),
+    ]);
+    if (!mounted || _assetScene != key) return;
+    setState(() {
+      _backgroundsCache.clear();
+      _charactersCache.clear();
+      if (images[0] != null) _backgroundsCache[scene.background] = images[0]!;
+      final charKey = scene.characterEmotion.isEmpty ? scene.character : '${scene.character}_${scene.characterEmotion}';
+      if (images[1] != null) _charactersCache[charKey] = images[1]!;
+      _assetsLoaded = true;
+    });
   }
 
   // Получаю Alignment для позиции

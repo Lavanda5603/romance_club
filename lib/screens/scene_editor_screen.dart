@@ -146,32 +146,26 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     super.dispose();
   }
 
-  // Загрузка выбранных ассетов (фон, персонаж)
+  // Запрашиваю только выбранный фон и персонажа
   Future<void> _loadSelectedAssets() async {
-    try {
-      final backgrounds = await _assetRepository.getAssets('background');
-      for (final a in backgrounds) {
-        if (a.name == _selectedBackground && a.fileData.isNotEmpty) {
-          _selectedBackgroundBytes = Uint8List.fromList(a.fileData);
-          break;
-        }
+    Future<AssetModel?> load(String type, String name, String emotion) async {
+      if (name.isEmpty) return null;
+      try {
+        return await _assetRepository.getAsset(type: type, name: name, emotion: emotion, episodeId: widget.episodeId);
+      } catch (e) {
+        debugPrint('Ошибка загрузки выбранной картинки: $e');
+        return null;
       }
-
-      final characters = await _assetRepository.getAssets('character');
-      for (final a in characters) {
-        if (a.name == _selectedCharacter &&
-            a.emotion == _selectedEmotion &&
-            a.fileData.isNotEmpty) {
-          _selectedCharacterBytes = Uint8List.fromList(a.fileData);
-          break;
-        }
-      }
-
-      if (!mounted) return;
-      setState(() {});
-    } catch (e) {
-      debugPrint('Ошибка загрузки ассетов: $e');
     }
+    final selected = await Future.wait([
+      load('background', _selectedBackground, ''),
+      load('character', _selectedCharacter, _selectedEmotion),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _selectedBackgroundBytes = selected[0]?.fileData;
+      _selectedCharacterBytes = selected[1]?.fileData;
+    });
   }
 
   // Добавить текстовое поле

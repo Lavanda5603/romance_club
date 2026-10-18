@@ -10,6 +10,8 @@ class AssetModel {
   final String displayName; // Человеческое имя
   final String episodeId; // ID эпизода
   final Uint8List fileData; // Байты файла (сама картинка)
+  final Uint8List? previewData; // Маленькая картинка для сетки
+  final String version;
 
   // Конструктор класса AssetModel
   const AssetModel({
@@ -21,5 +23,13 @@ class AssetModel {
     required this.displayName,
     required this.episodeId,
     required this.fileData,
+    this.previewData,
+    this.version = '',
   });
+}
+
+class AssetPage {
+  final List<AssetModel> assets;
+  final String nextCursor;
+  const AssetPage(this.assets, this.nextCursor);
 }

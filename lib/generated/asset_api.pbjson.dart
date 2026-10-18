@@ -27,6 +27,8 @@ const Asset$json = {
     {'1': 'display_name', '3': 6, '4': 1, '5': 9, '10': 'displayName'},
     {'1': 'episode_id', '3': 7, '4': 1, '5': 9, '10': 'episodeId'},
     {'1': 'file_data', '3': 8, '4': 1, '5': 12, '10': 'fileData'},
+    {'1': 'preview_data', '3': 9, '4': 1, '5': 12, '10': 'previewData'},
+    {'1': 'version', '3': 10, '4': 1, '5': 9, '10': 'version'},
   ],
 };
 
@@ -35,7 +37,8 @@ final $typed_data.Uint8List assetDescriptor = $convert.base64Decode(
     'CgVBc3NldBIOCgJpZBgBIAEoCVICaWQSEgoEdHlwZRgCIAEoCVIEdHlwZRISCgRuYW1lGAMgAS'
     'gJUgRuYW1lEhgKB2Vtb3Rpb24YBCABKAlSB2Vtb3Rpb24SEAoDdXJsGAUgASgJUgN1cmwSIQoM'
     'ZGlzcGxheV9uYW1lGAYgASgJUgtkaXNwbGF5TmFtZRIdCgplcGlzb2RlX2lkGAcgASgJUgllcG'
-    'lzb2RlSWQSGwoJZmlsZV9kYXRhGAggASgMUghmaWxlRGF0YQ==');
+    'lzb2RlSWQSGwoJZmlsZV9kYXRhGAggASgMUghmaWxlRGF0YRIhCgxwcmV2aWV3X2RhdGEYCSAB'
+    'KAxSC3ByZXZpZXdEYXRhEhgKB3ZlcnNpb24YCiABKAlSB3ZlcnNpb24=');
 
 @$core.Deprecated('Use getAssetsRequestDescriptor instead')
 const GetAssetsRequest$json = {
@@ -43,13 +46,16 @@ const GetAssetsRequest$json = {
   '2': [
     {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
     {'1': 'episode_id', '3': 2, '4': 1, '5': 9, '10': 'episodeId'},
+    {'1': 'limit', '3': 3, '4': 1, '5': 5, '10': 'limit'},
+    {'1': 'cursor', '3': 4, '4': 1, '5': 9, '10': 'cursor'},
   ],
 };
 
 /// Descriptor for `GetAssetsRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getAssetsRequestDescriptor = $convert.base64Decode(
     'ChBHZXRBc3NldHNSZXF1ZXN0EhIKBHR5cGUYASABKAlSBHR5cGUSHQoKZXBpc29kZV9pZBgCIA'
-    'EoCVIJZXBpc29kZUlk');
+    'EoCVIJZXBpc29kZUlkEhQKBWxpbWl0GAMgASgFUgVsaW1pdBIWCgZjdXJzb3IYBCABKAlSBmN1'
+    'cnNvcg==');
 
 @$core.Deprecated('Use getAssetsResponseDescriptor instead')
 const GetAssetsResponse$json = {
@@ -63,13 +69,32 @@ const GetAssetsResponse$json = {
       '6': '.romance_club.Asset',
       '10': 'assets'
     },
+    {'1': 'next_cursor', '3': 2, '4': 1, '5': 9, '10': 'nextCursor'},
   ],
 };
 
 /// Descriptor for `GetAssetsResponse`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getAssetsResponseDescriptor = $convert.base64Decode(
     'ChFHZXRBc3NldHNSZXNwb25zZRIrCgZhc3NldHMYASADKAsyEy5yb21hbmNlX2NsdWIuQXNzZX'
-    'RSBmFzc2V0cw==');
+    'RSBmFzc2V0cxIfCgtuZXh0X2N1cnNvchgCIAEoCVIKbmV4dEN1cnNvcg==');
+
+@$core.Deprecated('Use getAssetRequestDescriptor instead')
+const GetAssetRequest$json = {
+  '1': 'GetAssetRequest',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'type', '3': 2, '4': 1, '5': 9, '10': 'type'},
+    {'1': 'name', '3': 3, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'emotion', '3': 4, '4': 1, '5': 9, '10': 'emotion'},
+    {'1': 'episode_id', '3': 5, '4': 1, '5': 9, '10': 'episodeId'},
+  ],
+};
+
+/// Descriptor for `GetAssetRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getAssetRequestDescriptor = $convert.base64Decode(
+    'Cg9HZXRBc3NldFJlcXVlc3QSDgoCaWQYASABKAlSAmlkEhIKBHR5cGUYAiABKAlSBHR5cGUSEg'
+    'oEbmFtZRgDIAEoCVIEbmFtZRIYCgdlbW90aW9uGAQgASgJUgdlbW90aW9uEh0KCmVwaXNvZGVf'
+    'aWQYBSABKAlSCWVwaXNvZGVJZA==');
 
 @$core.Deprecated('Use uploadAssetRequestDescriptor instead')
 const UploadAssetRequest$json = {

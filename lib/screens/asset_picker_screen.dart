@@ -1,3 +1,4 @@
+import '../src/domain/repositories/asset_repository.dart';
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'package:file_picker/file_picker.dart'; // Импорт выбора файла
 import 'dart:io'; // Импорт File
@@ -10,6 +11,7 @@ import '../src/domain/models/asset_model.dart'; // Импорт доменной
 
 // Экран выбора ассета (фона или персонажа)
 class AssetPickerScreen extends StatefulWidget {
+  final AssetRepository? repository;
   final String type; // Тип: background или character
   final String title; // Заголовок экрана
   final String episodeId; // ID эпизода (для фильтра)
@@ -18,6 +20,7 @@ class AssetPickerScreen extends StatefulWidget {
   const AssetPickerScreen({
     super.key,
     required this.type,
+    this.repository,
     required this.title,
     this.episodeId = '',
   });
@@ -29,13 +32,15 @@ class AssetPickerScreen extends StatefulWidget {
 class _AssetPickerScreenState extends State<AssetPickerScreen> {
   late AssetGrpcService _service; // gRPC-сервис ассетов
   late AdminGrpcService _adminService; // gRPC-сервис админа
-  late AssetRepositoryRemote _repository; // Репозиторий ассетов
+  late AssetRepository _repository; // Репозиторий ассетов
   late AdminRepositoryRemote _adminRepository; // Админ-репозиторий
 
   List<AssetModel> _assets = []; // Список ассетов
   bool _isLoading = true; // Флаг загрузки
   bool _isUploading = false; // Флаг загрузки файла
   String _error = ''; // Ошибка
+  String _nextCursor = '';
+  bool _loadingPage = false;
 
   @override
   void initState() {
@@ -43,7 +48,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     // Создаю сервисы и репозитории
     _service = AssetGrpcService();
     _adminService = AdminGrpcService();
-    _repository = AssetRepositoryRemote(_service);
+    _repository = widget.repository ?? AssetRepositoryRemote(_service);
     _adminRepository = AdminRepositoryRemote(_adminService);
     // Загружаю ассеты
     _loadAssets();
@@ -57,26 +62,39 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     super.dispose();
   }
 
-  // Загрузка ассетов с сервера
-  Future<void> _loadAssets() async {
+  // Получаю одну страницу, уже показанную сетку не скрываю
+  Future<void> _loadAssets({bool reset = true}) async {
+    if (_loadingPage) return;
+    _loadingPage = true;
+    setState(() { _error = ''; if (reset) _isLoading = true; });
     try {
-      final assets = await _repository.getAssets(
-        widget.type,
-        episodeId: widget.episodeId,
-      );
-
+      final page = await _repository.getAssetPage(widget.type,
+        episodeId: widget.episodeId, cursor: reset ? '' : _nextCursor);
       if (!mounted) return;
-
       setState(() {
-        _assets = assets;
-        _isLoading = false;
+        final known = reset ? <String>{} : _assets.map((a) => a.id).toSet();
+        _assets = [if (!reset) ..._assets, ...page.assets.where((a) => known.add(a.id))];
+        _nextCursor = page.nextCursor;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      _loadingPage = false;
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Оригинал нужен только после выбора картинки
+  Future<void> _selectAsset(AssetModel asset) async {
+    if (_isUploading) return;
+    setState(() => _isUploading = true);
+    try {
+      final original = await _repository.getAsset(id: asset.id, type: asset.type, version: asset.version);
+      if (mounted) Navigator.pop(context, original);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка загрузки: $e')));
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -198,15 +216,14 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       episodeId: widget.episodeId,
       fileData: bytes,
       fileName: file.name,
-    );
+    ).catchError((_) => null);
 
     if (!mounted) return;
     setState(() => _isUploading = false);
 
     if (asset != null) {
-      setState(() {
-        _assets.add(asset);
-      });
+      await _loadAssets();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ассет загружен')),
       );
@@ -243,14 +260,15 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     if (!mounted) return;
 
     // Вызываю Админ-репозиторий (проверка прав на сервере)
+    setState(() => _isUploading = true);
     final success = await _adminRepository.deleteAsset(asset.id);
 
     if (!mounted) return;
+    setState(() => _isUploading = false);
 
     if (success) {
-      setState(() {
-        _assets.removeWhere((a) => a.id == asset.id);
-      });
+      await _loadAssets();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ассет удалён')),
       );
@@ -294,7 +312,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.upload, color: Color(0xFFD30010), size: 28),
-                        onPressed: _uploadNewAsset,
+                        onPressed: _loadingPage || _isUploading ? null : _uploadNewAsset,
                       ),
                     ],
                   ),
@@ -324,7 +342,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                               child: CircularProgressIndicator(color: Color(0xFFD30010)),
                             ),
                           )
-                        else if (_error.isNotEmpty)
+                        else if (_error.isNotEmpty && _assets.isEmpty)
                           Expanded(
                             child: Center(
                               child: Text(
@@ -356,7 +374,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                               itemBuilder: (context, index) {
                                 final asset = _assets[index];
                                 return GestureDetector(
-                                  onTap: () => Navigator.pop(context, asset),
+                                  onTap: () => _selectAsset(asset),
                                   child: Stack(
                                     children: [
                                       Container(
@@ -375,7 +393,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                                 borderRadius: const BorderRadius.vertical(
                                                   top: Radius.circular(11),
                                                 ),
-                                                child: asset.fileData.isEmpty
+                                                child: (asset.previewData == null || asset.previewData!.isEmpty)
                                                     ? Container(
                                                         color: const Color(0xFF333333),
                                                         child: const Center(
@@ -387,7 +405,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                                         ),
                                                       )
                                                     : Image.memory(
-                                                        Uint8List.fromList(asset.fileData),
+                                                        asset.previewData!,
                                                         fit: BoxFit.cover,
                                                         width: double.infinity,
                                                         errorBuilder: (context, error, stackTrace) {
@@ -425,7 +443,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                         top: 4,
                                         right: 4,
                                         child: GestureDetector(
-                                          onTap: () => _deleteAsset(asset),
+                                          onTap: _loadingPage || _isUploading ? null : () => _deleteAsset(asset),
                                           child: Container(
                                             padding: const EdgeInsets.all(4),
                                             decoration: BoxDecoration(
@@ -446,6 +464,12 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                               },
                             ),
                           ),
+                        if (!_isLoading && _assets.isNotEmpty && (_nextCursor.isNotEmpty || _error.isNotEmpty))
+                          Column(children: [
+                            if (_error.isNotEmpty) Text(_error, style: const TextStyle(color: Colors.red)),
+                            TextButton(onPressed: _loadingPage ? null : () => _loadAssets(reset: false),
+                              child: Text(_loadingPage ? 'Загрузка...' : 'Загрузить ещё')),
+                          ]),
                       ],
                     ),
                   ),

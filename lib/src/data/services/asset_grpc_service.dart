@@ -1,15 +1,19 @@
 import 'auth_options.dart'; // Метаданные с токеном
+import '../../../services/storage_service.dart';
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import 'dart:typed_data'; // Импорт Uint8List
 import '../../../generated/asset_api.pbgrpc.dart'; // Импорт gRPC-клиента
 
 // Сервис для работы с gRPC (транспортный слой)
 class AssetGrpcService {
+  final String host;
+  final int port;
+  Future<String> cacheScope() async => '$host:$port:${await StorageService.loadToken()}';
   late final ClientChannel _channel; // Канал связи
   late final AssetApiClient _client; // gRPC-клиент
 
   // Конструктор класса AssetGrpcService
-  AssetGrpcService({String host = '10.0.2.2', int port = 50051}) {
+  AssetGrpcService({this.host = '10.0.2.2', this.port = 50051}) {
     // Создаю канал связи с сервером
     _channel = ClientChannel(
       host,
@@ -24,18 +28,24 @@ class AssetGrpcService {
   }
 
   // Получить ассеты по типу
-  Future<List<Asset>> getAssets(String type, {String episodeId = ''}) async {
+  Future<GetAssetsResponse> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24}) async {
     // Создаю запрос
     final request = GetAssetsRequest(
       type: type,
       episodeId: episodeId,
+      cursor: cursor,
+      limit: limit,
     );
 
     // Вызываю метод сервера
     final response = await _client.getAssets(request, options: await authOptions());
 
     // Возвращаю список ассетов
-    return response.assets;
+    return response;
+  }
+
+  Future<Asset> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = ''}) async {
+    return _client.getAsset(GetAssetRequest(id: id, type: type, name: name, emotion: emotion, episodeId: episodeId), options: await authOptions());
   }
 
   // Загрузить новый ассет

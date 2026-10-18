@@ -1,3 +1,4 @@
+import 'asset_repository_remote.dart';
 import '../../domain/repositories/admin_repository.dart'; // Импорт контракта
 import '../services/admin_grpc_service.dart'; // Импорт gRPC-сервиса
 
@@ -13,6 +14,7 @@ class AdminRepositoryRemote implements AdminRepository {
   Future<bool> deleteAsset(String assetId) async {
     try {
       final response = await _service.deleteAsset(assetId);
+      if (response.success) AssetRepositoryRemote.invalidateCache();
       return response.success;
     } catch (e) {
       return false;

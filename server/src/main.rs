@@ -3,6 +3,7 @@ mod auth_service; // Модуль авторизации
 mod achievement_service; // Модуль достижений
 mod shop_service; // Модуль магазина
 mod asset_service; // Модуль ассетов
+mod asset_preview;
 mod admin_service; // Модуль админа
 mod jwt; // Модуль JWT
 mod episode_store;

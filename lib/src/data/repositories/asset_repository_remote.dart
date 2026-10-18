@@ -1,82 +1,70 @@
-import 'dart:typed_data'; // Импорт Uint8List
-import '../../domain/models/asset_model.dart'; // Импорт доменной модели
-import '../../domain/repositories/asset_repository.dart'; // Импорт контракта
-import '../services/asset_grpc_service.dart'; // Импорт gRPC-сервиса
-import '../../../generated/asset_api.pbgrpc.dart'; // Импорт Protobuf-моделей
+import 'dart:typed_data';
+import '../../domain/models/asset_model.dart';
+import '../../domain/repositories/asset_repository.dart';
+import '../services/asset_grpc_service.dart';
+import '../../../generated/asset_api.pbgrpc.dart';
+import 'asset_cache.dart';
 
-// Реализация репозитория через gRPC
 class AssetRepositoryRemote implements AssetRepository {
-  final AssetGrpcService _service; // gRPC-сервис
-
-  // Конструктор класса AssetRepositoryRemote
+  final AssetGrpcService _service;
+  static final _pages = AssetCache<AssetPage>(maxBytes: 8 * 1024 * 1024, maxEntries: 16);
+  static final _originals = AssetCache<AssetModel>(maxBytes: 24 * 1024 * 1024);
+  static int _generation = 0;
   AssetRepositoryRemote(this._service);
 
-  // Получить ассеты по типу
-  @override
-  Future<List<AssetModel>> getAssets(String type, {String episodeId = ''}) async {
-    // Запрашиваю ассеты у сервера
-    final assets = await _service.getAssets(type, episodeId: episodeId);
-
-    // Преобразую Protobuf-модели в доменные
-    return assets.map(toDomain).toList();
+  // Сбрасываю все страницы типа, включая фильтры других эпизодов
+  static void invalidateCache([String? type]) {
+    _generation++;
+    _pages.invalidate(type);
+    _originals.invalidate(type);
   }
 
-  // Загрузить новый ассет
   @override
-  Future<AssetModel?> uploadAsset({
-    required String type,
-    required String name,
-    required String emotion,
-    required String displayName,
-    required String episodeId,
-    required Uint8List fileData,
-    required String fileName,
-  }) async {
-    try {
-      // Отправляю на сервер
-      final response = await _service.uploadAsset(
-        type: type,
-        name: name,
-        emotion: emotion,
-        displayName: displayName,
-        episodeId: episodeId,
-        fileData: fileData,
-        fileName: fileName,
-      );
-
-      // Если успешно - возвращаю ассет
-      if (response.success && response.hasAsset()) {
-        return toDomain(response.asset);
-      }
-      return null;
-    } catch (e) {
-      return null; // Ошибка загрузки
+  Future<AssetPage> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24}) async {
+    final scope = await _service.cacheScope();
+    final key = '$scope|$type|$episodeId|$limit|$cursor';
+    final cached = _pages.get(key);
+    if (cached != null) return cached;
+    final generation = _generation;
+    final response = await _service.getAssetPage(type, episodeId: episodeId, cursor: cursor, limit: limit);
+    final page = AssetPage(List.unmodifiable(response.assets.map(toDomain)), response.nextCursor);
+    if (generation == _generation) {
+      _pages.put(key, type, page, page.assets.fold<int>(0, (n, a) => n + (a.previewData?.length ?? 0)));
     }
+    return page;
   }
 
-  // Удалить ассет по ID
+  @override
+  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = ''}) async {
+    final scope = await _service.cacheScope();
+    final key = '$scope|$type|$episodeId|$id|$name|$emotion|$version';
+    final cached = _originals.get(key);
+    if (cached != null) return cached;
+    final generation = _generation;
+    final response = await _service.getAsset(id: id, type: type, name: name, emotion: emotion, episodeId: episodeId);
+    final model = toDomain(response);
+    if (generation == _generation) _originals.put(key, model.type, model, model.fileData.length + (model.previewData?.length ?? 0));
+    return model;
+  }
+
+  @override
+  Future<AssetModel?> uploadAsset({required String type, required String name, required String emotion,
+    required String displayName, required String episodeId, required Uint8List fileData, required String fileName}) async {
+    final response = await _service.uploadAsset(type: type, name: name, emotion: emotion,
+      displayName: displayName, episodeId: episodeId, fileData: fileData, fileName: fileName);
+    if (!response.success || !response.hasAsset()) return null;
+    invalidateCache(type);
+    return toDomain(response.asset);
+  }
+
   @override
   Future<bool> deleteAsset(String id) async {
-    try {
-      // Отправляю на сервер
-      final response = await _service.deleteAsset(id);
-      return response.success;
-    } catch (e) {
-      return false; // Ошибка удаления
-    }
+    final response = await _service.deleteAsset(id);
+    if (response.success) invalidateCache();
+    return response.success;
   }
 
-  // Преобразование Protobuf-модели в доменную
-  AssetModel toDomain(Asset asset) {
-    return AssetModel(
-      id: asset.id,
-      type: asset.type,
-      name: asset.name,
-      emotion: asset.emotion,
-      url: asset.url,
-      displayName: asset.displayName,
-      episodeId: asset.episodeId,
-      fileData: Uint8List.fromList(asset.fileData),
-    );
-  }
+  AssetModel toDomain(Asset asset) => AssetModel(id: asset.id, type: asset.type, name: asset.name,
+    emotion: asset.emotion, url: asset.url, displayName: asset.displayName, episodeId: asset.episodeId,
+    fileData: Uint8List.fromList(asset.fileData), previewData: Uint8List.fromList(asset.previewData), version: asset.version);
 }

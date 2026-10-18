@@ -27,6 +27,8 @@ class Asset extends $pb.GeneratedMessage {
     $core.String? displayName,
     $core.String? episodeId,
     $core.List<$core.int>? fileData,
+    $core.List<$core.int>? previewData,
+    $core.String? version,
   }) {
     final result = Asset._();
     if (id != null) result.id = id;
@@ -37,6 +39,8 @@ class Asset extends $pb.GeneratedMessage {
     if (displayName != null) result.displayName = displayName;
     if (episodeId != null) result.episodeId = episodeId;
     if (fileData != null) result.fileData = fileData;
+    if (previewData != null) result.previewData = previewData;
+    if (version != null) result.version = version;
     return result;
   }
 
@@ -62,6 +66,9 @@ class Asset extends $pb.GeneratedMessage {
     ..aOS(7, _omitFieldNames ? '' : 'episodeId')
     ..a<$core.List<$core.int>>(
         8, _omitFieldNames ? '' : 'fileData', $pb.PbFieldType.OY)
+    ..a<$core.List<$core.int>>(
+        9, _omitFieldNames ? '' : 'previewData', $pb.PbFieldType.OY)
+    ..aOS(10, _omitFieldNames ? '' : 'version')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -155,6 +162,24 @@ class Asset extends $pb.GeneratedMessage {
   $core.bool hasFileData() => $_has(7);
   @$pb.TagNumber(8)
   void clearFileData() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.List<$core.int> get previewData => $_getN(8);
+  @$pb.TagNumber(9)
+  set previewData($core.List<$core.int> value) => $_setBytes(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasPreviewData() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearPreviewData() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get version => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set version($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasVersion() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearVersion() => $_clearField(10);
 }
 
 /// Запрос на получение ассетов по типу
@@ -162,10 +187,14 @@ class GetAssetsRequest extends $pb.GeneratedMessage {
   factory GetAssetsRequest({
     $core.String? type,
     $core.String? episodeId,
+    $core.int? limit,
+    $core.String? cursor,
   }) {
     final result = GetAssetsRequest._();
     if (type != null) result.type = type;
     if (episodeId != null) result.episodeId = episodeId;
+    if (limit != null) result.limit = limit;
+    if (cursor != null) result.cursor = cursor;
     return result;
   }
 
@@ -184,6 +213,8 @@ class GetAssetsRequest extends $pb.GeneratedMessage {
       createEmptyInstance: GetAssetsRequest.$_createMessage)
     ..aOS(1, _omitFieldNames ? '' : 'type')
     ..aOS(2, _omitFieldNames ? '' : 'episodeId')
+    ..aI(3, _omitFieldNames ? '' : 'limit')
+    ..aOS(4, _omitFieldNames ? '' : 'cursor')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -225,15 +256,35 @@ class GetAssetsRequest extends $pb.GeneratedMessage {
   $core.bool hasEpisodeId() => $_has(1);
   @$pb.TagNumber(2)
   void clearEpisodeId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get cursor => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set cursor($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCursor() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCursor() => $_clearField(4);
 }
 
 /// Ответ со списком ассетов
 class GetAssetsResponse extends $pb.GeneratedMessage {
   factory GetAssetsResponse({
     $core.Iterable<Asset>? assets,
+    $core.String? nextCursor,
   }) {
     final result = GetAssetsResponse._();
     if (assets != null) result.assets.addAll(assets);
+    if (nextCursor != null) result.nextCursor = nextCursor;
     return result;
   }
 
@@ -252,6 +303,7 @@ class GetAssetsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: GetAssetsResponse.$_createMessage)
     ..pPM<Asset>(1, _omitFieldNames ? '' : 'assets',
         subBuilder: Asset.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'nextCursor')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -278,6 +330,120 @@ class GetAssetsResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $pb.PbList<Asset> get assets => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.String get nextCursor => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set nextCursor($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasNextCursor() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearNextCursor() => $_clearField(2);
+}
+
+class GetAssetRequest extends $pb.GeneratedMessage {
+  factory GetAssetRequest({
+    $core.String? id,
+    $core.String? type,
+    $core.String? name,
+    $core.String? emotion,
+    $core.String? episodeId,
+  }) {
+    final result = GetAssetRequest._();
+    if (id != null) result.id = id;
+    if (type != null) result.type = type;
+    if (name != null) result.name = name;
+    if (emotion != null) result.emotion = emotion;
+    if (episodeId != null) result.episodeId = episodeId;
+    return result;
+  }
+
+  GetAssetRequest._();
+
+  factory GetAssetRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetAssetRequest()..mergeFromBuffer(data, registry);
+  factory GetAssetRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetAssetRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetAssetRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: GetAssetRequest.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'type')
+    ..aOS(3, _omitFieldNames ? '' : 'name')
+    ..aOS(4, _omitFieldNames ? '' : 'emotion')
+    ..aOS(5, _omitFieldNames ? '' : 'episodeId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetAssetRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetAssetRequest copyWith(void Function(GetAssetRequest) updates) =>
+      super.copyWith((message) => updates(message as GetAssetRequest))
+          as GetAssetRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use GetAssetRequest() / GetAssetRequest.new instead')
+  static GetAssetRequest create() => GetAssetRequest._();
+  static $pb.GeneratedMessage $_createMessage() => GetAssetRequest._();
+  @$core.override
+  GetAssetRequest createEmptyInstance() => GetAssetRequest._();
+  @$core.pragma('dart2js:noInline')
+  static GetAssetRequest getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetAssetRequest>(
+          GetAssetRequest.$_createMessage);
+  static GetAssetRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get type => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set type($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasType() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearType() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get name => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set name($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearName() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get emotion => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set emotion($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasEmotion() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearEmotion() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get episodeId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set episodeId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasEpisodeId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearEpisodeId() => $_clearField(5);
 }
 
 /// Запрос на загрузку нового ассета

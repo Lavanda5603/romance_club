@@ -116,6 +116,10 @@ fn prepare_scenes(episode: &Episode, records: &[Value]) -> Result<Vec<Value>, St
 }
 
 #[cfg(test)]
+#[path = "episode_transaction_tests.rs"]
+mod transaction_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::romance_club::{Scene, Choice, Action};

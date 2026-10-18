@@ -9,14 +9,14 @@ class EpisodeEndScreen extends StatefulWidget {
   final Episode currentEpisode; // Текущий (пройденный) эпизод
   final String ending; // Название концовки
 
-  // Конструктор класса EpisodeEndScreen
+  // Конструктор
   const EpisodeEndScreen({
     super.key,
     required this.currentEpisode,
     this.ending = '',
   });
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<EpisodeEndScreen> createState() => _EpisodeEndScreenState();
 }

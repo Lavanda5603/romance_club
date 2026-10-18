@@ -12,13 +12,13 @@ import 'main_menu_screen.dart'; // Импорт главного меню
 
 // Экран выбора эпизода
 class EpisodeSelectScreen extends StatefulWidget {
-  // Конструктор класса EpisodeSelectScreen
+  // Конструктор
   final EpisodeGrpcService? episodeService;
   final ProgressRepository? progressRepository;
   final Future<String> Function()? loadPlayerId;
   const EpisodeSelectScreen({super.key, this.episodeService, this.progressRepository, this.loadPlayerId});
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<EpisodeSelectScreen> createState() => _EpisodeSelectScreenState();
 }

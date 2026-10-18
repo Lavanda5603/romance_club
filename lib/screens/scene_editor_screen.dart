@@ -17,7 +17,7 @@ class SceneEditorScreen extends StatefulWidget {
   final String episodeId; // ID эпизода (для фильтра ассетов)
   final List<Scene> allScenes; // Все сцены эпизода (для выбора следующей)
 
-  // Конструктор класса SceneEditorScreen
+  // Конструктор
   const SceneEditorScreen({
     super.key,
     required this.scene,

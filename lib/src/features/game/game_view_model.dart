@@ -146,7 +146,7 @@ class GameViewModel extends ChangeNotifier {
     return currentScene!.sceneKey;
   }
 
-  // Конструктор класса GameViewModel
+  // Конструктор
   GameViewModel(this._repository, [this._progressRepository, this._achievementRepository]);
 
   // Загрузить эпизод по ID
@@ -184,19 +184,33 @@ class GameViewModel extends ChangeNotifier {
         if (_disposed || loadId != _loadId) return;
         _revision = loadedProgress.revision;
       }
-      _state = AsyncState.success(episode);
-
-      // Если надо начать с начала - сбрасываю прогресс
+      // Сначала записываю начало эпизода, потом открываю игру
       if (startFromBeginning) {
-        _currentSceneIndex = 0;
-        _currentTextIndex = 0;
-        _points = 0;
-        _resetCounters();
-        _flags.clear();
-        if (currentScene != null) await _saveProgress();
+        if (_progressRepository != null) {
+          if (episode.scenes.isEmpty) {
+            throw StateError('В эпизоде нет сцен');
+          }
+          final saving = _progressRepository.saveProgress(ProgressModel(
+            playerId: _playerId,
+            episodeId: id,
+            sceneId: episode.scenes.first.sceneKey,
+            flags: const {},
+            counters: {'points': 0, ..._counters},
+            revision: _revision,
+            completed: false,
+            ending: '',
+          ));
+          // Новая загрузка тоже должна дождаться сброса
+          _saveQueue = saving.then<void>((_) {}, onError: (Object error, StackTrace stack) {});
+          final revision = await saving;
+          if (_disposed || loadId != _loadId) return;
+          _revision = revision;
+        }
+        _state = AsyncState.success(episode);
         notifyListeners();
         return;
       }
+      _state = AsyncState.success(episode);
 
       // Загружаю прогресс, если есть репозиторий
       if (_progressRepository != null) {

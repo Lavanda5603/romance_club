@@ -7,7 +7,7 @@ import '../services/admin_grpc_service.dart'; // Импорт gRPC-сервис�
 class AdminRepositoryRemote implements AdminRepository {
   final AdminGrpcService _service; // gRPC-сервис
 
-  // Конструктор класса AdminRepositoryRemote
+  // Конструктор
   AdminRepositoryRemote(this._service);
 
   // Удалить ассет

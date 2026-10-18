@@ -17,7 +17,7 @@ class AssetPickerScreen extends StatefulWidget {
   final String title; // Заголовок экрана
   final String episodeId; // ID эпизода (для фильтра)
 
-  // Конструктор класса AssetPickerScreen
+  // Конструктор
   const AssetPickerScreen({
     super.key,
     required this.type,

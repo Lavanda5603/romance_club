@@ -9,7 +9,7 @@ class ProgressGrpcService {
   late final ClientChannel _channel; // Канал связи
   late final ProgressApiClient _client; // gRPC-клиент
 
-  // Конструктор класса ProgressGrpcService
+  // Конструктор
   ProgressGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
     // Создаю канал связи
     _channel = ClientChannel(

@@ -10,14 +10,14 @@ class EpisodeEditorScreen extends StatefulWidget {
   final Episode episode; // Эпизод
   final Future<Episode> Function(Episode) onSave; // Функция, вызывается при сохранении
 
-  // Конструктор класса EpisodeEditorScreen
+  // Конструктор
   const EpisodeEditorScreen({
     super.key,
     required this.episode,
     required this.onSave,
   });
 
-  // Метод createState
+  // Создаю состояние экрана
   @override
   State<EpisodeEditorScreen> createState() => _EpisodeEditorScreenState();
 }

@@ -14,7 +14,7 @@ class AssetGrpcService {
   late final ClientChannel _channel; // Канал связи
   late final AssetApiClient _client; // gRPC-клиент
 
-  // Конструктор класса AssetGrpcService
+  // Конструктор
   AssetGrpcService({this.host = '10.0.2.2', this.port = 50051, RpcDeadline? deadlines}) {
     // Создаю канал связи с сервером
     _channel = ClientChannel(

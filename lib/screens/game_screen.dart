@@ -13,7 +13,7 @@ import '../src/data/services/achievement_grpc_service.dart'; // Импорт gRP
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
 import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
 import '../src/domain/repositories/asset_repository.dart';
-import 'episode_end_screen.dart'; // Иморт экрана конца эпизода
+import 'episode_end_screen.dart'; // Импорт экрана конца эпизода
 
 // Игровой экран
 class GameScreen extends StatefulWidget {
@@ -22,7 +22,7 @@ class GameScreen extends StatefulWidget {
   final Episode episode; // Эпизод (Protobuf)
   final bool startFromBeginning;
 
-  // Конструктор класса GameScreen
+  // Конструктор
   const GameScreen({
     super.key,
     required this.episode,

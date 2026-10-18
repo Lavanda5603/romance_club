@@ -5,7 +5,7 @@ class EpisodeModel {
   final int version; // Версия
   final List<SceneModel> scenes; // Сцены
 
-  // Конструктор класса EpisodeModel
+  // Конструктор
   const EpisodeModel({
     required this.id,
     required this.title,
@@ -34,7 +34,7 @@ class SceneModel {
   String get nextSceneTarget => nextSceneKey.isNotEmpty
       ? nextSceneKey : nextSceneId > 0 ? 'scene:$nextSceneId' : '';
 
-  // Конструктор класса SceneModel
+  // Конструктор
   const SceneModel({
     required this.id,
     required this.sceneKey,
@@ -59,7 +59,7 @@ class ChoiceModel {
   final String title; // Название
   final List<ActionModel> actions; // Действия
 
-  // Конструктор класса ChoiceModel
+  // Конструктор
   const ChoiceModel({
     required this.text,
     required this.title,
@@ -83,7 +83,7 @@ class ActionModel {
   final String imagePath; // Путь к картинке
   final String title; // Название
 
-  // Конструктор класса ActionModel
+  // Конструктор
   const ActionModel({
     required this.type,
     required this.sceneId,

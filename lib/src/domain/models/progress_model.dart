@@ -9,7 +9,7 @@ class ProgressModel {
   final Map<String, bool> flags; // Флаги
   final Map<String, int> counters; // Счётчики (баллы)
 
-  // Конструктор класса ProgressModel
+  // Конструктор
   const ProgressModel({
     required this.playerId,
     required this.episodeId,

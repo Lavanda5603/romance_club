@@ -10,7 +10,7 @@ class ChoiceEditorScreen extends StatefulWidget {
   final String defaultText; // Текст по умолчанию
   final Function(Choice) onSave; // Функция, вызывается при сохранении
 
-  // Конструктор класса ChoiceEditorScreen
+  // Конструктор
   const ChoiceEditorScreen({
     super.key,
     this.choice,
@@ -19,7 +19,7 @@ class ChoiceEditorScreen extends StatefulWidget {
     required this.onSave,
   });
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<ChoiceEditorScreen> createState() => _ChoiceEditorScreenState();
 }

@@ -4,10 +4,10 @@ import '../services/storage_service.dart'; // Импорт сервиса хра
 
 // Экран настроек
 class SettingsScreen extends StatefulWidget {
-  // Конструктор класса SettingsScreen
+  // Конструктор
   const SettingsScreen({super.key});
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }

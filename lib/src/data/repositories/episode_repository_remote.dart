@@ -10,7 +10,7 @@ import '../../../generated/action.pb.dart'; // Импорт Protobuf-модел�
 class EpisodeRepositoryRemote implements EpisodeRepository {
   final EpisodeGrpcService _service; // gRPC-сервис
 
-  // Конструктор класса EpisodeRepositoryRemote
+  // Конструктор
   EpisodeRepositoryRemote(this._service);
 
   // Получить эпизод по ID

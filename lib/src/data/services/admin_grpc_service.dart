@@ -8,7 +8,7 @@ class AdminGrpcService {
   late final ClientChannel _channel; // Канал связи
   late final AdminApiClient _client; // gRPC-клиент
 
-  // Конструктор класса AdminGrpcService
+  // Конструктор
   AdminGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
     _channel = ClientChannel(
       host,

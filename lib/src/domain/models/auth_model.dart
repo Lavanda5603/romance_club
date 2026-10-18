@@ -9,7 +9,7 @@ class AuthModel {
   final String token; // JWT-токен
   final bool isAdmin; // Админ ли
 
-  // Конструктор класса AuthModel
+  // Конструктор
   const AuthModel({
     required this.success,
     required this.message,

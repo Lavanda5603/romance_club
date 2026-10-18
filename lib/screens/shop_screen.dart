@@ -9,10 +9,10 @@ import 'game_screen.dart'; // Импорт игрового экрана
 
 // Экран магазина
 class ShopScreen extends StatefulWidget {
-  // Конструктор класса ShopScreen
+  // Конструктор
   const ShopScreen({super.key});
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<ShopScreen> createState() => _ShopScreenState();
 }

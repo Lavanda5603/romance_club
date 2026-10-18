@@ -4,7 +4,7 @@ class PurchaseModel {
   final String itemType; // Тип (episode, subscription, currency)
   final String purchasedAt; // Дата покупки
 
-  // Конструктор класса PurchaseModel
+  // Конструктор
   const PurchaseModel({
     required this.itemId,
     required this.itemType,
@@ -17,7 +17,7 @@ class CurrencyModel {
   final String playerId; // ID игрока
   final int diamonds; // Баланс алмазов
 
-  // Конструктор класса CurrencyModel
+  // Конструктор
   const CurrencyModel({
     required this.playerId,
     required this.diamonds,

@@ -56,6 +56,21 @@ class _Progress implements ProgressRepository {
   Future<bool> resetProgress(String playerId) async => true;
 }
 
+class _EpisodeProgress extends _Progress {
+  final Map<int, ProgressModel> records = {};
+  @override
+  Future<ProgressModel> getProgress(String playerId, int episodeId) async =>
+      records[episodeId] ?? ProgressModel.empty();
+  @override
+  Future<int> saveProgress(ProgressModel progress) async {
+    records[progress.episodeId] = progress;
+    return progress.revision + 1;
+  }
+  @override
+  Future<bool> resetProgress(String playerId) async =>
+      throw StateError('Нельзя сбрасывать все эпизоды');
+}
+
 class _Achievements extends AchievementRepository {
   final calls = <String>[];
   @override
@@ -247,6 +262,71 @@ void main() {
     expect(progress.saved.counters['points'], 5);
     expect(progress.saved.counters['friendship'], 4);
     expect(progress.saved.flags['secret_scene'], isTrue);
+  });
+
+  test('Сброс записываю до открытия игры и восстанавливаю после выхода без перехода', () async {
+    final progress = _Progress()..saved = const ProgressModel(
+      playerId: 'player:1', episodeId: 1, sceneId: 'scene:ending',
+      revision: 7, completed: true, ending: 'Секрет',
+      flags: {'secret': true}, counters: {'points': 100, 'friendship': 9},
+    );
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    progress.gate = Completer<void>();
+    final loading = vm.loadEpisode(1, startFromBeginning: true);
+    while (progress.writes.isEmpty) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(vm.state.isLoading, isTrue);
+    expect(vm.currentScene, isNull);
+    expect(progress.saved.sceneId, 'scene:ending');
+    progress.gate!.complete();
+    await loading;
+    expect(vm.state.error, isNull);
+    expect(progress.writes, hasLength(1));
+    expect(progress.saved.episodeId, 1);
+    expect(progress.saved.revision, 7);
+    expect(progress.saved.completed, isFalse);
+    expect(progress.saved.ending, isEmpty);
+    expect(progress.saved.flags, isEmpty);
+    expect(progress.saved.counters.values.every((value) => value == 0), isTrue);
+    vm.dispose();
+    final reopened = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(reopened.dispose);
+    await reopened.loadEpisode(1);
+    expect(reopened.currentScene!.sceneKey, 'scene:200');
+    expect(reopened.points, 0);
+    expect(reopened.completed, isFalse);
+  });
+
+  test('При отказе сброса не открываю игру и сохраняю прежнюю запись', () async {
+    final old = const ProgressModel(playerId: 'player:1', episodeId: 1,
+      sceneId: 'scene:ending', flags: {'old': true}, counters: {'points': 50});
+    final progress = _Progress()..saved = old..fail = true;
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1, startFromBeginning: true);
+    expect(vm.state.error, isNotNull);
+    expect(vm.state.isLoading, isFalse);
+    expect(vm.currentScene, isNull);
+    expect(progress.saved, same(old));
+    progress.fail = false;
+    await vm.loadEpisode(1, startFromBeginning: true);
+    expect(vm.state.error, isNull);
+    expect(progress.saved.sceneId, 'scene:200');
+  });
+
+  test('Начало одного эпизода не меняет сохранение другого', () async {
+    final progress = _EpisodeProgress();
+    const other = ProgressModel(playerId: 'player:1', episodeId: 2,
+      sceneId: 'scene:other', completed: true, revision: 8,
+      flags: {'secret': true}, counters: {'points': 80});
+    progress.records[2] = other;
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1, startFromBeginning: true);
+    expect(vm.state.error, isNull);
+    expect(progress.records[1]!.sceneId, 'scene:200');
+    expect(progress.records[2], same(other));
   });
 
   test('Начатый эпизод завершаю только после подтверждения конца', () async {

@@ -1,5 +1,5 @@
-import 'dart:io'; // Иморт для работы с файлами
-import 'dart:typed_data'; // Имопрт для работы с байтами
+import 'dart:io'; // Импорт для работы с файлами
+import 'dart:typed_data'; // Импорт для работы с байтами
 import 'package:path_provider/path_provider.dart'; // Импорт для пути к папке
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../generated/settings.pb.dart'; // Импорт Protobuf-модели Settings

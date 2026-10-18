@@ -10,7 +10,7 @@ class ActionEditorScreen extends StatefulWidget {
   final String defaultTitle; // Название по умолчанию
   final Function(Action) onSave; // Функция, вызывается при сохранении
 
-  // Конструктор класса ActionEditorScreen
+  // Конструктор
   const ActionEditorScreen({
     super.key,
     this.action,
@@ -19,7 +19,7 @@ class ActionEditorScreen extends StatefulWidget {
     required this.onSave,
   });
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<ActionEditorScreen> createState() => _ActionEditorScreenState();
 }

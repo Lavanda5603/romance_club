@@ -8,10 +8,10 @@ import '../services/storage_service.dart'; // Импорт сервиса хра
 
 // Экран регистрации
 class RegisterScreen extends StatefulWidget {
-  // Конструктор класса RegisterScreen
+  // Конструктор
   const RegisterScreen({super.key});
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }

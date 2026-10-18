@@ -8,7 +8,7 @@ class AuthGrpcService {
   late final ClientChannel _channel; // Канал связи
   late final AuthApiClient _client; // gRPC-клиент
 
-  // Конструктор класса AuthGrpcService
+  // Конструктор
   AuthGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
     // Создаю канал связи
     _channel = ClientChannel(

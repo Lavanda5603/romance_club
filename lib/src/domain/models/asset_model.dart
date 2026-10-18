@@ -13,7 +13,7 @@ class AssetModel {
   final Uint8List? previewData; // Маленькая картинка для сетки
   final String version;
 
-  // Конструктор класса AssetModel
+  // Конструктор
   const AssetModel({
     required this.id,
     required this.type,

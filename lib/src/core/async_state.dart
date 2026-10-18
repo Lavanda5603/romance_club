@@ -4,7 +4,7 @@ class AsyncState<T> {
   final T? data; // Данные
   final String? error; // Ошибка
 
-  // Конструктор класса AsyncState
+  // Конструктор
   const AsyncState({
     this.isLoading = false,
     this.data,

@@ -8,10 +8,10 @@ import '../services/storage_service.dart'; // Импорт сервиса хра
 
 // Экран авторизации
 class LoginScreen extends StatefulWidget {
-  // Конструктор класса LoginScreen
+  // Конструктор
   const LoginScreen({super.key});
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }

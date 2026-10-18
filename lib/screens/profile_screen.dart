@@ -17,7 +17,7 @@ import 'login_screen.dart'; // Импорт экрана авторизации
 
 // Экран профиля игрока
 class ProfileScreen extends StatefulWidget {
-  // Конструктор класса ProfileScreen
+  // Конструктор
   final AuthRepository? authRepository;
   final ProgressRepository? progressRepository;
   final AchievementRepository? achievementRepository;
@@ -26,7 +26,7 @@ class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.authRepository, this.progressRepository,
     this.achievementRepository, this.episodeService, this.loadPlayerId});
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }

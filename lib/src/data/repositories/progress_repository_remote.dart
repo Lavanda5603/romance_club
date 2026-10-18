@@ -7,7 +7,7 @@ import '../../../generated/progress.pb.dart'; // Импорт Protobuf-моде�
 class ProgressRepositoryRemote implements ProgressRepository {
   final ProgressGrpcService _service; // gRPC-сервис
 
-  // Конструктор класса ProgressRepositoryRemote
+  // Конструктор
   ProgressRepositoryRemote(this._service);
 
   @override

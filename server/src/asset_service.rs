@@ -1,7 +1,7 @@
 use tonic::{Request, Response, Status};
 use surrealdb::{engine::remote::ws::Client, Surreal};
 use serde_json::Value;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
+use surrealdb::types::{Bytes, RecordId, SurrealValue, ToSql};
 use crate::{asset_preview, romance_club::{asset_api_server::AssetApi, *}};
 
 pub const MAX_UPLOAD_BYTES: usize = 5 * 1024 * 1024;
@@ -13,13 +13,28 @@ const CATALOG_FIELDS: &str = "id, type, name, emotion, url, display_name, episod
 fn text(row: &Value, field: &str) -> String { row[field].as_str().unwrap_or_default().to_owned() }
 fn internal(error: impl std::fmt::Display) -> Status { Status::internal(error.to_string()) }
 
-fn asset(row: &Value, original: bool) -> Result<Asset, Status> {
-    let decode = |field| STANDARD.decode(text(row, field)).map_err(|_| Status::internal("Повреждены данные изображения"));
+// Читаю байты напрямую, без преобразования через JSON или base64
+#[derive(Debug, SurrealValue)]
+struct AssetRow {
+    id: RecordId,
+    r#type: String,
+    name: String,
+    emotion: Option<String>,
+    url: String,
+    display_name: String,
+    episode_id: Option<RecordId>,
+    version: Option<String>,
+    file_data: Option<Bytes>,
+    preview_data: Option<Bytes>,
+}
+
+fn asset(row: &AssetRow, original: bool) -> Result<Asset, Status> {
     Ok(Asset {
-        id: text(row, "id"), r#type: text(row, "type"), name: text(row, "name"),
-        emotion: text(row, "emotion"), url: text(row, "url"), display_name: text(row, "display_name"),
-        episode_id: text(row, "episode_id"), version: text(row, "version"), preview_data: decode("preview_data")?,
-        file_data: if original { decode("file_data")? } else { Vec::new() },
+        id: row.id.to_sql(), r#type: row.r#type.clone(), name: row.name.clone(),
+        emotion: row.emotion.clone().unwrap_or_default(), url: row.url.clone(), display_name: row.display_name.clone(),
+        episode_id: row.episode_id.as_ref().map(ToSql::to_sql).unwrap_or_default(),
+        version: row.version.clone().unwrap_or_default(), preview_data: row.preview_data.as_ref().map(|b| b.to_vec()).unwrap_or_default(),
+        file_data: if original { row.file_data.as_ref().map(|b| b.to_vec()).unwrap_or_default() } else { Vec::new() },
     })
 }
 
@@ -33,26 +48,25 @@ impl AssetApiService {
     }
 
     // Старый оригинал читаю только тогда, когда записи нужно превью
-    async fn preview(&self, mut row: Value) -> Result<Value, Status> {
-        if !text(&row, "preview_data").is_empty() { return Ok(row); }
-        if !matches!(text(&row, "type").as_str(), "background" | "character") { return Ok(row); }
-        let id = text(&row, "id");
+    async fn preview(&self, mut row: AssetRow) -> Result<AssetRow, Status> {
+        if row.preview_data.as_ref().is_some_and(|bytes| !bytes.is_empty()) { return Ok(row); }
+        if !matches!(row.r#type.as_str(), "background" | "character") { return Ok(row); }
+        let id = row.id.to_sql();
         let mut response = self.db.query("SELECT * FROM type::record($id)")
             .bind(("id", id.clone())).await.map_err(internal)?.check().map_err(internal)?;
-        let full: Option<Value> = response.take(0).map_err(internal)?;
+        let full: Option<AssetRow> = response.take(0).map_err(internal)?;
         let Some(full) = full else { return Ok(row); };
-        let source = text(&full, "file_data");
+        let Some(source) = full.file_data else { return Ok(row); };
         if source.is_empty() { return Ok(row); }
-        let bytes = STANDARD.decode(&source).map_err(|_| Status::internal("Повреждён оригинал изображения"))?;
-        let (preview, version) = asset_preview::make(bytes).await?;
+        let (preview, version) = asset_preview::make(source.to_vec()).await?;
         // Не затираю картинку, которую успели заменить во время обработки
-        self.db.query("UPDATE type::record($id) SET preview_data = $preview, version = $version WHERE file_data = $source AND (preview_data = NONE OR preview_data = '')")
-            .bind(("id", id.clone())).bind(("preview", STANDARD.encode(&preview)))
+        self.db.query("UPDATE type::record($id) SET preview_data = $preview, version = $version WHERE file_data = $source AND (preview_data = NONE OR bytes::len(preview_data) = 0)")
+            .bind(("id", id.clone())).bind(("preview", Bytes::from(preview)))
             .bind(("version", version)).bind(("source", source))
             .await.map_err(internal)?.check().map_err(internal)?;
         let mut response = self.db.query(format!("SELECT {CATALOG_FIELDS} FROM type::record($id)"))
             .bind(("id", id)).await.map_err(internal)?.check().map_err(internal)?;
-        if let Some(current) = response.take::<Option<Value>>(0).map_err(internal)? { row = current; }
+        if let Some(current) = response.take::<Option<AssetRow>>(0).map_err(internal)? { row = current; }
         Ok(row)
     }
 }
@@ -73,14 +87,14 @@ impl AssetApi for AssetApiService {
             .bind(("type", req.r#type)).bind(("ep", req.episode_id))
             .bind(("cursor", req.cursor)).bind(("limit", limit + 1))
             .await.map_err(internal)?.check().map_err(internal)?;
-        let mut rows: Vec<Value> = response.take(0).map_err(internal)?;
+        let mut rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
         let more = rows.len() > limit;
         rows.truncate(limit);
-        let next_cursor = if more { rows.last().map(|row| text(row, "id")).unwrap_or_default() } else { String::new() };
+        let next_cursor = if more { rows.last().map(|row| row.id.to_sql()).unwrap_or_default() } else { String::new() };
         // Обрабатываю не больше четырёх старых картинок одновременно
         let mut pending = rows.into_iter().enumerate();
         let mut jobs = tokio::task::JoinSet::new();
-        let launch = |jobs: &mut tokio::task::JoinSet<Result<(usize, Value), Status>>, index, row| {
+        let launch = |jobs: &mut tokio::task::JoinSet<Result<(usize, AssetRow), Status>>, index, row| {
             let service = Self::new(self.db.clone());
             jobs.spawn(async move { Ok((index, service.preview(row).await?)) });
         };
@@ -107,7 +121,7 @@ impl AssetApi for AssetApiService {
             .bind(("id", req.id)).bind(("type", req.r#type)).bind(("name", req.name))
             .bind(("emotion", req.emotion)).bind(("ep", req.episode_id))
             .await.map_err(internal)?.check().map_err(internal)?;
-        let rows: Vec<Value> = response.take(0).map_err(internal)?;
+        let rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
         let row = rows.first().ok_or_else(|| Status::not_found("Ассет не найден"))?;
         Ok(Response::new(asset(row, !req.metadata_only)?))
     }
@@ -132,9 +146,9 @@ impl AssetApi for AssetApiService {
         let mut response = self.db.query("UPSERT type::record($id) MERGE {type:$type, name:$name, emotion:(IF $emotion='' { NONE } ELSE { $emotion }), episode_id:(IF $ep='' { NONE } ELSE { type::record($ep) }), url:$url, display_name:$display, file_data:$file, preview_data:$preview, version:$version} RETURN AFTER")
             .bind(("id", id)).bind(("type", req.r#type)).bind(("name", req.name)).bind(("emotion", req.emotion))
             .bind(("ep", req.episode_id)).bind(("url", url)).bind(("display", display))
-            .bind(("file", STANDARD.encode(&req.file_data))).bind(("preview", STANDARD.encode(preview))).bind(("version", version))
+            .bind(("file", Bytes::from(req.file_data))).bind(("preview", Bytes::from(preview))).bind(("version", version))
             .await.map_err(internal)?.check().map_err(internal)?;
-        let rows: Vec<Value> = response.take(0).map_err(internal)?;
+        let rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
         let row = rows.first().ok_or_else(|| Status::internal("Ассет не сохранён"))?;
         Ok(Response::new(UploadAssetResponse { success: true, message: "Ассет сохранён".into(), asset: Some(asset(row, false)?) }))
     }

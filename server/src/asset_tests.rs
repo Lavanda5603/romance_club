@@ -1,4 +1,5 @@
 use super::*;
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use crate::jwt::Claims;
 use image::{DynamicImage, RgbaImage, Rgba, ImageFormat};
 use std::{collections::HashSet, io::Cursor};
@@ -52,10 +53,35 @@ async fn crosswalk_preview_limits_decoded_pixels() {
 }
 
 async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
+    // Старые строки переношу без изменения байтов, ключей и метаданных
+    db.query(include_str!("../migrations/009_asset.surql")).await?.check()?;
+    db.query(include_str!("../migrations/010_asset_file.surql")).await?.check()?;
+    db.query(include_str!("../migrations/015_asset_previews.surql")).await?.check()?;
+    let mut legacy = picture(9);
+    // Старые строки содержат завершающие знаки =, SurrealDB кодирует без них
+    while legacy.len() % 3 != 1 { legacy.push(0); }
+    let (thumb, version) = asset_preview::make(legacy.clone()).await?;
+    db.query("CREATE asset:migrate CONTENT {type:'background',name:'legacy',url:'old',display_name:'Legacy',file_data:$file,preview_data:$preview,version:$version};")
+        .bind(("file", STANDARD.encode(&legacy))).bind(("preview", STANDARD.encode(&thumb)))
+        .bind(("version", version.clone())).await?.check()?;
+    db.query(include_str!("../migrations/018_asset_bytes.surql")).await?.check()?;
+    db.query(include_str!("../migrations/018_asset_bytes.surql")).await?.check()?;
+    let mut result = db.query("SELECT * FROM asset:migrate;").await?.check()?;
+    let migrated: Option<AssetRow> = result.take(0)?;
+    let migrated = migrated.unwrap();
+    assert_eq!(migrated.file_data.unwrap().to_vec(), legacy);
+    assert_eq!(migrated.preview_data.unwrap().to_vec(), thumb);
+    assert_eq!(migrated.version.as_deref(), Some(version.as_str()));
+    // Повреждённая строка останавливает перенос целиком
+    db.query("DEFINE FIELD OVERWRITE file_data ON asset TYPE option<string | bytes>; CREATE asset:bad CONTENT {type:'background',name:'bad',url:'bad',display_name:'Bad',file_data:'not-base64'};").await?.check()?;
+    assert!(db.query(include_str!("../migrations/018_asset_bytes.surql")).await?.check().is_err());
+    let mut result = db.query("SELECT VALUE file_data FROM asset:bad;").await?.check()?;
+    assert_eq!(result.take::<Vec<String>>(0)?, vec!["not-base64"]);
+    db.query("DELETE asset:bad; DELETE asset:migrate;").await?.check()?;
     crate::apply_migrations(&db).await.map_err(|e| e.to_string())?;
     let original = picture(1);
     db.query("FOR $n IN 0..55 { CREATE type::record('asset', 'old_' + <string>$n) CONTENT {type:'background',name:'old_' + <string>$n,url:'test',display_name:'Same name',episode_id:(IF $n=54 {episode:2} ELSE {NONE}),file_data:$file}; };")
-        .bind(("file", STANDARD.encode(&original))).await?.check()?;
+        .bind(("file", Bytes::from(original.clone()))).await?.check()?;
     let api = AssetApiService::new(db.clone());
     let first = api.get_assets(page(String::new(), 5)).await?.into_inner();
     assert_eq!(first.assets.len(), 5);
@@ -96,6 +122,11 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     assert!(!upload.preview_data.is_empty());
     let full = api.get_asset(Request::new(GetAssetRequest { id: upload.id.clone(), ..Default::default() })).await?.into_inner();
     assert_eq!(full.file_data, replaced);
+    let mut stored = db.query("SELECT * FROM type::record($id);").bind(("id", upload.id.clone())).await?.check()?;
+    let stored: Option<AssetRow> = stored.take(0)?;
+    let stored = stored.unwrap();
+    assert_eq!(stored.file_data.unwrap().to_vec(), replaced);
+    assert_eq!(stored.preview_data.unwrap().to_vec(), upload.preview_data);
     assert_eq!(full.version, upload.version);
     let scoped = api.upload_asset(admin(UploadAssetRequest {
         r#type:"background".into(),name:"old_1".into(),episode_id:"episode:3".into(),file_data:picture(3), ..Default::default()

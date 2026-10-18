@@ -49,6 +49,31 @@ class _Progress implements ProgressRepository {
   Future<bool> resetProgress(String playerId) async { wasReset = true; return true; }
 }
 
+class _SlowEpisodes extends _Episodes {
+  final pending = Completer<List<Episode>>();
+  _SlowEpisodes() : super(1);
+  @override
+  Future<List<Episode>> getAllEpisodes() => pending.future;
+}
+
+class _SlowReset extends _Progress {
+  int resets = 0;
+  final reset = Completer<bool>();
+  final refreshed = Completer<Set<int>>();
+  final players = <String>[];
+  @override
+  Future<bool> resetProgress(String playerId) {
+    resets++;
+    players.add(playerId);
+    return reset.future;
+  }
+  @override
+  Future<Set<int>> getProgressSummary(String playerId) {
+    summaries++;
+    return resets > 0 ? refreshed.future : pending.future;
+  }
+}
+
 class _CompletionSummary extends _Progress {
   @override
   Future<Set<int>> getProgressSummary(String playerId) async {
@@ -92,8 +117,9 @@ class _Achievements implements AchievementRepository {
 }
 class _Observer extends NavigatorObserver {
   Route<dynamic>? route;
+  int pushes = 0;
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) { this.route = route; }
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) { pushes++; this.route = route; }
 }
 class _SummaryService extends ProgressGrpcService {
   int calls = 0;
@@ -105,6 +131,111 @@ class _SummaryService extends ProgressGrpcService {
 }
 
 void main() {
+  ElevatedButton control(WidgetTester tester, String label) =>
+      tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, label));
+
+  testWidgets('Отмена сброса возвращает кнопки и не отправляет запрос', (tester) async {
+    final episodes = _Episodes(1);
+    addTearDown(episodes.close);
+    final progress = _SlowReset()..pending.complete({});
+    await tester.pumpWidget(MaterialApp(home: EpisodeSelectScreen(
+      episodeService:episodes,progressRepository:progress,loadPlayerId:()async=>'player:test')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('сбросить\nпрогресс'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Отмена'));
+    await tester.pumpAndSettle();
+    expect(progress.resets,0);
+    expect(control(tester,'продолжить').onPressed,isNotNull);
+    expect(control(tester,'сбросить\nпрогресс').onPressed,isNotNull);
+  });
+
+  testWidgets('Двойное нажатие запускает только один игровой экран', (tester) async {
+    final episodes = _Episodes(1);
+    addTearDown(episodes.close);
+    final progress = _Progress()..pending.complete({});
+    final observer = _Observer();
+    await tester.pumpWidget(MaterialApp(navigatorObservers:[observer],home: EpisodeSelectScreen(
+      episodeService:episodes,progressRepository:progress,loadPlayerId:()async=>'player:test')));
+    await tester.pumpAndSettle();
+    final start = control(tester,'продолжить').onPressed!;
+    start();
+    start();
+    expect(observer.pushes,2);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Не запускаю игру и сброс до загрузки игрока и эпизодов', (tester) async {
+    final episodes = _SlowEpisodes();
+    addTearDown(episodes.close);
+    final playerId = Completer<String>();
+    final progress = _SlowReset();
+    await tester.pumpWidget(MaterialApp(home: EpisodeSelectScreen(
+      episodeService:episodes, progressRepository:progress, loadPlayerId:()=>playerId.future)));
+    await tester.pump();
+    expect(control(tester,'продолжить').onPressed,isNull);
+    expect(control(tester,'сбросить\nпрогресс').onPressed,isNull);
+    playerId.complete('player:test');
+    await tester.pump();
+    expect(control(tester,'сбросить\nпрогресс').onPressed,isNull);
+    episodes.pending.complete([Episode(id:1,title:'Эпизод 1')]);
+    await tester.pumpAndSettle();
+    expect(control(tester,'продолжить').onPressed,isNotNull);
+    expect(control(tester,'сбросить\nпрогресс').onPressed,isNotNull);
+    expect(progress.resets,0);
+  });
+
+  testWidgets('Сброс блокирует повтор, игру и выбор до свежей сводки', (tester) async {
+    final episodes = _Episodes(3);
+    addTearDown(episodes.close);
+    final progress = _SlowReset();
+    await tester.pumpWidget(MaterialApp(home: EpisodeSelectScreen(
+      episodeService:episodes, progressRepository:progress, loadPlayerId:()async=>'player:test')));
+    await tester.pumpAndSettle();
+    final reset = control(tester,'сбросить\nпрогресс').onPressed!;
+    reset();
+    reset();
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog),findsOneWidget);
+    await tester.tap(find.text('Сбросить'));
+    await tester.pumpAndSettle();
+    expect(progress.resets,1);
+    expect(progress.players,['player:test']);
+    expect(control(tester,'сбросить\nпрогресс').onPressed,isNull);
+    expect(control(tester,'продолжить').onPressed,isNull);
+    expect(control(tester,'Эпизод 1').onPressed,isNull);
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton,Icons.arrow_back)).onPressed,isNull);
+    final pop = tester.widget<PopScope>(find.byWidgetPredicate((widget) => widget is PopScope));
+    expect(pop.canPop,isFalse);
+    progress.pending.complete({1,2});
+    await tester.pumpAndSettle();
+    progress.reset.complete(true);
+    await tester.pumpAndSettle();
+    expect(control(tester,'продолжить').onPressed,isNull);
+    progress.refreshed.complete({});
+    await tester.pumpAndSettle();
+    expect(control(tester,'продолжить').onPressed,isNotNull);
+    expect(control(tester,'сбросить\nпрогресс').onPressed,isNotNull);
+    expect(control(tester,'Эпизод 1').style!.backgroundColor!.resolve({}),const Color(0xFF534F50));
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton,Icons.arrow_back)).onPressed,isNotNull);
+    expect(find.text('Прогресс сброшен'),findsOneWidget);
+    expect(tester.takeException(),isNull);
+  });
+
+  for(final id in ['', 'wrong', 'player:', 'player: ', '   ']) {
+    testWidgets('Не отправляю сброс с неверным ID: $id', (tester) async {
+      final episodes = _Episodes(1);
+      addTearDown(episodes.close);
+      final progress = _SlowReset();
+      await tester.pumpWidget(MaterialApp(home: EpisodeSelectScreen(
+        episodeService:episodes,progressRepository:progress,loadPlayerId:()async=>id)));
+      await tester.pumpAndSettle();
+      expect(control(tester,'сбросить\nпрогресс').onPressed,isNull);
+      expect(control(tester,'продолжить').onPressed,isNull);
+      expect(progress.resets,0);
+      expect(progress.summaries,0);
+    });
+  }
   test('Поле completed сохраняется при преобразовании прогресса', () {
     final service = ProgressGrpcService();
     addTearDown(service.close);
@@ -148,6 +279,8 @@ void main() {
       final button = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Эпизод 1'));
       expect(button.style!.backgroundColor!.resolve({}), const Color(0xFFD30010));
       expect(find.text('Прогресс сброшен'), findsNothing);
+      expect(control(tester,'сбросить\nпрогресс').onPressed,isNotNull);
+      expect(control(tester,'продолжить').onPressed,isNotNull);
       expect(find.textContaining('Ошибка:'), findsOneWidget);
       expect(progress.summaries, 1);
       expect(tester.takeException(), isNull);

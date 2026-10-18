@@ -67,7 +67,10 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
     setState(() { _isStarting = true; _selectionTouched = true; });
     try {
       await Navigator.push(context, MaterialPageRoute(builder: (_) => GameScreen(episode: _episodes[_selectedIndex])));
-      if (mounted) await _loadProgressSummary();
+      if (!mounted) return;
+      // После игры заново выбираю первый непройденный эпизод по свежей сводке
+      _selectionTouched = false;
+      await _loadProgressSummary();
     } finally {
       if (mounted) setState(() => _isStarting = false);
     }

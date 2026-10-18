@@ -56,6 +56,16 @@ class _SlowEpisodes extends _Episodes {
   Future<List<Episode>> getAllEpisodes() => pending.future;
 }
 
+// Ответ при возврате из игры задерживаю отдельно от первой загрузки
+class _ReturnProgress extends _Progress {
+  final returned = Completer<Set<int>>();
+  @override
+  Future<Set<int>> getProgressSummary(String playerId) {
+    summaries++;
+    return summaries == 1 ? Future.value(<int>{}) : returned.future;
+  }
+}
+
 class _SlowReset extends _Progress {
   int resets = 0;
   final reset = Completer<bool>();
@@ -164,6 +174,42 @@ void main() {
     expect(observer.pushes,2);
     await tester.pumpWidget(const SizedBox());
   });
+
+  for (final failed in [false, true]) {
+    testWidgets('При возврате из игры обновляю только сводку: ошибка=$failed', (tester) async {
+      final episodes = _Episodes(3);
+      addTearDown(episodes.close);
+      final progress = _ReturnProgress();
+      final observer = _Observer();
+      await tester.pumpWidget(MaterialApp(navigatorObservers: [observer], home: EpisodeSelectScreen(
+        episodeService: episodes, progressRepository: progress, loadPlayerId: () async => 'player:test')));
+      await tester.pumpAndSettle();
+      // Возвращаю игровой маршрут до его отрисовки, чтобы не обращаться к настоящему серверу
+      control(tester,'продолжить').onPressed!();
+      observer.route!.navigator!.pop();
+      await tester.pump();
+      expect(progress.summaries, 2);
+      expect(episodes.calls, 1);
+      expect(control(tester,'продолжить').onPressed, isNull);
+      if (failed) {
+        progress.returned.completeError(StateError('Сервер недоступен'));
+      } else {
+        progress.returned.complete({1});
+      }
+      await tester.pumpAndSettle();
+      expect(control(tester,'продолжить').onPressed, isNotNull);
+      expect(episodes.calls, 1);
+      expect(progress.singles, 0);
+      if (failed) {
+        expect(find.textContaining('Не удалось загрузить статус эпизодов'), findsOneWidget);
+        expect(control(tester,'Эпизод 1').style!.side!.resolve({})!.width, 2);
+      } else {
+        expect(control(tester,'Эпизод 1').style!.backgroundColor!.resolve({}), const Color(0xFFD30010));
+        expect(control(tester,'Эпизод 2').style!.side!.resolve({})!.width, 2);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('Не запускаю игру и сброс до загрузки игрока и эпизодов', (tester) async {
     final episodes = _SlowEpisodes();

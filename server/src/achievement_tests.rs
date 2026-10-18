@@ -15,7 +15,7 @@ async fn finish(api:&ProgressApiService, episode_id:i32, scene_id:&str, ending:&
     let saved = api.get_progress(own(crate::romance_club::GetProgressRequest {player_id:"player:test".into(),episode_id})).await?.into_inner();
     api.save_progress(own(crate::romance_club::SaveProgressRequest {
         player_id:"player:test".into(), episode_id, scene_id:scene_id.into(), ending:ending.into(), completed,
-        expected_revision:saved.revision, ..Default::default()
+        expected_revision:saved.revision, expected_generation:saved.generation, ..Default::default()
     })).await?;
     Ok(())
 }

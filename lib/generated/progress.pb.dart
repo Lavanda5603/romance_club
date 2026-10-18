@@ -29,6 +29,7 @@ class Progress extends $pb.GeneratedMessage {
     $core.int? revision,
     $core.bool? completed,
     $core.String? ending,
+    $core.int? generation,
   }) {
     final result = Progress._();
     if (id != null) result.id = id;
@@ -41,6 +42,7 @@ class Progress extends $pb.GeneratedMessage {
     if (revision != null) result.revision = revision;
     if (completed != null) result.completed = completed;
     if (ending != null) result.ending = ending;
+    if (generation != null) result.generation = generation;
     return result;
   }
 
@@ -75,6 +77,7 @@ class Progress extends $pb.GeneratedMessage {
     ..aI(8, _omitFieldNames ? '' : 'revision')
     ..aOB(9, _omitFieldNames ? '' : 'completed')
     ..aOS(10, _omitFieldNames ? '' : 'ending')
+    ..aI(11, _omitFieldNames ? '' : 'generation')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -174,6 +177,15 @@ class Progress extends $pb.GeneratedMessage {
   $core.bool hasEnding() => $_has(9);
   @$pb.TagNumber(10)
   void clearEnding() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.int get generation => $_getIZ(10);
+  @$pb.TagNumber(11)
+  set generation($core.int value) => $_setSignedInt32(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasGeneration() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearGeneration() => $_clearField(11);
 }
 
 const $core.bool _omitFieldNames =

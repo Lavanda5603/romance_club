@@ -15,6 +15,7 @@ fn save(revision: i32, points: i32) -> Request<SaveProgressRequest> {
     request(SaveProgressRequest {
         player_id: "player:test".into(), episode_id: 1, scene_id: "scene:test".into(),
         expected_revision: revision,
+        expected_generation: 0,
         completed: false,
         ending: String::new(),
         flags: [("chosen".into(), true)].into(),
@@ -27,9 +28,17 @@ async fn read(api: &ProgressApiService) -> Result<Progress, Status> {
         .await.map(Response::into_inner)
 }
 
+async fn current_save(api: &ProgressApiService, points: i32) -> Result<Request<SaveProgressRequest>, Status> {
+    let current = read(api).await?;
+    let mut request = save(current.revision, points);
+    request.get_mut().expected_generation = current.generation;
+    Ok(request)
+}
+
 async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     db.query(include_str!("../migrations/006_progress.surql")).await?.check()?;
     db.query(include_str!("../migrations/016_progress_completed.surql")).await?.check()?;
+    db.query(include_str!("../migrations/020_progress_generation.surql")).await?.check()?;
     db.query("DEFINE FIELD IF NOT EXISTS ending ON progress TYPE string DEFAULT '';").await?.check()?;
     // Дубли специально создаю до миграции и проверяю сохранность обеих версий
     db.query("CREATE progress:old CONTENT {player_id:player:test,episode_id:episode:1,scene_id:scene:test,flags:{},counters:{points:1},updated_at:d'2026-01-01T00:00:00Z'}; CREATE progress:new CONTENT {player_id:player:test,episode_id:episode:1,scene_id:scene:test,flags:{chosen:true},counters:{points:2},updated_at:d'2026-01-02T00:00:00Z'};").await?.check()?;
@@ -80,6 +89,7 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     db.query("DEFINE FIELD OVERWRITE revision ON progress TYPE int DEFAULT 0 ASSERT $value < 3;").await?.check()?;
     assert_eq!(api.reset_progress(request(ResetProgressRequest { player_id: "player:test".into() })).await.unwrap_err().code(), Code::Internal);
     assert_eq!(read(&api).await?.revision, 2);
+    assert_eq!(read(&api).await?.generation, 0);
     assert_eq!(read(&api).await?.counters["points"], 50);
     db.query("DEFINE FIELD OVERWRITE revision ON progress TYPE int DEFAULT 0;").await?.check()?;
     api.reset_progress(request(ResetProgressRequest { player_id: "player:test".into() })).await?;
@@ -87,12 +97,14 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     assert!(reset.scene_id.is_empty());
     assert_eq!(reset.revision, 3);
     assert_eq!(api.save_progress(save(2, 60)).await.unwrap_err().code(), Code::Aborted);
-    assert_eq!(api.save_progress(save(3, 5)).await?.into_inner().revision, 4);
+    assert_eq!(api.save_progress(current_save(&api, 5).await?).await?.into_inner().revision, 4);
 
     // Отдельно проверяю гонку при самом первом сохранении
     db.query("DELETE progress;").await?.check()?;
     assert_eq!(api.save_progress(save(4, 7)).await.unwrap_err().code(), Code::Aborted);
-    let (a, b) = tokio::join!(api.save_progress(save(0, 7)), api.save_progress(save(0, 8)));
+    let a = current_save(&api, 7).await?;
+    let b = current_save(&api, 8).await?;
+    let (a, b) = tokio::join!(api.save_progress(a), api.save_progress(b));
     assert_ne!(a.is_ok(), b.is_ok());
     let mut result = db.query("SELECT * FROM progress;").await?.check()?;
     let rows: Vec<Value> = result.take(0)?;
@@ -109,21 +121,66 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     db.query(include_str!("../migrations/017_episode_completion.surql")).await?.check()?;
     // Начатые и старые записи не считаю завершёнными
     assert!(!read(&api).await?.completed);
-    let mut completion = save(read(&api).await?.revision, 5);
+    let mut completion = current_save(&api, 5).await?;
     completion.get_mut().completed = true;
     assert!(api.save_progress(completion).await?.into_inner().success);
     assert!(read(&api).await?.completed);
     assert_eq!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids, vec![1]);
     // Новый запуск и общий сброс снимают завершение
-    assert!(api.save_progress(save(read(&api).await?.revision, 0)).await?.into_inner().success);
+    assert!(api.save_progress(current_save(&api, 0).await?).await?.into_inner().success);
     assert!(!read(&api).await?.completed);
     assert!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
-    let mut completion = save(read(&api).await?.revision, 5);
+    let mut completion = current_save(&api, 5).await?;
     completion.get_mut().completed = true;
     api.save_progress(completion).await?;
     api.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})).await?;
     assert!(!read(&api).await?.completed);
     assert!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
+    generation_scenarios(db).await?;
+    Ok(())
+}
+
+async fn generation_scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    db.query("CREATE episode:4; CREATE scene:late SET episode_id=episode:4;").await?.check()?;
+    let first = ProgressApiService::new(db.clone());
+    let second = ProgressApiService::new(db.clone());
+    let get = || request(GetProgressRequest {player_id:"player:test".into(),episode_id:4});
+    let before = first.get_progress(get()).await?.into_inner();
+    assert_eq!(before.revision, 0);
+    let stale = SaveProgressRequest { player_id:"player:test".into(),episode_id:4,scene_id:"scene:late".into(),
+        expected_revision:0,expected_generation:before.generation,counters:[("points".into(),99)].into(),..Default::default() };
+    // Запрос другого клиента задержался до завершения сброса
+    let (release, wait) = tokio::sync::oneshot::channel();
+    let delayed_db = db.clone();
+    let delayed = tokio::spawn(async move {
+        wait.await.unwrap();
+        ProgressApiService::new(delayed_db).save_progress(request(stale)).await
+    });
+    first.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})).await?;
+    release.send(()).unwrap();
+    assert_eq!(delayed.await?.unwrap_err().code(), Code::Aborted);
+    let after = second.get_progress(get()).await?.into_inner();
+    assert!(after.scene_id.is_empty() && after.counters.is_empty());
+    assert_eq!(after.revision, 0);
+    assert_eq!(after.generation, before.generation+1);
+    // Свежий клиент может сохранять и после нескольких сбросов
+    let mut fresh = SaveProgressRequest {player_id:"player:test".into(),episode_id:4,scene_id:"scene:late".into(),
+        expected_generation:after.generation,..Default::default()};
+    assert!(second.save_progress(request(fresh.clone())).await?.into_inner().success);
+    for _ in 0..12 {
+        let current = second.get_progress(get()).await?.into_inner();
+        fresh.expected_revision = current.revision;
+        fresh.expected_generation = current.generation;
+        let (save,reset) = tokio::join!(second.save_progress(request(fresh.clone())),
+            first.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})));
+        reset?;
+        if let Err(error) = save { assert_eq!(error.code(),Code::Aborted); }
+        let restored = ProgressApiService::new(db.clone()).get_progress(get()).await?.into_inner();
+        assert!(restored.scene_id.is_empty() && restored.flags.is_empty() && restored.counters.is_empty());
+        assert!(!restored.completed);
+        assert_eq!(restored.generation,current.generation+1);
+        assert_eq!(second.save_progress(request(fresh.clone())).await.unwrap_err().code(),Code::Aborted);
+    }
     Ok(())
 }
 

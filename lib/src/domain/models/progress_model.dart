@@ -5,6 +5,7 @@ class ProgressModel {
   final String ending; // Концовка завершённого прохождения
   final bool completed; // Эпизод завершён
   final int revision; // Версия сохранения
+  final int generation; // Поколение после общего сброса
   final String sceneId; // ID сцены
   final Map<String, bool> flags; // Флаги
   final Map<String, int> counters; // Счётчики (баллы)
@@ -15,6 +16,7 @@ class ProgressModel {
     required this.episodeId,
     required this.sceneId,
     this.revision = 0,
+    this.generation = 0,
     this.completed = false,
     this.ending = '',
     required this.flags,

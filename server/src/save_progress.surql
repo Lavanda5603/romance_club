@@ -1,4 +1,12 @@
 BEGIN TRANSACTION;
+LET $progress_guard_key = type::record('progress_session', [type::record($player_id)]);
+LET $progress_guard = SELECT * FROM ONLY $progress_guard_key;
+IF ($progress_guard.generation ?? 0) != $expected_generation { THROW 'PROGRESS_GENERATION_CONFLICT'; };
+-- Общая запись связывает сохранения разных эпизодов со сбросом
+UPSERT $progress_guard_key CONTENT {
+    player_id: type::record($player_id), generation: $expected_generation,
+    write_revision: ($progress_guard.write_revision ?? 0) + 1
+};
 LET $key = type::record('progress', [type::record($player_id), type::record('episode', $episode_id)]);
 LET $saved = (SELECT * FROM ONLY $key);
 IF ($saved.revision ?? 0) != $expected_revision { THROW 'PROGRESS_CONFLICT'; };

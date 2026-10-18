@@ -28,6 +28,7 @@ message SaveProgressRequest {
   string ending = 8; // Концовка подтверждённого прохождения
   bool completed = 7; // Эпизод завершён
   int32 expected_revision = 6; // Версия, которую загрузил клиент
+  int32 expected_generation = 9; // Поколение, которое загрузил клиент
 }
 
 // Ответ после сохранения

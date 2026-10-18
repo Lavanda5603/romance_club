@@ -43,6 +43,7 @@ const Progress$json = {
     {'1': 'ending', '3': 10, '4': 1, '5': 9, '10': 'ending'},
     {'1': 'completed', '3': 9, '4': 1, '5': 8, '10': 'completed'},
     {'1': 'revision', '3': 8, '4': 1, '5': 5, '10': 'revision'},
+    {'1': 'generation', '3': 11, '4': 1, '5': 5, '10': 'generation'},
   ],
   '3': [Progress_FlagsEntry$json, Progress_CountersEntry$json],
 };
@@ -75,6 +76,7 @@ final $typed_data.Uint8List progressDescriptor = $convert.base64Decode(
     'xhZ3MSQAoIY291bnRlcnMYBiADKAsyJC5yb21hbmNlX2NsdWIuUHJvZ3Jlc3MuQ291bnRlcnNF'
     'bnRyeVIIY291bnRlcnMSHQoKdXBkYXRlZF9hdBgHIAEoCVIJdXBkYXRlZEF0EhYKBmVuZGluZx'
     'gKIAEoCVIGZW5kaW5nEhwKCWNvbXBsZXRlZBgJIAEoCFIJY29tcGxldGVkEhoKCHJldmlzaW9u'
-    'GAggASgFUghyZXZpc2lvbho4CgpGbGFnc0VudHJ5EhAKA2tleRgBIAEoCVIDa2V5EhQKBXZhbH'
-    'VlGAIgASgIUgV2YWx1ZToCOAEaOwoNQ291bnRlcnNFbnRyeRIQCgNrZXkYASABKAlSA2tleRIU'
-    'CgV2YWx1ZRgCIAEoBVIFdmFsdWU6AjgB');
+    'GAggASgFUghyZXZpc2lvbhIeCgpnZW5lcmF0aW9uGAsgASgFUgpnZW5lcmF0aW9uGjgKCkZsYW'
+    'dzRW50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKAhSBXZhbHVlOgI4ARo7Cg1D'
+    'b3VudGVyc0VudHJ5EhAKA2tleRgBIAEoCVIDa2V5EhQKBXZhbHVlGAIgASgFUgV2YWx1ZToCOA'
+    'E=');

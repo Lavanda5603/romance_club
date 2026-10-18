@@ -725,6 +725,22 @@ void main() {
     expect(progress.saved.sceneId, 'scene:branch');
   });
 
+  test('Поколение загруженного прогресса передаю при переходе и перезапуске', () async {
+    final progress = _Progress();
+    progress.saved = const ProgressModel(playerId: 'player:test', episodeId: 1,
+      sceneId: 'scene:200', generation: 7, revision: 12, flags: {}, counters: {});
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.goToSceneKey('scene:branch');
+    await vm.flushProgress();
+    expect(progress.writes.single.generation, 7);
+    expect(progress.writes.single.revision, 12);
+    await vm.loadEpisode(1, startFromBeginning: true);
+    expect(progress.writes.last.generation, 7);
+    expect(progress.writes.last.sceneId, 'scene:200');
+  });
+
   test('При старой удалённой сцене не подменяю прогресс началом эпизода', () async {
     final progress = _Progress();
     progress.saved = const ProgressModel(playerId: 'player:test', episodeId: 1,

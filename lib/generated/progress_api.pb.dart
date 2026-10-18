@@ -214,6 +214,7 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
     $core.int? expectedRevision,
     $core.bool? completed,
     $core.String? ending,
+    $core.int? expectedGeneration,
   }) {
     final result = SaveProgressRequest._();
     if (playerId != null) result.playerId = playerId;
@@ -224,6 +225,8 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
     if (expectedRevision != null) result.expectedRevision = expectedRevision;
     if (completed != null) result.completed = completed;
     if (ending != null) result.ending = ending;
+    if (expectedGeneration != null)
+      result.expectedGeneration = expectedGeneration;
     return result;
   }
 
@@ -256,6 +259,7 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
     ..aI(6, _omitFieldNames ? '' : 'expectedRevision')
     ..aOB(7, _omitFieldNames ? '' : 'completed')
     ..aOS(8, _omitFieldNames ? '' : 'ending')
+    ..aI(9, _omitFieldNames ? '' : 'expectedGeneration')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -340,6 +344,15 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
   $core.bool hasEnding() => $_has(7);
   @$pb.TagNumber(8)
   void clearEnding() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.int get expectedGeneration => $_getIZ(8);
+  @$pb.TagNumber(9)
+  set expectedGeneration($core.int value) => $_setSignedInt32(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasExpectedGeneration() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearExpectedGeneration() => $_clearField(9);
 }
 
 /// Ответ после сохранения

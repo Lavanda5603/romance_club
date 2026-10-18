@@ -89,6 +89,13 @@ const SaveProgressRequest$json = {
       '5': 5,
       '10': 'expectedRevision'
     },
+    {
+      '1': 'expected_generation',
+      '3': 9,
+      '4': 1,
+      '5': 5,
+      '10': 'expectedGeneration'
+    },
   ],
   '3': [
     SaveProgressRequest_FlagsEntry$json,
@@ -124,9 +131,10 @@ final $typed_data.Uint8List saveProgressRequestDescriptor = $convert.base64Decod
     'RyeVIFZmxhZ3MSSwoIY291bnRlcnMYBSADKAsyLy5yb21hbmNlX2NsdWIuU2F2ZVByb2dyZXNz'
     'UmVxdWVzdC5Db3VudGVyc0VudHJ5Ughjb3VudGVycxIWCgZlbmRpbmcYCCABKAlSBmVuZGluZx'
     'IcCgljb21wbGV0ZWQYByABKAhSCWNvbXBsZXRlZBIrChFleHBlY3RlZF9yZXZpc2lvbhgGIAEo'
-    'BVIQZXhwZWN0ZWRSZXZpc2lvbho4CgpGbGFnc0VudHJ5EhAKA2tleRgBIAEoCVIDa2V5EhQKBX'
-    'ZhbHVlGAIgASgIUgV2YWx1ZToCOAEaOwoNQ291bnRlcnNFbnRyeRIQCgNrZXkYASABKAlSA2tl'
-    'eRIUCgV2YWx1ZRgCIAEoBVIFdmFsdWU6AjgB');
+    'BVIQZXhwZWN0ZWRSZXZpc2lvbhIvChNleHBlY3RlZF9nZW5lcmF0aW9uGAkgASgFUhJleHBlY3'
+    'RlZEdlbmVyYXRpb24aOAoKRmxhZ3NFbnRyeRIQCgNrZXkYASABKAlSA2tleRIUCgV2YWx1ZRgC'
+    'IAEoCFIFdmFsdWU6AjgBGjsKDUNvdW50ZXJzRW50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdm'
+    'FsdWUYAiABKAVSBXZhbHVlOgI4AQ==');
 
 @$core.Deprecated('Use saveProgressResponseDescriptor instead')
 const SaveProgressResponse$json = {

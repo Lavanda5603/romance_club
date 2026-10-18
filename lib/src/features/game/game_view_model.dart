@@ -50,6 +50,7 @@ class GameViewModel extends ChangeNotifier {
 
   Future<void> _saveQueue = Future.value();
   int _revision = 0;
+  int _generation = 0;
   String? _saveError;
   bool _disposed = false;
   int _loadId = 0;
@@ -156,6 +157,7 @@ class GameViewModel extends ChangeNotifier {
     if (_disposed || loadId != _loadId) return;
     _saveError = null;
     _revision = 0;
+    _generation = 0;
     _state = AsyncState.loading();
     _progressSceneMissing = false;
     _currentSceneIndex = 0;
@@ -181,6 +183,7 @@ class GameViewModel extends ChangeNotifier {
         loadedProgress = await _progressRepository.getProgress(_playerId, id);
         if (_disposed || loadId != _loadId) return;
         _revision = loadedProgress.revision;
+        _generation = loadedProgress.generation;
       }
       // Сначала записываю начало эпизода, потом открываю игру
       if (startFromBeginning) {
@@ -195,6 +198,7 @@ class GameViewModel extends ChangeNotifier {
             flags: const {},
             counters: {'points': 0, ..._counters},
             revision: _revision,
+            generation: _generation,
             completed: false,
             ending: '',
           ));
@@ -570,6 +574,7 @@ class GameViewModel extends ChangeNotifier {
     final episodeId = _state.data!.id;
     final sceneId = _currentSceneIdStr;
     final completed = _completed;
+    final generation = _generation;
     final ending = completed ? determineEnding() : '';
     final flags = Map<String, bool>.unmodifiable(_flags);
     final counters = Map<String, int>.unmodifiable({'points': _points, ..._counters});
@@ -578,7 +583,7 @@ class GameViewModel extends ChangeNotifier {
       try {
         _revision = await _progressRepository.saveProgress(ProgressModel(
           playerId: playerId, episodeId: episodeId, sceneId: sceneId,
-          flags: flags, counters: counters, revision: _revision, completed: completed, ending: ending,
+          flags: flags, counters: counters, revision: _revision, generation: generation, completed: completed, ending: ending,
         ));
       } catch (e) {
         // Не отправляю следующие старые снимки после неудачной записи

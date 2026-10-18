@@ -14,4 +14,5 @@ message Progress {
   string ending = 10; // Концовка завершённого прохождения
   bool completed = 9; // Эпизод завершён
   int32 revision = 8; // Версия сохранения
+  int32 generation = 11; // Поколение после общего сброса
 }

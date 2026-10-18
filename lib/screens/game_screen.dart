@@ -54,6 +54,7 @@ class _GameScreenState extends State<GameScreen> {
   String _assetScene = '';
   String? _assetError;
   bool _leaving = false;
+  bool _finishingEpisode = false;
   bool _allowPop = false;
 
   // Перед выходом дожидаюсь последнего сохранения
@@ -525,8 +526,17 @@ class _GameScreenState extends State<GameScreen> {
                         width: 200,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: _finishingEpisode ? null : () async {
                             if (_viewModel.isLastScene) {
+                              setState(() => _finishingEpisode = true);
+                              final saved = await _viewModel.completeEpisode();
+                              if (!mounted || !context.mounted) return;
+                              setState(() => _finishingEpisode = false);
+                              if (!saved) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+                                  _viewModel.saveError ?? 'Не удалось сохранить завершение эпизода')));
+                                return;
+                              }
                               final ending = _viewModel.determineEnding();
 
                               Navigator.pushReplacement(

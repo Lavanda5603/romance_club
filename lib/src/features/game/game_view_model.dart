@@ -44,6 +44,8 @@ class GameViewModel extends ChangeNotifier {
 
   // Текущая концовка
   String _ending = '';
+  bool _completed = false;
+  bool get completed => _completed;
   bool _progressSceneMissing = false; // Сохранённая сцена больше не существует
 
   Future<void> _saveQueue = Future.value();
@@ -162,6 +164,7 @@ class GameViewModel extends ChangeNotifier {
     _resetCounters();
     _flags.clear();
     _ending = '';
+    _completed = false;
     notifyListeners();
 
     // Загружаю player_id из Storage
@@ -199,6 +202,7 @@ class GameViewModel extends ChangeNotifier {
       if (_progressRepository != null) {
         try {
           final progress = loadedProgress!;
+          _completed = progress.completed;
 
           if (progress.sceneId.isNotEmpty) {
             // Восстанавливаю позицию по постоянному ключу, даже после перестановки
@@ -535,6 +539,26 @@ class GameViewModel extends ChangeNotifier {
   }
 
   // Ставлю в очередь отдельный снимок, а не изменяемые карты состояния
+  // Завершение сохраняю только после последней реплики и нажатия кнопки
+  Future<bool> completeEpisode() async {
+    if (currentScene == null || !isLastScene || !isTextFinished ||
+        currentScene!.choices.isNotEmpty || _saveError != null || _progressRepository == null) {
+      return false;
+    }
+    if (_completed) {
+      await flushProgress();
+      return _saveError == null;
+    }
+    _completed = true;
+    await _saveProgress();
+    if (_saveError != null) {
+      _completed = false;
+      return false;
+    }
+    notifyListeners();
+    return true;
+  }
+
   Future<void> _saveProgress() {
     if (_progressRepository == null || _state.data == null || _saveError != null) {
       return _saveQueue;
@@ -542,6 +566,7 @@ class GameViewModel extends ChangeNotifier {
     final playerId = _playerId;
     final episodeId = _state.data!.id;
     final sceneId = _currentSceneIdStr;
+    final completed = _completed;
     final flags = Map<String, bool>.unmodifiable(_flags);
     final counters = Map<String, int>.unmodifiable({'points': _points, ..._counters});
     _saveQueue = _saveQueue.then((_) async {
@@ -549,7 +574,7 @@ class GameViewModel extends ChangeNotifier {
       try {
         _revision = await _progressRepository.saveProgress(ProgressModel(
           playerId: playerId, episodeId: episodeId, sceneId: sceneId,
-          flags: flags, counters: counters, revision: _revision,
+          flags: flags, counters: counters, revision: _revision, completed: completed,
         ));
       } catch (e) {
         // Не отправляю следующие старые снимки после неудачной записи

@@ -11,5 +11,6 @@ message Progress {
   map<string, bool> flags = 5; // Флаги игрока
   map<string, int32> counters = 6; // Счётчики игрока
   string updated_at = 7; // Дата обновления
+  bool completed = 9; // Эпизод завершён
   int32 revision = 8; // Версия сохранения
 }

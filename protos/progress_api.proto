@@ -15,7 +15,7 @@ message GetProgressSummaryRequest {
 }
 
 message GetProgressSummaryResponse {
-  repeated int32 episode_ids = 1; // Эпизоды с сохранённой сценой
+  repeated int32 episode_ids = 1; // Завершённые эпизоды
 }
 
 // Запрос на сохранение прогресса
@@ -25,6 +25,7 @@ message SaveProgressRequest {
   string scene_id = 3; // ID сцены как строка
   map<string, bool> flags = 4; // Флаги
   map<string, int32> counters = 5; // Счётчики (баллы)
+  bool completed = 7; // Эпизод завершён
   int32 expected_revision = 6; // Версия, которую загрузил клиент
 }
 

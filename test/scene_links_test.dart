@@ -175,6 +175,134 @@ void main() {
     expect(vm.flags['chosen'], isTrue);
   });
 
+  for (final position in ['до', 'внутри', 'после']) {
+    for (final condition in ['flag:secret_scene=true', 'points>=5']) {
+      test('Эффект $position nextScene открывает условие $condition', () async {
+        final proto = story();
+        final transition = Action(type: 'nextScene', sceneKey: 'scene:ending');
+        final effect = Action(type: 'changeCounter', counterName: 'points', counterValue: 5,
+          flagName: 'secret_scene', flagValue: true);
+        final actions = proto.scenes[0].choices[0].actions;
+        actions.clear();
+        if (position == 'внутри') {
+          transition
+            ..counterName = 'points' ..counterValue = 5
+            ..flagName = 'secret_scene' ..flagValue = true;
+          actions.add(transition);
+        } else {
+          actions.addAll(position == 'до' ? [effect, transition] : [transition, effect]);
+        }
+        proto.scenes[2].condition = condition;
+        final progress = _Progress();
+        final vm = GameViewModel(_Episodes(mapper.toDomain(proto)), progress);
+        addTearDown(vm.dispose);
+        await vm.loadEpisode(1);
+        vm.onChoiceSelected(0);
+        expect(vm.currentScene!.sceneKey, 'scene:ending');
+        await vm.flushProgress();
+        expect(progress.writes, hasLength(1));
+        expect(progress.saved.sceneId, 'scene:ending');
+        expect(progress.saved.flags['secret_scene'], isTrue);
+        expect(progress.saved.counters['points'], 5);
+        await vm.loadEpisode(1);
+        expect(vm.currentScene!.sceneKey, 'scene:ending');
+        expect(vm.flags['secret_scene'], isTrue);
+        expect(vm.points, 5);
+      });
+    }
+  }
+
+  test('Все эффекты выбора учитываю перед единственным переходом и сохранением', () async {
+    final proto = story();
+    proto.scenes[0].choices[0].actions
+      ..clear()
+      ..addAll([
+        Action(type: 'nextScene', sceneKey: 'scene:branch', counterName: 'points', counterValue: 2),
+        Action(type: 'setFlag', flagName: 'secret_scene', flagValue: true),
+        Action(type: 'changeCounter', counterName: 'points', counterValue: 3),
+        Action(type: 'nextScene', sceneKey: 'scene:ending', counterName: 'friendship', counterValue: 4),
+      ]);
+    proto.scenes[2].condition = 'points>=5';
+    final progress = _Progress();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(proto)), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    final visited = <String>[];
+    vm.addListener(() { visited.add(vm.currentScene!.sceneKey); });
+    vm.onChoiceSelected(0);
+    await vm.flushProgress();
+    expect(visited, ['scene:ending']);
+    expect(progress.writes, hasLength(1));
+    expect(progress.saved.sceneId, 'scene:ending');
+    expect(progress.saved.counters['points'], 5);
+    expect(progress.saved.counters['friendship'], 4);
+    expect(progress.saved.flags['secret_scene'], isTrue);
+  });
+
+  test('Начатый эпизод завершаю только после подтверждения конца', () async {
+    final progress = _Progress();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    expect(await vm.completeEpisode(), isFalse);
+    vm.nextScene();
+    await vm.flushProgress();
+    expect(progress.saved.completed, isFalse);
+    vm.nextScene();
+    await vm.flushProgress();
+    expect(vm.currentScene!.sceneKey, 'scene:ending');
+    expect(progress.saved.completed, isFalse);
+    final before = progress.writes.length;
+    expect(await vm.completeEpisode(), isTrue);
+    expect(progress.writes.length, before + 1);
+    expect(progress.saved.completed, isTrue);
+    expect(progress.saved.sceneId, 'scene:ending');
+    expect(await vm.completeEpisode(), isTrue);
+    expect(progress.writes.length, before + 1);
+    await vm.loadEpisode(1);
+    expect(vm.completed, isTrue);
+    await vm.loadEpisode(1, startFromBeginning: true);
+    expect(vm.completed, isFalse);
+    expect(progress.saved.completed, isFalse);
+  });
+
+  test('Конец с несколькими репликами нельзя завершить до последней', () async {
+    final proto = story();
+    proto.scenes[2].texts.add('Последняя реплика');
+    final progress = _Progress();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(proto)), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.goToSceneKey('scene:ending');
+    await vm.flushProgress();
+    expect(await vm.completeEpisode(), isFalse);
+    expect(progress.saved.completed, isFalse);
+    vm.nextText();
+    expect(await vm.completeEpisode(), isTrue);
+    expect(progress.saved.completed, isTrue);
+  });
+
+  test('Завершение дожидается записи и не скрывает отказ сохранения', () async {
+    final progress = _Progress();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.goToSceneKey('scene:ending');
+    await vm.flushProgress();
+    progress.gate = Completer<void>();
+    progress.fail = true;
+    var finished = false;
+    final ending = vm.completeEpisode().then((value) { finished = true; return value; });
+    await Future<void>.delayed(Duration.zero);
+    expect(finished, isFalse);
+    expect(progress.saved.completed, isFalse);
+    progress.gate!.complete();
+    expect(await ending, isFalse);
+    expect(vm.completed, isFalse);
+    expect(progress.saved.completed, isFalse);
+    expect(vm.saveError, isNotNull);
+  });
+
   test('Медленные записи идут по очереди со своими снимками и версиями', () async {
     final progress = _Progress()..gate = Completer<void>();
     final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);

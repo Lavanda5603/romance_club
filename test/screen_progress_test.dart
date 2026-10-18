@@ -1,3 +1,4 @@
+import 'package:romance_club/generated/progress.pb.dart' as progress_pb;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -48,6 +49,17 @@ class _Progress implements ProgressRepository {
   Future<bool> resetProgress(String playerId) async { wasReset = true; return true; }
 }
 
+class _CompletionSummary extends _Progress {
+  @override
+  Future<Set<int>> getProgressSummary(String playerId) async {
+    final records = [
+      ProgressModel(playerId:playerId, episodeId:1, sceneId:'scene:start', flags:{}, counters:{}),
+      ProgressModel(playerId:playerId, episodeId:2, sceneId:'scene:end', completed:true, flags:{}, counters:{}),
+    ];
+    return records.where((p) => p.completed).map((p) => p.episodeId).toSet();
+  }
+}
+
 class _RefusedReset extends _Progress {
   final bool throwsError;
   _RefusedReset(this.throwsError);
@@ -93,6 +105,34 @@ class _SummaryService extends ProgressGrpcService {
 }
 
 void main() {
+  test('Поле completed сохраняется при преобразовании прогресса', () {
+    final service = ProgressGrpcService();
+    addTearDown(service.close);
+    final repo = ProgressRepositoryRemote(service);
+    expect(repo.toDomain(progress_pb.Progress(sceneId:'scene:start')).completed, isFalse);
+    expect(repo.toDomain(progress_pb.Progress(sceneId:'scene:end', completed:true)).completed, isTrue);
+  });
+  testWidgets('Начатый эпизод не отмечаю пройденным и не считаю в профиле', (tester) async {
+    final episodes = _Episodes(3);
+    addTearDown(episodes.close);
+    final progress = _CompletionSummary();
+    await tester.pumpWidget(MaterialApp(home: EpisodeSelectScreen(
+      episodeService:episodes, progressRepository:progress, loadPlayerId:() async => 'player:test')));
+    await tester.pumpAndSettle();
+    for (final id in [1, 2]) {
+      final button = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Эпизод $id'));
+      expect(button.style!.backgroundColor!.resolve({}), Color(id == 1 ? 0xFF534F50 : 0xFFD30010));
+    }
+    final auth = _Auth()..pending.complete(player);
+    final achievements = _Achievements()..pending.complete([]);
+    await tester.pumpWidget(MaterialApp(home: ProfileScreen(episodeService:episodes,
+      progressRepository:progress, authRepository:auth, achievementRepository:achievements,
+      loadPlayerId:() async => 'player:test')));
+    await tester.pumpAndSettle();
+    expect(find.text('пройдено эпизодов: 1/3'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final throwsError in [false, true]) {
     testWidgets('Отказ сброса сохраняет отметки: ошибка=$throwsError', (tester) async {
       final episodes = _Episodes(3);

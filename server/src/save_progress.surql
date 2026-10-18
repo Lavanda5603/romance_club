@@ -9,6 +9,7 @@ UPSERT $key CONTENT {
     player_id: type::record($player_id),
     episode_id: type::record('episode', $episode_id),
     scene_id: type::record($scene_id),
+    completed: $completed,
     flags: $flags,
     counters: $counters,
     revision: $expected_revision + 1,

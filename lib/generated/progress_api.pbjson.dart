@@ -80,6 +80,7 @@ const SaveProgressRequest$json = {
       '6': '.romance_club.SaveProgressRequest.CountersEntry',
       '10': 'counters'
     },
+    {'1': 'completed', '3': 7, '4': 1, '5': 8, '10': 'completed'},
     {
       '1': 'expected_revision',
       '3': 6,
@@ -120,10 +121,11 @@ final $typed_data.Uint8List saveProgressRequestDescriptor = $convert.base64Decod
     'Bpc29kZV9pZBgCIAEoBVIJZXBpc29kZUlkEhkKCHNjZW5lX2lkGAMgASgJUgdzY2VuZUlkEkIK'
     'BWZsYWdzGAQgAygLMiwucm9tYW5jZV9jbHViLlNhdmVQcm9ncmVzc1JlcXVlc3QuRmxhZ3NFbn'
     'RyeVIFZmxhZ3MSSwoIY291bnRlcnMYBSADKAsyLy5yb21hbmNlX2NsdWIuU2F2ZVByb2dyZXNz'
-    'UmVxdWVzdC5Db3VudGVyc0VudHJ5Ughjb3VudGVycxIrChFleHBlY3RlZF9yZXZpc2lvbhgGIA'
-    'EoBVIQZXhwZWN0ZWRSZXZpc2lvbho4CgpGbGFnc0VudHJ5EhAKA2tleRgBIAEoCVIDa2V5EhQK'
-    'BXZhbHVlGAIgASgIUgV2YWx1ZToCOAEaOwoNQ291bnRlcnNFbnRyeRIQCgNrZXkYASABKAlSA2'
-    'tleRIUCgV2YWx1ZRgCIAEoBVIFdmFsdWU6AjgB');
+    'UmVxdWVzdC5Db3VudGVyc0VudHJ5Ughjb3VudGVycxIcCgljb21wbGV0ZWQYByABKAhSCWNvbX'
+    'BsZXRlZBIrChFleHBlY3RlZF9yZXZpc2lvbhgGIAEoBVIQZXhwZWN0ZWRSZXZpc2lvbho4CgpG'
+    'bGFnc0VudHJ5EhAKA2tleRgBIAEoCVIDa2V5EhQKBXZhbHVlGAIgASgIUgV2YWx1ZToCOAEaOw'
+    'oNQ291bnRlcnNFbnRyeRIQCgNrZXkYASABKAlSA2tleRIUCgV2YWx1ZRgCIAEoBVIFdmFsdWU6'
+    'AjgB');
 
 @$core.Deprecated('Use saveProgressResponseDescriptor instead')
 const SaveProgressResponse$json = {

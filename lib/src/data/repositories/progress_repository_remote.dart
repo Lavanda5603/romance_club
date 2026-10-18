@@ -31,6 +31,7 @@ class ProgressRepositoryRemote implements ProgressRepository {
       episodeId: progress.episodeId,
       sceneId: progress.sceneId,
       expectedRevision: progress.revision,
+      completed: progress.completed,
       flags: progress.flags,
       counters: progress.counters,
     );
@@ -52,6 +53,7 @@ class ProgressRepositoryRemote implements ProgressRepository {
       episodeId: progress.episodeId,
       sceneId: progress.sceneId,
       revision: progress.revision,
+      completed: progress.completed,
       flags: Map<String, bool>.from(progress.flags),
       counters: Map<String, int>.from(progress.counters),
     );

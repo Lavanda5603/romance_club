@@ -2,6 +2,7 @@
 class ProgressModel {
   final String playerId; // ID игрока
   final int episodeId; // ID эпизода
+  final bool completed; // Эпизод завершён
   final int revision; // Версия сохранения
   final String sceneId; // ID сцены
   final Map<String, bool> flags; // Флаги
@@ -13,6 +14,7 @@ class ProgressModel {
     required this.episodeId,
     required this.sceneId,
     this.revision = 0,
+    this.completed = false,
     required this.flags,
     required this.counters,
   });

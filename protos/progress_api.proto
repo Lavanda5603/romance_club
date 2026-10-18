@@ -10,6 +10,14 @@ message GetProgressRequest {
   int32 episode_id = 2; // ID эпизода
 }
 
+message GetProgressSummaryRequest {
+  string player_id = 1;
+}
+
+message GetProgressSummaryResponse {
+  repeated int32 episode_ids = 1; // Эпизоды с сохранённой сценой
+}
+
 // Запрос на сохранение прогресса
 message SaveProgressRequest {
   string player_id = 1; // ID игрока
@@ -41,6 +49,7 @@ message ResetProgressResponse {
 // gRPC-сервис для работы с прогрессом
 service ProgressApi {
   rpc GetProgress(GetProgressRequest) returns (Progress); // Получить прогресс
+  rpc GetProgressSummary(GetProgressSummaryRequest) returns (GetProgressSummaryResponse); // Получить сводку одним запросом
   rpc SaveProgress(SaveProgressRequest) returns (SaveProgressResponse); // Сохранить прогресс
   rpc ResetProgress(ResetProgressRequest) returns (ResetProgressResponse); // Сбросить прогресс
 }

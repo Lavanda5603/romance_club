@@ -30,6 +30,8 @@ class _Episodes implements EpisodeRepository {
 }
 
 class _Progress implements ProgressRepository {
+  @override
+  Future<Set<int>> getProgressSummary(String playerId) async => saved.sceneId.isEmpty ? {} : {saved.episodeId};
   ProgressModel saved = ProgressModel.empty();
   final List<ProgressModel> writes = [];
   Completer<void>? gate;

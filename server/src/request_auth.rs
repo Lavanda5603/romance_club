@@ -104,6 +104,7 @@ mod tests {
         for (header, code) in [(None, Code::Unauthenticated), (Some("Bearer invalid"), Code::Unauthenticated), (Some(foreign.as_str()), Code::PermissionDenied)] {
             assert_eq!(auth.get_player(request(GetPlayerRequest { player_id: "player:bob".into() }, header)).await.unwrap_err().code(), code);
             assert_eq!(progress.get_progress(request(GetProgressRequest { player_id: "player:bob".into(), ..Default::default() }, header)).await.unwrap_err().code(), code);
+            assert_eq!(progress.get_progress_summary(request(GetProgressSummaryRequest { player_id: "player:bob".into() }, header)).await.unwrap_err().code(), code);
             assert_eq!(progress.save_progress(request(SaveProgressRequest { player_id: "player:bob".into(), ..Default::default() }, header)).await.unwrap_err().code(), code);
             assert_eq!(progress.reset_progress(request(ResetProgressRequest { player_id: "player:bob".into() }, header)).await.unwrap_err().code(), code);
             assert_eq!(achievements.get_achievements(request(GetAchievementsRequest { player_id: "player:bob".into() }, header)).await.unwrap_err().code(), code);

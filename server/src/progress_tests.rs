@@ -88,6 +88,12 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     let rows: Vec<Value> = result.take(0)?;
     assert_eq!(rows.len(), 1);
     assert_eq!(read(&api).await?.revision, 1);
+    // Сводка выбирает только свои активные записи существующих эпизодов
+    db.query("DEFINE TABLE episode SCHEMALESS; CREATE episode:1; CREATE episode:2; CREATE episode:3; CREATE progress:other CONTENT {player_id:player:other,episode_id:episode:2,scene_id:scene:test,flags:{},counters:{}}; CREATE progress:reset CONTENT {player_id:player:test,episode_id:episode:2,flags:{},counters:{}}; CREATE progress:third CONTENT {player_id:player:test,episode_id:episode:3,scene_id:scene:test,flags:{},counters:{}}; CREATE progress:orphan CONTENT {player_id:player:test,episode_id:episode:99,scene_id:scene:test,flags:{},counters:{}};").await?.check()?;
+    let summary = api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner();
+    assert_eq!(summary.episode_ids, vec![1, 3]);
+    api.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})).await?;
+    assert!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
     Ok(())
 }
 

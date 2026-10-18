@@ -2,6 +2,7 @@ import '../models/progress_model.dart'; // Импорт доменных мод�
 
 // Контракт репозитория прогресса
 abstract class ProgressRepository {
+  Future<Set<int>> getProgressSummary(String playerId);
   // Получить прогресс игрока по эпизоду
   Future<ProgressModel> getProgress(String playerId, int episodeId);
 

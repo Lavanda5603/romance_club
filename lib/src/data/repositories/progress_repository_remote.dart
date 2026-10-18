@@ -10,6 +10,12 @@ class ProgressRepositoryRemote implements ProgressRepository {
   // Конструктор класса ProgressRepositoryRemote
   ProgressRepositoryRemote(this._service);
 
+  @override
+  Future<Set<int>> getProgressSummary(String playerId) async {
+    final response = await _service.getProgressSummary(playerId);
+    return Set.unmodifiable(response.episodeIds);
+  }
+
   // Получить прогресс игрока
   @override
   Future<ProgressModel> getProgress(String playerId, int episodeId) async {

@@ -6,6 +6,7 @@ use crate::romance_club::progress_api_server::ProgressApi; // Импорт тр�
 use crate::romance_club::{
     Progress, GetProgressRequest, SaveProgressRequest, SaveProgressResponse,
     ResetProgressRequest, ResetProgressResponse,
+    GetProgressSummaryRequest, GetProgressSummaryResponse,
 }; // Импорт структур
 
 // Сервис для работы с прогрессом
@@ -22,6 +23,24 @@ impl ProgressApiService {
 
 #[tonic::async_trait]
 impl ProgressApi for ProgressApiService {
+    async fn get_progress_summary(
+        &self,
+        request: Request<GetProgressSummaryRequest>,
+    ) -> Result<Response<GetProgressSummaryResponse>, Status> {
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
+        // Для списка нужны только ID, без флагов и счётчиков каждого эпизода
+        let mut response = self.db.query("SELECT VALUE episode_id FROM progress WHERE player_id = type::record($player_id) AND scene_id != NONE AND record::exists(episode_id)")
+            .bind(("player_id", player_id)).await.map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
+        let records: Vec<Value> = response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+        let mut episode_ids: Vec<i32> = records.iter()
+            .filter_map(|value| value.as_str()?.strip_prefix("episode:")?.parse::<i32>().ok())
+            .filter(|id| *id > 0).collect();
+        episode_ids.sort_unstable();
+        episode_ids.dedup();
+        Ok(Response::new(GetProgressSummaryResponse { episode_ids }))
+    }
+
     // Получить прогресс игрока по эпизоду
     async fn get_progress(
         &self,

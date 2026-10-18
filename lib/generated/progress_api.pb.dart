@@ -10,12 +10,9 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
-import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
-
-import 'progress.pb.dart' as $0;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
@@ -87,6 +84,123 @@ class GetProgressRequest extends $pb.GeneratedMessage {
   $core.bool hasEpisodeId() => $_has(1);
   @$pb.TagNumber(2)
   void clearEpisodeId() => $_clearField(2);
+}
+
+class GetProgressSummaryRequest extends $pb.GeneratedMessage {
+  factory GetProgressSummaryRequest({
+    $core.String? playerId,
+  }) {
+    final result = GetProgressSummaryRequest._();
+    if (playerId != null) result.playerId = playerId;
+    return result;
+  }
+
+  GetProgressSummaryRequest._();
+
+  factory GetProgressSummaryRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetProgressSummaryRequest()..mergeFromBuffer(data, registry);
+  factory GetProgressSummaryRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetProgressSummaryRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetProgressSummaryRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: GetProgressSummaryRequest.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'playerId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProgressSummaryRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProgressSummaryRequest copyWith(
+          void Function(GetProgressSummaryRequest) updates) =>
+      super.copyWith((message) => updates(message as GetProgressSummaryRequest))
+          as GetProgressSummaryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use GetProgressSummaryRequest() / GetProgressSummaryRequest.new instead')
+  static GetProgressSummaryRequest create() => GetProgressSummaryRequest._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      GetProgressSummaryRequest._();
+  @$core.override
+  GetProgressSummaryRequest createEmptyInstance() =>
+      GetProgressSummaryRequest._();
+  @$core.pragma('dart2js:noInline')
+  static GetProgressSummaryRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetProgressSummaryRequest>(
+          GetProgressSummaryRequest.$_createMessage);
+  static GetProgressSummaryRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get playerId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set playerId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPlayerId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPlayerId() => $_clearField(1);
+}
+
+class GetProgressSummaryResponse extends $pb.GeneratedMessage {
+  factory GetProgressSummaryResponse({
+    $core.Iterable<$core.int>? episodeIds,
+  }) {
+    final result = GetProgressSummaryResponse._();
+    if (episodeIds != null) result.episodeIds.addAll(episodeIds);
+    return result;
+  }
+
+  GetProgressSummaryResponse._();
+
+  factory GetProgressSummaryResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetProgressSummaryResponse()..mergeFromBuffer(data, registry);
+  factory GetProgressSummaryResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetProgressSummaryResponse()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetProgressSummaryResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: GetProgressSummaryResponse.$_createMessage)
+    ..p<$core.int>(1, _omitFieldNames ? '' : 'episodeIds', $pb.PbFieldType.K3)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProgressSummaryResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProgressSummaryResponse copyWith(
+          void Function(GetProgressSummaryResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetProgressSummaryResponse))
+          as GetProgressSummaryResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use GetProgressSummaryResponse() / GetProgressSummaryResponse.new instead')
+  static GetProgressSummaryResponse create() => GetProgressSummaryResponse._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      GetProgressSummaryResponse._();
+  @$core.override
+  GetProgressSummaryResponse createEmptyInstance() =>
+      GetProgressSummaryResponse._();
+  @$core.pragma('dart2js:noInline')
+  static GetProgressSummaryResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetProgressSummaryResponse>(
+          GetProgressSummaryResponse.$_createMessage);
+  static GetProgressSummaryResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$core.int> get episodeIds => $_getList(0);
 }
 
 /// Запрос на сохранение прогресса
@@ -416,26 +530,6 @@ class ResetProgressResponse extends $pb.GeneratedMessage {
   $core.bool hasMessage() => $_has(1);
   @$pb.TagNumber(2)
   void clearMessage() => $_clearField(2);
-}
-
-/// gRPC-сервис для работы с прогрессом
-class ProgressApiApi {
-  final $pb.RpcClient _client;
-
-  ProgressApiApi(this._client);
-
-  $async.Future<$0.Progress> getProgress(
-          $pb.ClientContext? ctx, GetProgressRequest request) =>
-      _client.invoke<$0.Progress>(
-          ctx, 'ProgressApi', 'GetProgress', request, $0.Progress());
-  $async.Future<SaveProgressResponse> saveProgress(
-          $pb.ClientContext? ctx, SaveProgressRequest request) =>
-      _client.invoke<SaveProgressResponse>(
-          ctx, 'ProgressApi', 'SaveProgress', request, SaveProgressResponse());
-  $async.Future<ResetProgressResponse> resetProgress(
-          $pb.ClientContext? ctx, ResetProgressRequest request) =>
-      _client.invoke<ResetProgressResponse>(ctx, 'ProgressApi', 'ResetProgress',
-          request, ResetProgressResponse());
 }
 
 const $core.bool _omitFieldNames =

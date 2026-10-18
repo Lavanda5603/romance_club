@@ -15,8 +15,6 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
-import 'progress.pbjson.dart' as $0;
-
 @$core.Deprecated('Use getProgressRequestDescriptor instead')
 const GetProgressRequest$json = {
   '1': 'GetProgressRequest',
@@ -30,6 +28,34 @@ const GetProgressRequest$json = {
 final $typed_data.Uint8List getProgressRequestDescriptor = $convert.base64Decode(
     'ChJHZXRQcm9ncmVzc1JlcXVlc3QSGwoJcGxheWVyX2lkGAEgASgJUghwbGF5ZXJJZBIdCgplcG'
     'lzb2RlX2lkGAIgASgFUgllcGlzb2RlSWQ=');
+
+@$core.Deprecated('Use getProgressSummaryRequestDescriptor instead')
+const GetProgressSummaryRequest$json = {
+  '1': 'GetProgressSummaryRequest',
+  '2': [
+    {'1': 'player_id', '3': 1, '4': 1, '5': 9, '10': 'playerId'},
+  ],
+};
+
+/// Descriptor for `GetProgressSummaryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getProgressSummaryRequestDescriptor =
+    $convert.base64Decode(
+        'ChlHZXRQcm9ncmVzc1N1bW1hcnlSZXF1ZXN0EhsKCXBsYXllcl9pZBgBIAEoCVIIcGxheWVySW'
+        'Q=');
+
+@$core.Deprecated('Use getProgressSummaryResponseDescriptor instead')
+const GetProgressSummaryResponse$json = {
+  '1': 'GetProgressSummaryResponse',
+  '2': [
+    {'1': 'episode_ids', '3': 1, '4': 3, '5': 5, '10': 'episodeIds'},
+  ],
+};
+
+/// Descriptor for `GetProgressSummaryResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getProgressSummaryResponseDescriptor =
+    $convert.base64Decode(
+        'ChpHZXRQcm9ncmVzc1N1bW1hcnlSZXNwb25zZRIfCgtlcGlzb2RlX2lkcxgBIAMoBVIKZXBpc2'
+        '9kZUlkcw==');
 
 @$core.Deprecated('Use saveProgressRequestDescriptor instead')
 const SaveProgressRequest$json = {
@@ -140,49 +166,3 @@ const ResetProgressResponse$json = {
 final $typed_data.Uint8List resetProgressResponseDescriptor = $convert.base64Decode(
     'ChVSZXNldFByb2dyZXNzUmVzcG9uc2USGAoHc3VjY2VzcxgBIAEoCFIHc3VjY2VzcxIYCgdtZX'
     'NzYWdlGAIgASgJUgdtZXNzYWdl');
-
-const $core.Map<$core.String, $core.dynamic> ProgressApiServiceBase$json = {
-  '1': 'ProgressApi',
-  '2': [
-    {
-      '1': 'GetProgress',
-      '2': '.romance_club.GetProgressRequest',
-      '3': '.romance_club.Progress'
-    },
-    {
-      '1': 'SaveProgress',
-      '2': '.romance_club.SaveProgressRequest',
-      '3': '.romance_club.SaveProgressResponse'
-    },
-    {
-      '1': 'ResetProgress',
-      '2': '.romance_club.ResetProgressRequest',
-      '3': '.romance_club.ResetProgressResponse'
-    },
-  ],
-};
-
-@$core.Deprecated('Use progressApiServiceDescriptor instead')
-const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
-    ProgressApiServiceBase$messageJson = {
-  '.romance_club.GetProgressRequest': GetProgressRequest$json,
-  '.romance_club.Progress': $0.Progress$json,
-  '.romance_club.Progress.FlagsEntry': $0.Progress_FlagsEntry$json,
-  '.romance_club.Progress.CountersEntry': $0.Progress_CountersEntry$json,
-  '.romance_club.SaveProgressRequest': SaveProgressRequest$json,
-  '.romance_club.SaveProgressRequest.FlagsEntry':
-      SaveProgressRequest_FlagsEntry$json,
-  '.romance_club.SaveProgressRequest.CountersEntry':
-      SaveProgressRequest_CountersEntry$json,
-  '.romance_club.SaveProgressResponse': SaveProgressResponse$json,
-  '.romance_club.ResetProgressRequest': ResetProgressRequest$json,
-  '.romance_club.ResetProgressResponse': ResetProgressResponse$json,
-};
-
-/// Descriptor for `ProgressApi`. Decode as a `google.protobuf.ServiceDescriptorProto`.
-final $typed_data.Uint8List progressApiServiceDescriptor = $convert.base64Decode(
-    'CgtQcm9ncmVzc0FwaRJHCgtHZXRQcm9ncmVzcxIgLnJvbWFuY2VfY2x1Yi5HZXRQcm9ncmVzc1'
-    'JlcXVlc3QaFi5yb21hbmNlX2NsdWIuUHJvZ3Jlc3MSVQoMU2F2ZVByb2dyZXNzEiEucm9tYW5j'
-    'ZV9jbHViLlNhdmVQcm9ncmVzc1JlcXVlc3QaIi5yb21hbmNlX2NsdWIuU2F2ZVByb2dyZXNzUm'
-    'VzcG9uc2USWAoNUmVzZXRQcm9ncmVzcxIiLnJvbWFuY2VfY2x1Yi5SZXNldFByb2dyZXNzUmVx'
-    'dWVzdBojLnJvbWFuY2VfY2x1Yi5SZXNldFByb2dyZXNzUmVzcG9uc2U=');

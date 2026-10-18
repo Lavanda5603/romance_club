@@ -23,6 +23,11 @@ class ProgressGrpcService {
   }
 
   // Получить прогресс
+  Future<GetProgressSummaryResponse> getProgressSummary(String playerId) async {
+    return _client.getProgressSummary(GetProgressSummaryRequest(playerId: playerId), options: await authOptions());
+  }
+
+  // Получить прогресс
   Future<Progress> getProgress(String playerId, int episodeId) async {
     final request = GetProgressRequest(
       playerId: playerId,

@@ -192,11 +192,10 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     }
 
     // Проверяю на дубликат
-    final fullNameCheck = widget.type == 'background' ? 'ep1/$name' : name;
     final emotionCheck = emotionController.text.trim();
 
     final alreadyExists = _assets.any((a) =>
-        a.name == fullNameCheck && a.emotion == emotionCheck);
+        a.name == name && a.emotion == emotionCheck && a.episodeId == widget.episodeId);
 
     if (alreadyExists) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -207,11 +206,11 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     setState(() => _isUploading = true);
 
-    final fullName = widget.type == 'background' ? 'ep1/$name' : name;
+    // Эпизод передаю отдельно, имя не привязываю к ep1
 
     try {
       final asset = await _repository.uploadAsset(
-        type: widget.type, name: fullName, emotion: emotionController.text.trim(),
+        type: widget.type, name: name, emotion: emotionController.text.trim(),
         displayName: displayController.text.trim(), episodeId: widget.episodeId,
         fileData: bytes, fileName: file.name,
       );

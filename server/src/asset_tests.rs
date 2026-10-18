@@ -104,6 +104,36 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     assert_eq!(scoped.episode_id, "episode:3");
     let chosen = api.get_asset(Request::new(GetAssetRequest {r#type:"background".into(),name:"old_1".into(),episode_id:"episode:3".into(), ..Default::default()})).await?.into_inner();
     assert_eq!(chosen.id, scoped.id);
+    // Одинаковые имена в разных эпизодах и общей библиотеке независимы
+    let other = api.upload_asset(admin(UploadAssetRequest {
+        r#type:"background".into(),name:"old_1".into(),episode_id:"episode:4".into(),file_data:picture(4), ..Default::default()
+    })).await?.into_inner().asset.unwrap();
+    assert_ne!(other.id, scoped.id);
+    assert_ne!(other.id, upload.id);
+    assert_eq!(other.episode_id, "episode:4");
+    let updated = api.upload_asset(admin(UploadAssetRequest {
+        r#type:"background".into(),name:"old_1".into(),episode_id:"episode:3".into(),file_data:picture(5), ..Default::default()
+    })).await?.into_inner().asset.unwrap();
+    assert_eq!(updated.id, scoped.id);
+    assert_eq!(updated.episode_id, "episode:3");
+    assert_ne!(updated.version, scoped.version);
+    for (id, episode, bytes) in [
+        (upload.id.clone(), "", replaced.clone()),
+        (other.id.clone(), "episode:4", picture(4)),
+        (updated.id.clone(), "episode:3", picture(5)),
+    ] {
+        let saved = api.get_asset(Request::new(GetAssetRequest { id, ..Default::default() })).await?.into_inner();
+        assert_eq!(saved.episode_id, episode);
+        assert_eq!(saved.file_data, bytes);
+    }
+    let filtered = api.get_assets(Request::new(GetAssetsRequest {
+        r#type:"background".into(),episode_id:"episode:4".into(),limit:24, ..Default::default()
+    })).await?.into_inner();
+    assert!(filtered.assets.iter().all(|a| a.episode_id.is_empty() || a.episode_id == "episode:4"));
+    let exact = api.get_asset(Request::new(GetAssetRequest {
+        r#type:"background".into(),name:"old_1".into(),episode_id:"episode:4".into(), ..Default::default()
+    })).await?.into_inner();
+    assert_eq!(exact.id, other.id);
     api.delete_asset(admin(DeleteAssetRequest {id: upload.id.clone()})).await?;
     assert_eq!(api.get_asset(Request::new(GetAssetRequest {id: upload.id, ..Default::default()})).await.unwrap_err().code(), tonic::Code::NotFound);
     Ok(())

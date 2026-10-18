@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:grpc/grpc.dart';
 import 'dart:async';
 import 'dart:io';
@@ -86,7 +87,75 @@ class _TimeoutPickerRepository extends _PickerRepository {
   }
 }
 
+class _Files extends FilePicker {
+  @override
+  Future<FilePickerResult?> pickFiles({String? dialogTitle, String? initialDirectory,
+    FileType type = FileType.any, List<String>? allowedExtensions,
+    Function(FilePickerStatus)? onFileLoading, bool allowCompression = false,
+    int compressionQuality = 0, bool allowMultiple = false, bool withData = false,
+    bool withReadStream = false, bool lockParentWindow = false, bool readSequential = false}) async =>
+    FilePickerResult([PlatformFile(name: 'room.png', size: 3, bytes: Uint8List.fromList([1, 2, 3]))]);
+}
+
+class _Uploads extends _PickerRepository {
+  String? uploadedName;
+  String? uploadedEpisode;
+  final String existingEpisode;
+  _Uploads(this.existingEpisode);
+  @override
+  Future<AssetPage> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24}) async =>
+    AssetPage([AssetModel(id: 'asset:room', type: type, name: 'room', emotion: '', url: '',
+      displayName: 'Комната', episodeId: existingEpisode, fileData: Uint8List(0))], '');
+  @override
+  Future<AssetModel?> uploadAsset({required String type, required String name, required String emotion,
+    required String displayName, required String episodeId, required Uint8List fileData, required String fileName}) async {
+    uploadedName = name;
+    uploadedEpisode = episodeId;
+    return model('asset:new');
+  }
+}
+
 void main() {
+  setUpAll(() { FilePicker.platform = _Files(); });
+  testWidgets('Загрузка фона передаёт текущий эпизод без префикса ep1', (tester) async {
+    final previous = FilePicker.platform;
+    FilePicker.platform = _Files();
+    addTearDown(() => FilePicker.platform = previous);
+    for (final episode in ['episode:2', 'episode:3', '']) {
+      final repo = _Uploads(episode.isEmpty ? 'episode:1' : '');
+      await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(key: ValueKey(episode),
+        type: 'background', title: 'Фоны', episodeId: episode, repository: repo)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.upload));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'room');
+      await tester.tap(find.text('Загрузить'));
+      await tester.pumpAndSettle();
+      expect(repo.uploadedName, 'room');
+      expect(repo.uploadedEpisode, episode);
+      expect(find.text('Ассет загружен'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    }
+  });
+  testWidgets('Дубликат в том же эпизоде не отправляется повторно', (tester) async {
+    final previous = FilePicker.platform;
+    FilePicker.platform = _Files();
+    addTearDown(() => FilePicker.platform = previous);
+    final repo = _Uploads('episode:2');
+    await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(type: 'background', title: 'Фоны',
+      episodeId: 'episode:2', repository: repo)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.upload));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'room');
+    await tester.tap(find.text('Загрузить'));
+    await tester.pumpAndSettle();
+    expect(repo.uploadedName, isNull);
+    expect(find.text('Ассет с таким именем и эмоцией уже существует'), findsOneWidget);
+  });
+
   testWidgets('После deadline сетка снимает загрузку и позволяет повторить', (tester) async {
     final repo = _TimeoutPickerRepository();
     await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(type: 'background', title: 'Фоны', repository: repo)));

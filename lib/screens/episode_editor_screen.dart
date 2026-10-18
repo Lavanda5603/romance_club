@@ -112,7 +112,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
       final saved = await widget.onSave(_episode.deepCopy());
       if (!mounted) return;
       setState(() {
-        _episode = saved;
+        _episode = saved.deepCopy();
         _titleController.text = saved.title;
       });
       ScaffoldMessenger.of(context).showSnackBar(

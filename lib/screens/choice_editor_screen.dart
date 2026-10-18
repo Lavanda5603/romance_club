@@ -32,8 +32,8 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
   @override
   void initState() {
     super.initState();
-    // Создаю локальный выбор (или беру существующий)
-    _choice = widget.choice ?? Choice(); // Choice - Protobuf-модель
+    // Меняю копию, пока выбор не сохранён
+    _choice = widget.choice?.deepCopy() ?? Choice();
 
     // Если выбор новый - задаю текст по умолчанию
     if (_choice.text.isEmpty) {
@@ -67,7 +67,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     _choice.text = _textController.text;
 
     // Вызываю функцию onSave (передаю выбор родителю)
-    widget.onSave(_choice);
+    widget.onSave(_choice.deepCopy());
 
     // Закрываю экран
     Navigator.pop(context);

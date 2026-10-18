@@ -32,6 +32,7 @@ class SceneEditorScreen extends StatefulWidget {
 }
 
 class _SceneEditorScreenState extends State<SceneEditorScreen> {
+  late Scene _scene; // Черновик сцены
   late TextEditingController _titleController; // Контроллер названия сцены
   late TextEditingController _conditionController; // Контроллер условия
   late TextEditingController _musicController; // Контроллер музыки
@@ -87,14 +88,15 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   @override
   void initState() {
     super.initState();
+    _scene = widget.scene.deepCopy();
 
     // Создаю контроллеры
-    _titleController = TextEditingController(text: widget.scene.title);
-    _conditionController = TextEditingController(text: widget.scene.condition);
+    _titleController = TextEditingController(text: _scene.title);
+    _conditionController = TextEditingController(text: _scene.condition);
     _musicController = TextEditingController();
 
     // Создаю контроллеры для текстов сцены
-    _textControllers = widget.scene.texts
+    _textControllers = _scene.texts
         .map((t) => TextEditingController(text: t))
         .toList();
 
@@ -104,18 +106,18 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
 
     // Заполняю выбранные значения из сцены
-    _selectedBackground = widget.scene.background;
-    _selectedCharacter = widget.scene.character;
-    _selectedEmotion = widget.scene.characterEmotion;
-    _selectedCharacterPosition = widget.scene.characterPosition.isNotEmpty
-        ? widget.scene.characterPosition
+    _selectedBackground = _scene.background;
+    _selectedCharacter = _scene.character;
+    _selectedEmotion = _scene.characterEmotion;
+    _selectedCharacterPosition = _scene.characterPosition.isNotEmpty
+        ? _scene.characterPosition
         : 'center';
-    _selectedTextPosition = widget.scene.textPosition.isNotEmpty
-        ? widget.scene.textPosition
+    _selectedTextPosition = _scene.textPosition.isNotEmpty
+        ? _scene.textPosition
         : 'bottom_center';
 
     // Начальное значение для следующей сцены
-    _selectedNextSceneKey = widget.scene.nextSceneTarget;
+    _selectedNextSceneKey = _scene.nextSceneTarget;
 
     // Для совместимости (если старая позиция не входит в список)
     if (!_textPositions.contains(_selectedTextPosition)) {
@@ -251,17 +253,17 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   // Сохранить сцену
   void _saveScene() {
     final newScene = Scene(
-      id: widget.scene.id,
+      id: _scene.id,
       title: _titleController.text,
       background: _selectedBackground,
       character: _selectedCharacter,
       characterEmotion: _selectedEmotion,
       condition: _conditionController.text,
-      sceneKey: widget.scene.sceneKey,
+      sceneKey: _scene.sceneKey,
       characterPosition: _selectedCharacterPosition,
       textPosition: _selectedTextPosition,
       nextSceneKey: _selectedNextSceneKey,
-      orderIndex: widget.scene.orderIndex,
+      orderIndex: _scene.orderIndex,
     );
 
     // Добавляю тексты
@@ -271,7 +273,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       }
     }
 
-    newScene.choices.addAll(widget.scene.choices);
+    newScene.choices.addAll(_scene.choices);
 
     widget.onSave(newScene);
 
@@ -290,10 +292,10 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         builder: (context) => ChoiceEditorScreen(
           allScenes: widget.allScenes,
           choice: null,
-          defaultText: 'выбор ${widget.scene.choices.length + 1}',
+          defaultText: 'выбор ${_scene.choices.length + 1}',
           onSave: (newChoice) {
             setState(() {
-              widget.scene.choices.add(newChoice);
+              _scene.choices.add(newChoice);
             });
           },
         ),
@@ -308,10 +310,10 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       MaterialPageRoute(
         builder: (context) => ChoiceEditorScreen(
           allScenes: widget.allScenes,
-          choice: widget.scene.choices[index],
+          choice: _scene.choices[index],
           onSave: (newChoice) {
             setState(() {
-              widget.scene.choices[index] = newChoice;
+              _scene.choices[index] = newChoice;
             });
           },
         ),
@@ -327,7 +329,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         return AlertDialog(
           title: const Text('Удалить выбор?'),
           content: Text(
-            'Вы точно уверены, что хотите удалить "${widget.scene.choices[index].text}"?',
+            'Вы точно уверены, что хотите удалить "${_scene.choices[index].text}"?',
           ),
           actions: [
             TextButton(
@@ -345,7 +347,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
     if (confirmed == true) {
       setState(() {
-        widget.scene.choices.removeAt(index);
+        _scene.choices.removeAt(index);
       });
     }
   }
@@ -849,15 +851,15 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
                         ),
                         const SizedBox(height: 8),
-                        if (widget.scene.choices.isEmpty)
+                        if (_scene.choices.isEmpty)
                           const Text('нет выборов', style: TextStyle(color: Colors.white))
                         else
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: widget.scene.choices.length,
+                            itemCount: _scene.choices.length,
                             itemBuilder: (context, index) {
-                              final choice = widget.scene.choices[index];
+                              final choice = _scene.choices[index];
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 12),
                                 padding: const EdgeInsets.all(12),

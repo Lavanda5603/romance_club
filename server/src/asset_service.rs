@@ -8,7 +8,7 @@ pub const MAX_UPLOAD_BYTES: usize = 5 * 1024 * 1024;
 // Оставляю место для полей Protobuf и превью в ответе
 const MAX_MESSAGE_BYTES: usize = MAX_UPLOAD_BYTES + 1024 * 1024;
 
-pub struct AssetApiService { db: Surreal<Client> }
+pub struct AssetApiService { db: Surreal<Client>, delete_db: Surreal<Client> }
 const CATALOG_FIELDS: &str = "id, type, name, emotion, url, display_name, episode_id, preview_data, version";
 fn text(row: &Value, field: &str) -> String { row[field].as_str().unwrap_or_default().to_owned() }
 fn internal(error: impl std::fmt::Display) -> Status { Status::internal(error.to_string()) }
@@ -42,7 +42,9 @@ fn asset(row: &AssetRow, original: bool) -> Result<Asset, Status> {
 }
 
 impl AssetApiService {
-    pub fn new(db: Surreal<Client>) -> Self { Self { db } }
+    pub fn new(db: Surreal<Client>) -> Self { Self { delete_db:db.clone(), db } }
+    // Передаю отдельное подключение для удаления
+    pub fn with_delete_db(mut self, db: Surreal<Client>) -> Self { self.delete_db=db; self }
 
     // Для старых ассетов создаю варианты один раз, новый upload готовит их до записи
     async fn prepare_variants(&self, id: &str) -> Result<(), Status> {
@@ -214,8 +216,7 @@ impl AssetApi for AssetApiService {
     async fn delete_asset(&self, request: Request<DeleteAssetRequest>) -> Result<Response<DeleteAssetResponse>, Status> {
         crate::request_auth::check_admin(&request)?;
         let id = request.into_inner().id;
-        if !id.starts_with("asset:") { return Err(Status::invalid_argument("Неверный ID ассета")); }
-        self.db.query("DELETE type::record($id)").bind(("id", id)).await.map_err(internal)?.check().map_err(internal)?;
+        crate::asset_delete::delete(&self.delete_db, &id).await?;
         Ok(Response::new(DeleteAssetResponse { success: true, message: "Ассет удалён".into() }))
     }
 }

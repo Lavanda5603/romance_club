@@ -9,13 +9,16 @@ use crate::romance_club::{
 // Сервис для админ-операций
 pub struct AdminApiService {
     db: Surreal<Client>, // Подключение к SurrealDB
+    delete_db: Surreal<Client>, // Отдельное подключение для удаления ассетов
 }
 
 impl AdminApiService {
     // Создать новый сервис
     pub fn new(db: Surreal<Client>) -> Self {
-        Self { db }
+        Self { delete_db:db.clone(), db }
     }
+    // Ограничиваю права удаления ассетов на уровне подключения
+    pub fn with_delete_db(mut self, db: Surreal<Client>) -> Self { self.delete_db=db; self }
 }
 
 #[tonic::async_trait]
@@ -32,21 +35,8 @@ impl AdminApi for AdminApiService {
 
         println!("[ADMIN_DELETE_ASSET] Удаляю ассет: {}", id);
 
-        if id.is_empty() {
-            return Err(Status::invalid_argument("ID обязателен"));
-        }
-
-        // Преобразую ID в ссылку на запись и удаляю ассет
-        self.db
-            .query("DELETE type::record($id)")
-            .bind(("id", id.clone()))
-            .await
-            .map_err(|e| {
-                println!("[ADMIN_DELETE_ASSET] ОШИБКА: {}", e);
-                Status::internal(format!("Ошибка удаления: {}", e))
-            })?
-            .check()
-            .map_err(|e| Status::internal(format!("Ошибка удаления: {}", e)))?;
+        // Использую ту же проверку таблицы, что и в AssetApi
+        crate::asset_delete::delete(&self.delete_db, &id).await?;
 
         println!("[ADMIN_DELETE_ASSET] Ассет удалён: {}", id);
 

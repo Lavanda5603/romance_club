@@ -8,6 +8,7 @@ mod achievement_service; // Модуль достижений
 mod shop_service; // Модуль магазина
 mod asset_service; // Модуль ассетов
 mod asset_preview; // Подготовка размеров и превью картинок
+mod asset_delete; // Проверка ID и удаление только ассетов
 mod admin_service; // Модуль админа
 mod jwt; // Модуль JWT
 mod episode_store; // Загрузка и сохранение дерева эпизода
@@ -436,14 +437,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Применяю миграции
     apply_migrations(&db).await?;
+    // Удаление ассетов выполняю без прав на остальные таблицы
+    let asset_delete_db = asset_delete::connection(&db, &namespace, &database).await
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     let episode_service = EpisodeApiService::new(db.clone()); // Сервис эпизодов
     let progress_service = ProgressApiService::new(db.clone()); // Сервис прогресса
     let auth_service = AuthApiService::new(db.clone(), jwt.clone()); // Сервис авторизации
     let achievement_service = AchievementApiService::new(db.clone()); // Сервис достижений
     let shop_service = ShopApiService::new(db.clone()); // Сервис магазина
-    let asset_service = AssetApiService::new(db.clone()); // Сервис ассетов
-    let admin_service = AdminApiService::new(db); // Сервис админа
+    let asset_service = AssetApiService::new(db.clone()).with_delete_db(asset_delete_db.clone()); // Сервис ассетов
+    let admin_service = AdminApiService::new(db).with_delete_db(asset_delete_db); // Сервис админа
     let addr = std::env::var("GRPC_BIND")
         .unwrap_or_else(|_| "0.0.0.0:50051".into())
         .parse()?;

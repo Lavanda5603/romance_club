@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Разрешаю приложению обращаться к серверу во всех сборках -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="romance_club"
         android:name="${applicationName}"

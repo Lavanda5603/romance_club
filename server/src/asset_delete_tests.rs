@@ -30,6 +30,58 @@ async fn snapshot(db: &Surreal<Client>) -> Result<serde_json::Value, surrealdb::
     Ok(value.unwrap())
 }
 
+// Проверяю весь RPC, включая токен, тип параметра SQL и ответ сервера
+async fn grpc_scenarios(db: Surreal<Client>, limited: Surreal<Client>) -> TestResult {
+    use crate::romance_club::{admin_api_client::AdminApiClient, admin_api_server::AdminApiServer}; // Подключаю клиент и сервер
+    use tonic::transport::Server; // Подключаю настоящий gRPC-сервер
+    let keys = crate::jwt::JwtKeys::from_secret("test-only-asset-delete-key-0123456789")?;
+    let admin_token = keys.create_token("player:test", "test", true)?;
+    let player_token = keys.create_token("player:test", "test", false)?;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    drop(listener);
+    let (shutdown, stopped) = tokio::sync::oneshot::channel();
+    let service = AdminApiService::new(db.clone()).with_delete_db(limited);
+    let server = tokio::spawn(Server::builder().add_service(AdminApiServer::with_interceptor(
+        service, crate::AuthInterceptor {jwt:keys}))
+        .serve_with_shutdown(address, async {let _ = stopped.await;}));
+    let result = async {
+        db.query("CREATE asset:review; CREATE asset:44;").await?.check()?;
+        let mut attempts = 0;
+        let mut client = loop {
+            match AdminApiClient::connect(format!("http://{address}")).await {
+                Ok(client) => break client,
+                Err(error) if attempts >= 100 => return Err(error.into()),
+                Err(_) => { attempts += 1; tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+            }
+        };
+        assert_eq!(client.delete_asset(AdminDeleteAssetRequest {asset_id:"asset:review".into()}).await.unwrap_err().code(),Code::Unauthenticated);
+        let request = |id: &str, token: &str| {
+            let mut request = Request::new(AdminDeleteAssetRequest {asset_id:id.into()});
+            request.metadata_mut().insert("authorization",format!("Bearer {token}").parse().unwrap());
+            request
+        };
+        assert_eq!(client.delete_asset(request("asset:review",&player_token)).await.unwrap_err().code(),Code::PermissionDenied);
+        assert_eq!(client.delete_asset(request("player:test",&admin_token)).await.unwrap_err().code(),Code::InvalidArgument);
+        for id in ["asset:review","asset:44"] {
+            assert!(client.delete_asset(request(id,&admin_token)).await?.into_inner().success);
+            assert_eq!(client.delete_asset(request(id,&admin_token)).await.unwrap_err().code(),Code::NotFound);
+        }
+        // Повторное чтение каталога не возвращает удалённые записи
+        let ids: Vec<RecordId> = db.query("SELECT VALUE id FROM asset;").await?.check()?.take(0)?;
+        assert_eq!(ids,vec![RecordId::new("asset","other")]);
+        db.query("DEFINE EVENT rpc_refuse_delete ON asset WHEN $event='DELETE' THEN { THROW 'delete_refused'; };").await?.check()?;
+        assert_eq!(client.delete_asset(request("asset:other",&admin_token)).await.unwrap_err().code(),Code::Internal);
+        let ids: Vec<RecordId> = db.query("SELECT VALUE id FROM asset;").await?.check()?.take(0)?;
+        assert_eq!(ids,vec![RecordId::new("asset","other")]);
+        db.query("REMOVE EVENT rpc_refuse_delete ON asset;").await?.check()?;
+        Ok::<(),Box<dyn std::error::Error + Send + Sync>>(())
+    }.await;
+    let _ = shutdown.send(());
+    server.await??;
+    result
+}
+
 async fn scenarios(db: Surreal<Client>, database: String) -> TestResult {
     db.query("CREATE player:test SET marker='keep'; CREATE episode:1 SET marker='keep'; CREATE progress:test SET marker='keep'; CREATE asset:one; CREATE asset:123; CREATE asset:`player:test`; CREATE asset:other;").await?.check()?;
     let before = snapshot(&db).await?;
@@ -39,7 +91,7 @@ async fn scenarios(db: Surreal<Client>, database: String) -> TestResult {
     let _ = limited.query("DELETE player; DELETE episode; DELETE progress; DELETE asset_delete_identity; UPDATE player SET marker='changed'; CREATE player:intruder;").await?;
     assert_eq!(snapshot(&db).await?,before);
     let assets = AssetApiService::new(db.clone()).with_delete_db(limited.clone());
-    let admins = AdminApiService::new(db.clone()).with_delete_db(limited);
+    let admins = AdminApiService::new(db.clone()).with_delete_db(limited.clone());
     for id in ["player:test","episode:1","progress:test"] {
         assert_eq!(assets.delete_asset(admin(DeleteAssetRequest {id:id.into()})).await.unwrap_err().code(),Code::InvalidArgument);
         assert_eq!(admins.delete_asset(admin(AdminDeleteAssetRequest {asset_id:id.into()})).await.unwrap_err().code(),Code::InvalidArgument);
@@ -53,6 +105,7 @@ async fn scenarios(db: Surreal<Client>, database: String) -> TestResult {
     let mut result = db.query("SELECT VALUE id FROM asset;").await?.check()?;
     let remaining: Vec<RecordId> = result.take(0)?;
     assert_eq!(remaining,vec![RecordId::new("asset","other")]);
+    grpc_scenarios(db.clone(),limited).await?;
     // Ошибку SQL возвращаю как ошибку, оставляя запись на месте
     db.query("DEFINE EVENT refuse_delete ON asset WHEN $event='DELETE' THEN { THROW 'delete_refused'; };").await?.check()?;
     assert_eq!(admins.delete_asset(admin(AdminDeleteAssetRequest {asset_id:"asset:other".into()})).await.unwrap_err().code(),Code::Internal);

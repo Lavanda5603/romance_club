@@ -9,10 +9,12 @@ import '../src/data/repositories/admin_repository_remote.dart'; // Импорт 
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
 import '../src/data/services/admin_grpc_service.dart'; // Импорт админ-сервиса
 import '../src/domain/models/asset_model.dart'; // Импорт доменной модели
+import '../src/domain/repositories/admin_repository.dart'; // Импорт контракта удаления
 
 // Экран выбора ассета (фона или персонажа)
 class AssetPickerScreen extends StatefulWidget {
   final AssetRepository? repository;
+  final AdminRepository? adminRepository;
   final String type; // Тип: background или character
   final String title; // Заголовок экрана
   final String episodeId; // ID эпизода (для фильтра)
@@ -22,6 +24,7 @@ class AssetPickerScreen extends StatefulWidget {
     super.key,
     required this.type,
     this.repository,
+    this.adminRepository,
     required this.title,
     this.episodeId = '',
   });
@@ -34,7 +37,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
   late AssetGrpcService _service; // gRPC-сервис ассетов
   late AdminGrpcService _adminService; // gRPC-сервис админа
   late AssetRepository _repository; // Репозиторий ассетов
-  late AdminRepositoryRemote _adminRepository; // Админ-репозиторий
+  late AdminRepository _adminRepository; // Админ-репозиторий
 
   List<AssetModel> _assets = []; // Список ассетов
   bool _isLoading = true; // Флаг загрузки
@@ -50,7 +53,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     _service = AssetGrpcService();
     _adminService = AdminGrpcService();
     _repository = widget.repository ?? AssetRepositoryRemote(_service);
-    _adminRepository = AdminRepositoryRemote(_adminService);
+    _adminRepository = widget.adminRepository ?? AdminRepositoryRemote(_adminService);
     // Загружаю ассеты
     _loadAssets();
   }

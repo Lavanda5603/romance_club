@@ -16,6 +16,16 @@ import 'package:romance_club/src/data/repositories/asset_repository_remote.dart'
 import 'package:romance_club/src/data/repositories/asset_cache.dart'; // Импорт кэша картинок
 import 'package:romance_club/src/domain/models/asset_model.dart'; // Импорт модели ассетов
 import 'package:romance_club/src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
+import 'package:romance_club/src/domain/repositories/admin_repository.dart'; // Импорт контракта удаления
+
+class _DeleteRepository implements AdminRepository {
+  final pending = Completer<bool>();
+  final ids = <String>[];
+  @override
+  Future<bool> deleteAsset(String id) { ids.add(id); return pending.future; }
+  @override
+  Future<bool> deleteEpisode(int id) async => false;
+}
 
 class _Service extends AssetGrpcService {
   int pages = 0;
@@ -80,6 +90,15 @@ class _AdminService extends AdminGrpcService {
   Future<AdminResponse> deleteAsset(String assetId) async => AdminResponse(success: true);
 }
 
+class _DeletePickerRepository extends _PickerRepository {
+  bool deleted = false;
+  @override
+  Future<AssetPage> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24}) async {
+    pages.add(cursor);
+    return AssetPage(deleted ? [] : [model('asset:first')], '');
+  }
+}
+
 class _TimeoutPickerRepository extends _PickerRepository {
   int attempts = 0;
   @override
@@ -120,6 +139,37 @@ class _Uploads extends _PickerRepository {
 }
 
 void main() {
+  for (final outcome in ['success', 'refused', 'sql_error']) {
+    testWidgets('Сетка меняется только после подтверждённого удаления: $outcome', (tester) async {
+      final assets = _DeletePickerRepository();
+      final admin = _DeleteRepository();
+      Widget screen() => MaterialApp(home: AssetPickerScreen(key: UniqueKey(),
+        type: 'background', title: 'Фоны', repository: assets, adminRepository: admin));
+      await tester.pumpWidget(screen());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.delete_outline));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Удалить'));
+      await tester.pump();
+      expect(admin.ids, ['asset:first']);
+      expect(assets.pages, hasLength(1));
+      expect(find.text('asset:first'), findsOneWidget);
+      if (outcome == 'sql_error') {
+        admin.pending.completeError(const GrpcError.internal('Ошибка удаления'));
+      } else {
+        assets.deleted = outcome == 'success';
+        admin.pending.complete(assets.deleted);
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('asset:first'), outcome == 'success' ? findsNothing : findsOneWidget);
+      expect(assets.pages, hasLength(outcome == 'success' ? 2 : 1));
+      // После повторного открытия показываю результат сервера, а не локальное скрытие
+      await tester.pumpWidget(screen());
+      await tester.pumpAndSettle();
+      expect(find.text('asset:first'), outcome == 'success' ? findsNothing : findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
   test('Экранный размер и оригинал храню в разных записях кэша', () async {
     final service = _Service();
     addTearDown(service.close);

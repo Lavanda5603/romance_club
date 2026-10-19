@@ -55,83 +55,11 @@ impl AdminApi for AdminApiService {
         crate::request_auth::check_admin(&request)?;
 
         let id = request.into_inner().episode_id;
-        let id_i64 = id as i64;
 
         println!("[ADMIN_DELETE_EPISODE] Удаляю эпизод ID: {}", id);
 
-        // 1. Удаляю действия (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)))")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?
-                .check().map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<surrealdb::types::RecordId> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?
-                    .check().map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
-
-        // 2. Удаляю выборы (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id))")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?
-                .check().map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<surrealdb::types::RecordId> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?
-                    .check().map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
-
-        // 3. Удаляю сцены (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?
-                .check().map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<surrealdb::types::RecordId> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?
-                    .check().map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
-
-        // 4. Удаляю эпизод
-        self.db
-            .query("DELETE type::record('episode', $id)")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?
-            .check().map_err(|e| Status::internal(e.to_string()))?;
+        // Удаляю дерево целиком и откатываю все изменения при ошибке
+        crate::episode_delete::delete(&self.db, id).await?;
 
         println!("[ADMIN_DELETE_EPISODE] Эпизод удалён");
 

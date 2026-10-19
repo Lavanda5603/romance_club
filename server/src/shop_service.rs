@@ -35,7 +35,9 @@ impl ShopApiService {
         let result: Option<Value> = response.take(0).map_err(|e| e.to_string())?;
 
         Ok(match result {
-            Some(v) => v.get("diamonds").and_then(|d| d.as_i64()).unwrap_or(0) as i32,
+            Some(v) => v.get("diamonds").and_then(|d| d.as_i64())
+                .and_then(|n| i32::try_from(n).ok()).filter(|n| *n >= 0)
+                .ok_or_else(|| "Некорректный баланс кошелька".to_string())?,
             None => 0,
         })
     }
@@ -135,7 +137,13 @@ impl ShopApi for ShopApiService {
                     return Err(Status::aborted("Баланс изменился. Повторите покупку"));
                 }
                 if messages.contains("SHOP_UNKNOWN_SKU") { return Err(Status::invalid_argument("Эпизод не существует")); }
-                if messages.contains("SHOP_REQUEST_REUSED") || messages.contains("SHOP_BALANCE_OVERFLOW") {
+                if messages.contains("SHOP_BALANCE_OVERFLOW") {
+                    return Err(Status::out_of_range("Достигнут максимальный баланс алмазов"));
+                }
+                if messages.contains("SHOP_INVALID_BALANCE") {
+                    return Err(Status::failed_precondition("Некорректный баланс кошелька"));
+                }
+                if messages.contains("SHOP_REQUEST_REUSED") {
                     return Err(Status::invalid_argument("Неверный запрос покупки"));
                 }
                 return Err(Status::internal(messages));

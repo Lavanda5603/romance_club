@@ -59,7 +59,9 @@ async fn scenarios(db: Surreal<Client>) -> TestResult {
     let before: Vec<Value> = before.take(0)?;
     for (sku, kind) in [("subscription","unknown"),("subscription","episode"),("episode:1","subscription"),
         ("fake_subscription","subscription"),("diamonds_999999","currency"),("episode:999","episode"),
-        ("episode:01","episode"),("subscription","")] {
+        ("episode:01","episode"),("subscription",""),("diamonds_-100","currency"),
+        ("diamonds_0","currency"),("diamonds_bad","currency"),("diamonds_2147483647","currency"),
+        ("diamonds_999999999999999999999","currency"),("diamonds_0100","currency")] {
         assert_eq!(shop.purchase(buy(sku,kind,"invalid")).await.unwrap_err().code(),tonic::Code::InvalidArgument);
         assert_eq!(balance(&shop).await,100);
     }
@@ -79,6 +81,37 @@ async fn scenarios(db: Surreal<Client>) -> TestResult {
     assert!(all.iter().filter(|p|p.item_type=="currency").all(|p|!p.entitlement_active));
     assert!(shop.purchase(buy("subscription","subscription","retry")).await?.into_inner().success);
     assert_eq!(balance(&shop).await,100);
+    currency_boundaries(&shop,&db).await?;
+    Ok(())
+}
+
+// Переполнение не меняет ни кошелёк, ни историю, даже при параллельных запросах
+async fn currency_boundaries(shop: &ShopApiService, db: &Surreal<Client>) -> TestResult {
+    for (sku,amount) in [("diamonds_100",100),("diamonds_250",250),("diamonds_500",500)] {
+        db.query("UPDATE player_currency SET diamonds=$balance;").bind(("balance",i32::MAX-amount)).await?.check()?;
+        let key = format!("limit-{amount}");
+        assert!(shop.purchase(buy(sku,"currency",&key)).await?.into_inner().success);
+        assert_eq!(balance(shop).await,i32::MAX);
+        assert!(shop.purchase(buy(sku,"currency",&key)).await?.into_inner().success);
+        let before = purchases(shop).await?;
+        assert_eq!(shop.purchase(buy(sku,"currency",&format!("overflow-{amount}"))).await.unwrap_err().code(),tonic::Code::OutOfRange);
+        assert_eq!(balance(shop).await,i32::MAX);
+        assert_eq!(purchases(shop).await?,before);
+    }
+    db.query("UPDATE player_currency SET diamonds=2147483147;").await?.check()?;
+    let (a,b) = tokio::join!(shop.purchase(buy("diamonds_500","currency","limit-a")),shop.purchase(buy("diamonds_500","currency","limit-b")));
+    assert_eq!(usize::from(a.is_ok())+usize::from(b.is_ok()),1);
+    assert_eq!(a.err().or(b.err()).unwrap().code(),tonic::Code::OutOfRange);
+    assert_eq!(balance(shop).await,i32::MAX);
+    for invalid in [-1_i64,2147483648,i64::MAX] {
+        db.query("UPDATE player_currency SET diamonds=$balance;").bind(("balance",invalid)).await?.check()?;
+        let before = purchases(shop).await?;
+        assert_eq!(shop.purchase(buy("diamonds_100","currency","bad-wallet")).await.unwrap_err().code(),tonic::Code::FailedPrecondition);
+        assert_eq!(purchases(shop).await?,before);
+        let mut req = Request::new(GetCurrencyRequest {player_id:"player:test".into()});
+        req.extensions_mut().insert(Claims {sub:"player:test".into(),login:"test".into(),is_admin:false,exp:usize::MAX});
+        assert!(shop.get_currency(req).await.is_err());
+    }
     Ok(())
 }
 

@@ -6,6 +6,8 @@ LET $wallets = SELECT * FROM player_currency WHERE player_id = $player;
 IF array::len($wallets) > 1 { THROW 'SHOP_DUPLICATE_WALLET'; };
 LET $wallet = $wallets[0];
 LET $balance = $wallet.diamonds ?? 0;
+-- Не считаю сумму, пока исходный баланс не проверен
+IF !type::is_int($balance) OR $balance < 0 OR $balance > 2147483647 { THROW 'SHOP_INVALID_BALANCE'; };
 LET $key = type::record('purchase', [$player, $item_type, IF $item_type = 'currency' { $request_id } ELSE { $item_id }]);
 LET $previous = SELECT * FROM ONLY $key;
 IF $previous != NONE AND ($previous.item_id != $item_id OR $previous.item_type != $item_type) { THROW 'SHOP_REQUEST_REUSED'; };
@@ -19,7 +21,7 @@ LET $out = IF $already {
 } ELSE {
     LET $wallet_key = $wallet.id ?? type::record('player_currency', [$player]);
     LET $new_balance = $balance - $price + $amount;
-    IF $new_balance > 2147483647 { THROW 'SHOP_BALANCE_OVERFLOW'; };
+    IF $new_balance < 0 OR $new_balance > 2147483647 { THROW 'SHOP_BALANCE_OVERFLOW'; };
     LET $updated = UPSERT $wallet_key SET player_id = $player, diamonds = $new_balance, updated_at = time::now()
         WHERE (diamonds ?? 0) = $balance RETURN AFTER;
     IF array::len($updated) != 1 { THROW 'SHOP_BALANCE_CONFLICT'; };

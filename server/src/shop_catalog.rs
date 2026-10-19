@@ -12,6 +12,7 @@ impl Product {
     pub fn find(sku: &str) -> Result<Self, Status> {
         let (kind, price, amount, episode_id) = match sku {
             "subscription" => ("subscription", 500, 0, 0),
+            // Бесплатные пакеты для учебного демо, реальные платежи здесь не обрабатываю
             "diamonds_100" => ("currency", 0, 100, 0),
             "diamonds_250" => ("currency", 0, 250, 0),
             "diamonds_500" => ("currency", 0, 500, 0),

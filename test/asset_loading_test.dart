@@ -449,53 +449,59 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('При DPR 3 сетка декодирует миниатюру вместо большого оригинала', (tester) async {
-    tester.view.devicePixelRatio = 3;
-    tester.view.physicalSize = const Size(1200, 2400);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.view.resetPhysicalSize);
-    final preview = await tester.runAsync(() async {
-      final image = await createTestImage(width: 122, height: 160);
-      try {
-        final data = (await image.toByteData(format: ui.ImageByteFormat.png))!;
-        return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-      } finally {
-        image.dispose();
-      }
-    });
-    final repo = _PickerRepository()
-      ..previewBytes = preview
-      ..originalBytes = await tester.runAsync(() => File('assets/images/ep1/crosswalk.png').readAsBytes());
-    await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(type: 'background', title: 'Фоны', repository: repo)));
-    await tester.pumpAndSettle();
-    final provider = tester.widget<Image>(find.byWidgetPredicate(
-      (widget) => widget is Image && widget.image is MemoryImage,
-    ).first).image as MemoryImage;
-    expect(provider.bytes, same(preview));
-    expect(provider.bytes, isNot(same(repo.originalBytes)));
-    await tester.runAsync(() async {
-      final ready = Completer<ImageInfo>();
-      final stream = provider.resolve(ImageConfiguration.empty);
-      final listener = ImageStreamListener((info, _) {
-        if (!ready.isCompleted) ready.complete(info.clone());
-      }, onError: (Object error, StackTrace? stack) {
-        if (!ready.isCompleted) ready.completeError(error, stack);
-      });
-      stream.addListener(listener);
-      try {
-        final info = await ready.future;
+  for (final (width, height, dpr) in [(122, 160, 1.0), (160, 80, 1.0), (122, 160, 3.0)]) {
+    testWidgets('Сетка сохраняет пропорции превью $width×$height при DPR $dpr', (tester) async {
+      tester.view.devicePixelRatio = dpr;
+      tester.view.physicalSize = const Size(1200, 2400);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final preview = await tester.runAsync(() async {
+        final image = await createTestImage(width: width, height: height);
         try {
-          expect(info.image.width, lessThanOrEqualTo(160));
-          expect(info.image.height, lessThanOrEqualTo(160));
-          expect(info.image.width * info.image.height * 4, lessThanOrEqualTo(102400));
+          final data = (await image.toByteData(format: ui.ImageByteFormat.png))!;
+          return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
         } finally {
-          info.dispose();
+          image.dispose();
         }
-      } finally {
-        stream.removeListener(listener);
-      }
+      });
+      final repo = _PickerRepository()
+        ..previewBytes = preview
+        ..originalBytes = await tester.runAsync(() => File('assets/images/ep1/crosswalk.png').readAsBytes());
+      await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(type: 'background', title: 'Фоны', repository: repo)));
+      await tester.pumpAndSettle();
+      final provider = tester.widget<Image>(find.byWidgetPredicate(
+        (widget) => widget is Image && widget.image is MemoryImage,
+      ).first).image as MemoryImage;
+      expect(provider.bytes, same(preview));
+      expect(provider.bytes, isNot(same(repo.originalBytes)));
+      await tester.runAsync(() async {
+        final ready = Completer<ImageInfo>();
+        final stream = provider.resolve(ImageConfiguration.empty);
+        final listener = ImageStreamListener((info, _) {
+          if (!ready.isCompleted) ready.complete(info.clone());
+        }, onError: (Object error, StackTrace? stack) {
+          if (!ready.isCompleted) ready.completeError(error, stack);
+        });
+        stream.addListener(listener);
+        try {
+          final info = await ready.future;
+          try {
+            // Проверяю размеры именно декодированной картинки до применения BoxFit.cover
+            expect(info.image.width, width);
+            expect(info.image.height, height);
+            expect(info.image.width / info.image.height, width / height);
+            expect(info.image.width, lessThanOrEqualTo(160));
+            expect(info.image.height, lessThanOrEqualTo(160));
+            expect(info.image.width * info.image.height * 4, lessThanOrEqualTo(102400));
+          } finally {
+            info.dispose();
+          }
+        } finally {
+          stream.removeListener(listener);
+        }
+      });
+      expect(repo.originals, 0);
+      expect(tester.takeException(), isNull);
     });
-    expect(repo.originals, 0);
-    expect(tester.takeException(), isNull);
-  });
+  }
 }

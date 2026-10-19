@@ -4,8 +4,74 @@ import 'package:flutter_test/flutter_test.dart'; // Импорт для тест
 import 'package:romance_club/generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
 import 'package:romance_club/generated/scene.pb.dart'; // Импорт Protobuf-моделей сцен
 import 'package:romance_club/screens/episode_editor_screen.dart'; // Импорт экрана редактора эпизода
+import 'package:romance_club/screens/scene_editor_screen.dart'; // Импорт выпадающего списка переходов
 
 void main() {
+  testWidgets('Новая сцена без ключа не дублирует конец эпизода', (tester) async {
+    final scene = Scene(id: 1, title: 'Новая сцена');
+    await tester.pumpWidget(MaterialApp(home: SceneEditorScreen(
+      scene: scene, allScenes: [scene, scene], onSave: (_) {},
+    )));
+    await tester.pumpAndSettle();
+    final dropdown = tester.widget<DropdownButton<String>>(find.byKey(const ValueKey('scene-target')));
+    final keys = dropdown.items!.map((item) => item.value).toList();
+    expect(keys.where((key) => key == ''), hasLength(1));
+    expect(keys.where((key) => key!.startsWith('draft:')), hasLength(1));
+    expect(scene.sceneKey, isEmpty); // Исходную модель не меняю до сохранения
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Три новые сцены доступны для перехода до сохранения, затем ключи заменяются', (tester) async {
+    final requests = <Episode>[];
+    await tester.pumpWidget(MaterialApp(home: EpisodeEditorScreen(
+      episode: Episode(id: 1, title: 'Эпизод'),
+      onSave: (episode) async {
+        requests.add(episode.deepCopy());
+        final saved = episode.deepCopy();
+        final keys = <String, String>{};
+        for (var i = 0; i < saved.scenes.length; i++) {
+          final scene = saved.scenes[i];
+          if (scene.sceneKey.startsWith('draft:')) keys[scene.sceneKey] = 'scene:new_$i';
+        }
+        for (final scene in saved.scenes) {
+          scene.sceneKey = keys[scene.sceneKey] ?? scene.sceneKey;
+          scene.nextSceneKey = keys[scene.nextSceneKey] ?? scene.nextSceneKey;
+        }
+        return saved;
+      },
+    )));
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.text('создать сцену'));
+      await tester.pump();
+    }
+    await tester.tap(find.byIcon(Icons.edit).first);
+    await tester.pumpAndSettle();
+    final finder = find.byKey(const ValueKey('scene-target'));
+    final dropdown = tester.widget<DropdownButton<String>>(finder);
+    final keys = dropdown.items!.map((item) => item.value!).toList();
+    expect(keys, hasLength(4));
+    expect(keys.toSet(), hasLength(4));
+    expect(keys.where((key) => key.startsWith('draft:')), hasLength(3));
+    final second = dropdown.items!.singleWhere((item) => (item.child as Text).data == 'сцена 2').value!;
+    await tester.ensureVisible(finder);
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('сцена 2').last);
+    await tester.pumpAndSettle();
+    final save = find.widgetWithText(ElevatedButton, 'сохранить');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('сохранить'));
+    await tester.tap(find.text('сохранить'));
+    await tester.pumpAndSettle();
+    expect(requests.single.scenes[0].nextSceneKey, second);
+    await tester.tap(find.text('сохранить'));
+    await tester.pumpAndSettle();
+    expect(requests[1].scenes.map((scene) => scene.sceneKey), ['scene:new_0', 'scene:new_1', 'scene:new_2']);
+    expect(requests[1].scenes[0].nextSceneKey, 'scene:new_1');
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('После создания сцены повторно отправляю постоянный ключ из ответа сервера', (tester) async {
     final requests = <Episode>[];
     var nextKey = 0;

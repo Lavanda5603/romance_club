@@ -89,6 +89,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   void initState() {
     super.initState();
     _scene = widget.scene.deepCopy();
+    // При отдельном открытии новая сцена тоже получает ключ до построения списка
+    if (_scene.sceneKey.isEmpty) _scene.sceneKey = newSceneKey();
 
     // Создаю контроллеры
     _titleController = TextEditingController(text: _scene.title);
@@ -434,10 +436,10 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   // Выпадающий список Следующая сцена
   Widget _buildNextSceneDropdown() {
     // Собираю пункты: все сцены эпизода и Конец эпизода
-    final items = <String>[''];
-    for (final s in widget.allScenes) {
-      items.add(s.sceneKey);
-    }
+    final scenes = {for (final scene in widget.allScenes)
+      if (scene.sceneKey.isNotEmpty) scene.sceneKey: scene};
+    scenes[_scene.sceneKey] = _scene;
+    final items = <String>{'', ...scenes.keys};
 
     // Не подменяю удалённую цель концом эпизода
     if (!items.contains(_selectedNextSceneKey)) items.add(_selectedNextSceneKey);
@@ -470,13 +472,10 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                 label = 'Конец эпизода';
               } else {
                 // Ищу сцену по id
-                final scene = widget.allScenes.firstWhere(
-                  (s) => s.sceneKey == id,
-                  orElse: () => Scene(sceneKey: id, title: 'Недоступная сцена'),
-                );
+                final scene = scenes[id] ?? Scene(sceneKey: id, title: 'Недоступная сцена');
                 label = scene.title.isNotEmpty
                     ? scene.title
-                    : 'сцена ${widget.allScenes.indexOf(scene) + 1}';
+                    : 'сцена ${scenes.keys.toList().indexOf(id) + 1}';
               }
               return DropdownMenuItem<String>(
                 value: id,

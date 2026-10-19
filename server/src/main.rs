@@ -4,6 +4,7 @@ mod shop_transaction_tests; // Проверки покупок в транзак
 mod operation_result_tests; // Проверки ошибок операций с базой
 mod progress_service; // Модуль прогресса
 mod auth_service; // Модуль авторизации
+mod auth_limits; // Ограничение попыток входа и регистрации
 mod password_work; // Ограниченный пул вычисления паролей
 mod achievement_service; // Модуль достижений
 mod shop_service; // Модуль магазина
@@ -462,7 +463,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Server::builder()
         .add_service(EpisodeApiServer::with_interceptor(episode_service, interceptor.clone())) // Сервис эпизодов
         .add_service(ProgressApiServer::with_interceptor(progress_service, interceptor.clone())) // Сервис прогресса
-        .add_service(AuthApiServer::new(auth_service)) // Сервис авторизации (без интерцептора)
+        .add_service(AuthApiServer::new(auth_service).max_decoding_message_size(auth_limits::MAX_AUTH_MESSAGE_BYTES)) // Сервис авторизации с ограничением размера запроса
         .add_service(AchievementApiServer::with_interceptor(achievement_service, interceptor.clone())) // Сервис достижений
         .add_service(ShopApiServer::with_interceptor(shop_service, interceptor.clone())) // Сервис магазина
         .add_service(tonic::service::interceptor::InterceptedService::new(asset_service.into_server(), interceptor.clone())) // Сервис ассетов

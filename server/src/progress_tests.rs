@@ -173,7 +173,11 @@ async fn generation_scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::er
         fresh.expected_generation = current.generation;
         let (save,reset) = tokio::join!(second.save_progress(request(fresh.clone())),
             first.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})));
-        reset?;
+        if let Err(error) = reset {
+            assert_eq!(error.code(),Code::Aborted);
+            // После допустимого конфликта повторяю сброс, когда конкурирующая запись уже закончилась
+            first.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})).await?;
+        }
         if let Err(error) = save { assert_eq!(error.code(),Code::Aborted); }
         let restored = ProgressApiService::new(db.clone()).get_progress(get()).await?.into_inner();
         assert!(restored.scene_id.is_empty() && restored.flags.is_empty() && restored.counters.is_empty());

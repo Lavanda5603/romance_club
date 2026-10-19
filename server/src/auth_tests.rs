@@ -8,6 +8,15 @@ fn keys() -> JwtKeys {
     JwtKeys::from_secret("test-only-login-index-key-0123456789").unwrap()
 }
 
+// Разные клиенты проверяют гонку уникального индекса, а не квоту одного IP
+fn client<T>(body: T, index: usize) -> Request<T> {
+    let mut request = Request::new(body);
+    request.extensions_mut().insert(tonic::transport::server::TcpConnectInfo {
+        local_addr:None, remote_addr:Some(format!("127.0.0.{}:12345",index+1).parse().unwrap()),
+    });
+    request
+}
+
 async fn rows(db: &Surreal<Client>, login: &str) -> Result<Vec<Value>, surrealdb::Error> {
     db.query("SELECT id, login, email, password_hash FROM player WHERE login=$login;")
         .bind(("login", login.to_owned())).await?.take(0)
@@ -49,8 +58,8 @@ async fn scenarios(db: Surreal<Client>) -> TestResult {
         tasks.push(tokio::spawn(async move {
             let api = AuthApiService::new(db, keys());
             gate.wait().await;
-            api.register(Request::new(RegisterRequest {login:"same_login".into(),
-                email:format!("user{index}@example.test"),password:format!("Password{index}!")})).await
+            api.register(client(RegisterRequest {login:"same_login".into(),
+                email:format!("user{index}@example.test"),password:format!("Password{index}!")},index)).await
         }));
     }
     let mut winner = None;
@@ -68,7 +77,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult {
     let winner = winner.expect("Одна регистрация должна пройти");
     assert_eq!(rows(&db,"same_login").await?.len(), 1);
     for index in 0..8 {
-        let result = api.login(Request::new(LoginRequest {login:"same_login".into(),password:format!("Password{index}!")})).await?.into_inner();
+        let result = api.login(client(LoginRequest {login:"same_login".into(),password:format!("Password{index}!")},index)).await?.into_inner();
         assert_eq!(result.success,index == winner);
     }
     // Даже обход предварительного SELECT заканчивается понятным конфликтом

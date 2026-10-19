@@ -7,11 +7,14 @@ use crate::romance_club::{
     AuthResponse, RegisterRequest, LoginRequest, GetPlayerRequest, Player,
 }; // Импорт структур
 use crate::jwt::JwtKeys; // Ключ JWT
+use crate::auth_limits::{self, AuthLimits, Operation}; // Подключаю лимиты попыток
+use std::sync::Arc; // Подключаю общие счётчики сервиса
 
 // Сервис для работы с авторизацией
 pub struct AuthApiService {
     pub db: Surreal<Client>, // Подключение к SurrealDB
     jwt: JwtKeys, // Проверенный ключ
+    attempts: Arc<AuthLimits>, // Общие лимиты для всех запросов
 }
 
 impl AuthApiService {
@@ -57,8 +60,10 @@ impl AuthApiService {
 
     // Создать новый сервис
     pub fn new(db: Surreal<Client>, jwt: JwtKeys) -> Self {
-        Self { db, jwt }
+        Self { db, jwt, attempts:auth_limits::shared() }
     }
+    #[cfg(test)]
+    pub fn with_attempts(mut self, attempts: Arc<AuthLimits>) -> Self { self.attempts=attempts; self }
 
     // Хэшировать пароль через Argon2
     async fn hash_password(password: &str) -> Result<String, Status> {
@@ -131,6 +136,9 @@ impl AuthApi for AuthApiService {
         &self,
         request: Request<RegisterRequest>,
     ) -> Result<Response<AuthResponse>, Status> {
+        let ip = auth_limits::peer_ip(&request);
+        self.attempts.check_source(ip, Operation::Register)?;
+        auth_limits::check_fields(&request.get_ref().login, Some(&request.get_ref().email), &request.get_ref().password)?;
         let req = request.into_inner();
         let login = req.login;
         let email = req.email;
@@ -168,6 +176,7 @@ impl AuthApi for AuthApiService {
         }
 
         // Проверяю, есть ли игрок с таким логином
+        self.attempts.check_account(ip, &login, Operation::Register)?;
         let mut check_response = self
             .db
             .query("SELECT * FROM player WHERE login = $login LIMIT 1")
@@ -251,6 +260,9 @@ impl AuthApi for AuthApiService {
         &self,
         request: Request<LoginRequest>,
     ) -> Result<Response<AuthResponse>, Status> {
+        let ip = auth_limits::peer_ip(&request);
+        self.attempts.check_source(ip, Operation::Login)?;
+        auth_limits::check_fields(&request.get_ref().login, None, &request.get_ref().password)?;
         let req = request.into_inner();
         let login = req.login;
         let password = req.password;
@@ -278,6 +290,7 @@ impl AuthApi for AuthApiService {
         }
 
         // Ищу игрока по логину
+        self.attempts.check_account(ip, &login, Operation::Login)?;
         let mut response = self
             .db
             .query("SELECT * FROM player WHERE login = $login LIMIT 1")

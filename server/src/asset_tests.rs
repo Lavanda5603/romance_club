@@ -118,6 +118,33 @@ async fn crosswalk_preview_limits_decoded_pixels() {
 }
 
 #[tokio::test]
+async fn marinet_preview_and_screen_variants_keep_transparent_background() {
+    let source = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/characters/marinet_happy.png")).unwrap();
+    let original = image::load_from_memory(&source).unwrap().into_rgba8();
+    assert!(original.pixels().any(|pixel|pixel.0[3] == 0));
+    assert!(original.pixels().any(|pixel|pixel.0[3] == 255));
+    let prepared = asset_preview::make_variants(source.clone(),"character").await.unwrap();
+    let (legacy_preview, _) = asset_preview::make(source).await.unwrap();
+    // Проверяю и новый upload, и подготовку превью старого оригинала
+    for bytes in [&prepared.preview, &legacy_preview].into_iter().map(Vec::as_slice)
+        .chain(prepared.variants.iter().map(|variant|variant.data.as_ref().unwrap().as_ref())) {
+        assert_eq!(image::guess_format(bytes).unwrap(),ImageFormat::Png);
+        let decoded=image::load_from_memory(bytes).unwrap();
+        assert!(decoded.color().has_alpha());
+        let rgba=decoded.into_rgba8();
+        assert!(rgba.pixels().any(|pixel|pixel.0[3] == 0),"Фон вокруг персонажа должен оставаться прозрачным");
+        assert!(rgba.pixels().any(|pixel|pixel.0[3] == 255),"Сам персонаж должен оставаться видимым");
+        // Прозрачный пиксель после наложения не меняет цвет фона сцены
+        let transparent=rgba.pixels().find(|pixel|pixel.0[3] == 0).unwrap();
+        let mut background=Rgba([31u8,87,143,255]);
+        image::Pixel::blend(&mut background,transparent);
+        assert_eq!(background,Rgba([31,87,143,255]));
+    }
+    assert!(prepared.preview.len() <= asset_preview::MAX_PREVIEW_BYTES);
+    assert!(prepared.variants.iter().all(|variant|variant.mime=="image/png"));
+}
+
+#[tokio::test]
 async fn screen_sizes_preserve_alpha_and_do_not_enlarge_images() {
     let source = picture(20);
     let prepared = asset_preview::make_variants(source.clone(), "character").await.unwrap();

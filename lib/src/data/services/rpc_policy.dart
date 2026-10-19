@@ -29,6 +29,8 @@ class RpcDeadline extends ClientInterceptor {
 String networkError(Object error) {
   if (error is GrpcError) {
     switch (error.code) {
+      case StatusCode.unauthenticated:
+        return 'Сессия недействительна. Выйдите из аккаунта и войдите снова.';
       case StatusCode.deadlineExceeded:
         return 'Сервер не ответил вовремя. Повторите загрузку. Если сохраняли изменения, сначала проверьте результат.';
       case StatusCode.unavailable:

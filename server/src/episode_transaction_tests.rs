@@ -121,6 +121,42 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     assert!(choices[0].actions.iter().any(|a| a.counter_name == "score" && a.counter_value == -3));
     assert!(api.get_episode(admin(GetEpisodeRequest { id: 3 })).await?.into_inner().scenes.is_empty());
     assert_eq!(api.get_episode(admin(GetEpisodeRequest { id: 404 })).await.unwrap_err().code(), Code::NotFound);
+    record_filters_round_trip(&api,&db).await?;
+    Ok(())
+}
+
+// Тип записи проверяю на смешанных ключах, а не только на автоматически созданных ID
+async fn record_filters_round_trip(api: &EpisodeApiService, db: &Surreal<Client>) -> TestResult<()> {
+    db.query("CREATE episode:4 SET title='Проверка record ID',version=1;
+        CREATE scene:777 CONTENT {episode_id:episode:4,title:'Числовой ключ',background:'room',character:'hero',character_emotion:'happy',texts:['Первая реплика'],condition:'',text_position:'bottom_center',character_position:'center',order_index:0,next_scene_id:0,next_scene_key:'scene:branch'};
+        CREATE scene:branch CONTENT {episode_id:episode:4,title:'Строковый ключ',background:'street',character:'hero',character_emotion:'sad',texts:['Вторая реплика'],condition:'',text_position:'bottom_center',character_position:'left',order_index:1,next_scene_id:0,next_scene_key:''};
+        CREATE choice:named CONTENT {scene_id:scene:777,text:'Первый вариант',title:'Первый',order_index:0};
+        CREATE choice:17 CONTENT {scene_id:scene:777,text:'Второй вариант',title:'Второй',order_index:1};
+        CREATE choice:99 CONTENT {scene_id:scene:branch,text:'Последний вариант',title:'Третий',order_index:0};
+        CREATE action:1 CONTENT {choice_id:choice:named,type:'nextScene',scene_id:0,scene_key:'scene:branch',title:'Переход',counter_name:'friendship',counter_value:2,flag_name:'met',flag_value:true};
+        CREATE action:named CONTENT {choice_id:choice:17,type:'changeCounter',title:'Баллы',counter_name:'points',counter_value:-3};
+        CREATE action:3 CONTENT {choice_id:choice:99,type:'changeFlag',title:'Флаг',flag_name:'secret',flag_value:true};").await?.check()?;
+    // Строка действительно не равна record; рабочий фильтр должен сохранить тип
+    let mut proof = db.query("SELECT VALUE id FROM choice WHERE scene_id IN ['scene:777'];
+        LET $ids = SELECT VALUE id FROM scene WHERE episode_id=episode:4;
+        SELECT VALUE id FROM choice WHERE scene_id IN $ids;").await?.check()?;
+    assert!(proof.take::<Vec<Value>>(0)?.is_empty());
+    assert_eq!(proof.take::<Vec<surrealdb::types::RecordId>>(2)?.len(),3);
+    let loaded = api.get_episode(admin(GetEpisodeRequest {id:4})).await?.into_inner();
+    assert_eq!(loaded.scenes.iter().map(|scene|scene.scene_key.as_str()).collect::<Vec<_>>(),vec!["scene:777","scene:branch"]);
+    assert_eq!(loaded.scenes.iter().map(|scene|scene.choices.len()).collect::<Vec<_>>(),vec![2,1]);
+    assert_eq!(loaded.scenes.iter().flat_map(|scene|&scene.choices).map(|choice|choice.actions.len()).collect::<Vec<_>>(),vec![1,1,1]);
+    assert_eq!(loaded.scenes[0].choices[0].actions[0].scene_key,"scene:branch");
+    assert_eq!(loaded.scenes[0].choices[0].actions[0].counter_value,2);
+    assert!(loaded.scenes[1].choices[0].actions[0].flag_value);
+    // Простое изменение названия не должно удалить выборы или их эффекты
+    let mut edited = loaded;
+    edited.title = "Новое название без потери дерева".into();
+    for _ in 0..2 {
+        assert!(api.save_episode(admin(SaveEpisodeRequest {episode:Some(edited.clone())})).await?.into_inner().success);
+        let reloaded = api.get_episode(admin(GetEpisodeRequest {id:4})).await?.into_inner();
+        assert_eq!(reloaded,edited);
+    }
     Ok(())
 }
 

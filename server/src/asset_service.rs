@@ -9,7 +9,7 @@ pub const MAX_UPLOAD_BYTES: usize = 5 * 1024 * 1024;
 const MAX_MESSAGE_BYTES: usize = MAX_UPLOAD_BYTES + 1024 * 1024;
 
 pub struct AssetApiService { db: Surreal<Client>, delete_db: Surreal<Client> }
-const CATALOG_FIELDS: &str = "id, type, name, emotion, url, display_name, episode_id, preview_data, version";
+const CATALOG_FIELDS: &str = "id, type, name, emotion, url, display_name, episode_id, preview_data, version, preview_status, preview_source_version";
 fn text(row: &Value, field: &str) -> String { row[field].as_str().unwrap_or_default().to_owned() }
 fn internal(error: impl std::fmt::Display) -> Status { Status::internal(error.to_string()) }
 
@@ -27,6 +27,8 @@ struct AssetRow {
     file_data: Option<Bytes>,
     preview_data: Option<Bytes>,
     variants: Option<Vec<asset_preview::Variant>>,
+    preview_status: Option<String>,
+    preview_source_version: Option<String>,
 }
 
 fn asset(row: &AssetRow, original: bool) -> Result<Asset, Status> {
@@ -46,6 +48,22 @@ impl AssetApiService {
     // Передаю отдельное подключение для удаления
     pub fn with_delete_db(mut self, db: Surreal<Client>) -> Self { self.delete_db=db; self }
 
+    // До запуска каталога обрабатываю старые записи порциями, оригиналы не меняю
+    pub async fn backfill_previews(&self) -> Result<(), Status> {
+        let mut cursor = String::new();
+        loop {
+            let mut response = self.db.query(format!("SELECT {CATALOG_FIELDS} FROM asset WHERE type IN ['background','character'] AND (preview_data=NONE OR bytes::len(preview_data)=0) AND (preview_status ?? '') NOT IN ['invalid','missing'] AND ($cursor='' OR id > type::record($cursor)) ORDER BY id LIMIT 24"))
+                .bind(("cursor",cursor.clone())).await.map_err(internal)?.check().map_err(internal)?;
+            let rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
+            if rows.is_empty() { break; }
+            for row in rows {
+                cursor = row.id.to_sql();
+                self.preview(row).await?;
+            }
+        }
+        Ok(())
+    }
+
     // Для старых ассетов создаю варианты один раз, новый upload готовит их до записи
     async fn prepare_variants(&self, id: &str) -> Result<(), Status> {
         let mut response = self.db.query("SELECT id,type,name,emotion,url,display_name,episode_id,version,file_data FROM type::record($id)")
@@ -54,7 +72,7 @@ impl AssetApiService {
         let row = row.ok_or_else(|| Status::not_found("Ассет не найден"))?;
         let source = row.file_data.ok_or_else(|| Status::not_found("Нет изображения"))?;
         let prepared = asset_preview::make_variants(source.to_vec(), &row.r#type).await?;
-        self.db.query("UPDATE type::record($id) SET variants=$variants, preview_data=$preview, version=$version WHERE file_data=$source AND (variants=NONE OR array::len(variants)=0)")
+        self.db.query("UPDATE type::record($id) SET variants=$variants, preview_data=$preview, version=$version, preview_status='ready', preview_source_version=$version WHERE file_data=$source AND (variants=NONE OR array::len(variants)=0)")
             .bind(("id", id.to_owned())).bind(("source", source)).bind(("variants", prepared.variants))
             .bind(("preview", Bytes::from(prepared.preview))).bind(("version", prepared.version))
             .await.map_err(internal)?.check().map_err(internal)?;
@@ -71,17 +89,26 @@ impl AssetApiService {
     async fn preview(&self, mut row: AssetRow) -> Result<AssetRow, Status> {
         if row.preview_data.as_ref().is_some_and(|bytes| !bytes.is_empty()) { return Ok(row); }
         if !matches!(row.r#type.as_str(), "background" | "character") { return Ok(row); }
+        if matches!(row.preview_status.as_deref(),Some("invalid" | "missing")) && row.preview_source_version == row.version { return Ok(row); }
         let id = row.id.to_sql();
         let mut response = self.db.query("SELECT * FROM type::record($id)")
             .bind(("id", id.clone())).await.map_err(internal)?.check().map_err(internal)?;
         let full: Option<AssetRow> = response.take(0).map_err(internal)?;
         let Some(full) = full else { return Ok(row); };
-        let Some(source) = full.file_data else { return Ok(row); };
-        if source.is_empty() { return Ok(row); }
-        let (preview, version) = asset_preview::make(source.to_vec()).await?;
+        let source = full.file_data;
+        let data = source.as_ref().map(|bytes|bytes.to_vec()).unwrap_or_default();
+        use sha2::{Digest, Sha256}; // Подключаю версию исходных байтов
+        let source_version = format!("{:x}",Sha256::digest(&data));
+        let prepared = if data.is_empty() { None } else { Some(asset_preview::make(data).await) };
+        let (preview, version, status) = match prepared {
+            Some(Ok((preview,version))) => (Some(Bytes::from(preview)),version,"ready"),
+            Some(Err(error)) if error.code() != tonic::Code::InvalidArgument => return Err(error),
+            Some(Err(_)) => (None,source_version,"invalid"),
+            None => (None,source_version,"missing"),
+        };
         // Не затираю картинку, которую успели заменить во время обработки
-        self.db.query("UPDATE type::record($id) SET preview_data = $preview, version = $version WHERE file_data = $source AND (preview_data = NONE OR bytes::len(preview_data) = 0)")
-            .bind(("id", id.clone())).bind(("preview", Bytes::from(preview)))
+        self.db.query("UPDATE type::record($id) SET preview_data=$preview, version=$version, preview_status=$status, preview_source_version=$version WHERE file_data=$source AND (preview_data=NONE OR bytes::len(preview_data)=0)")
+            .bind(("id", id.clone())).bind(("preview", preview)).bind(("status",status))
             .bind(("version", version)).bind(("source", source))
             .await.map_err(internal)?.check().map_err(internal)?;
         let mut response = self.db.query(format!("SELECT {CATALOG_FIELDS} FROM type::record($id)"))
@@ -202,7 +229,7 @@ impl AssetApi for AssetApiService {
         let display = if req.display_name.is_empty() { req.name.clone() } else { req.display_name };
         let url = format!("assets/{}/{}", req.r#type, req.name);
         // Оригинал и превью заменяю одной записью
-        let mut response = self.db.query("UPSERT type::record($id) MERGE {type:$type, name:$name, emotion:(IF $emotion='' { NONE } ELSE { $emotion }), episode_id:(IF $ep='' { NONE } ELSE { type::record($ep) }), url:$url, display_name:$display, file_data:$file, preview_data:$preview, version:$version, variants:$variants} RETURN AFTER")
+        let mut response = self.db.query("UPSERT type::record($id) MERGE {type:$type, name:$name, emotion:(IF $emotion='' { NONE } ELSE { $emotion }), episode_id:(IF $ep='' { NONE } ELSE { type::record($ep) }), url:$url, display_name:$display, file_data:$file, preview_data:$preview, version:$version, variants:$variants, preview_status:'ready', preview_source_version:$version} RETURN AFTER")
             .bind(("id", id)).bind(("type", req.r#type)).bind(("name", req.name)).bind(("emotion", req.emotion))
             .bind(("ep", req.episode_id)).bind(("url", url)).bind(("display", display))
             .bind(("file", Bytes::from(req.file_data))).bind(("preview", Bytes::from(prepared.preview))).bind(("version", prepared.version))

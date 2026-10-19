@@ -309,9 +309,57 @@ async fn paged_previews_and_selected_original() -> TestResult<()> {
     db.use_ns("romance_club").await?;
     db.query(format!("DEFINE DATABASE {name};")).await?.check()?;
     db.use_db(&name).await?;
-    let result = tokio::spawn(scenarios(db.clone())).await;
+    let test_db = db.clone(); // Оставляю подключение для удаления тестовой базы
+    let result = tokio::spawn(async move { scenarios(test_db.clone()).await?; backfill_scenarios(test_db).await }).await;
     db.query(format!("REMOVE DATABASE {name};")).await?.check()?;
     result?
+}
+
+// Проверяю перенос старых оригиналов и повторный запуск без повторной обработки
+async fn backfill_scenarios(db: Surreal<Client>) -> TestResult<()> {
+    db.query("DELETE asset;").await?.check()?;
+    let original = picture(19);
+    for index in 0..25 {
+        db.query("CREATE type::record('asset',$key) CONTENT {type:'background',name:$key,url:'old.png',display_name:'Старый фон',file_data:$bytes}")
+            .bind(("key",format!("legacy_{index:02}"))).bind(("bytes",Bytes::from(original.clone())))
+            .await?.check()?;
+    }
+    db.query("CREATE asset:broken CONTENT {type:'background',name:'broken',url:'bad.png',display_name:'Ошибка',file_data:$bytes}; CREATE asset:missing CONTENT {type:'character',name:'missing',url:'none.png',display_name:'Нет файла'};")
+        .bind(("bytes",Bytes::from(b"broken".to_vec()))).await?.check()?;
+    let api = AssetApiService::new(db.clone());
+    api.backfill_previews().await?;
+    let mut response = db.query("SELECT * FROM asset ORDER BY id;").await?.check()?;
+    let rows: Vec<AssetRow> = response.take(0)?;
+    assert_eq!(rows.len(),27);
+    for row in &rows {
+        assert_eq!(row.preview_source_version,row.version);
+        match row.name.as_str() {
+            "broken" => assert_eq!(row.preview_status.as_deref(),Some("invalid")),
+            "missing" => assert_eq!(row.preview_status.as_deref(),Some("missing")),
+            _ => {
+                assert_eq!(row.preview_status.as_deref(),Some("ready"));
+                assert_eq!(row.file_data.as_ref().unwrap().to_vec(),original);
+                let preview = row.preview_data.as_ref().unwrap();
+                assert!(preview.len() <= asset_preview::MAX_PREVIEW_BYTES);
+                let image = image::load_from_memory(preview)?;
+                assert!(image.width() <= 160 && image.height() <= 160);
+                assert_eq!(row.display_name,"Старый фон");
+            }
+        }
+    }
+    // Любая повторная запись теперь ломает тест: готовые и ошибочные записи не трогаю
+    db.query("DEFINE EVENT no_preview_rewrite ON asset WHEN $event='UPDATE' THEN { THROW 'Повторная обработка'; };").await?.check()?;
+    api.backfill_previews().await?;
+    let page = api.get_assets(page(String::new(),24)).await?.into_inner();
+    assert_eq!(page.assets.len(),24);
+    assert!(page.assets.iter().any(|item|item.name=="broken"));
+    db.query("REMOVE EVENT no_preview_rewrite ON asset;").await?.check()?;
+    let repaired = api.upload_asset(admin(UploadAssetRequest {r#type:"background".into(),name:"broken".into(),file_data:original.clone(),..Default::default()})).await?.into_inner();
+    assert!(!repaired.asset.unwrap().preview_data.is_empty());
+    let mut response = db.query("SELECT * FROM asset:broken;").await?.check()?;
+    let repaired: Option<AssetRow> = response.take(0)?;
+    assert_eq!(repaired.unwrap().preview_status.as_deref(),Some("ready"));
+    Ok(())
 }
 
 // Проверяю размер по настоящему gRPC, с теми же лимитами, что в main

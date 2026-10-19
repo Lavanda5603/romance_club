@@ -422,6 +422,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let achievement_service = AchievementApiService::new(db.clone()); // Сервис достижений
     let shop_service = ShopApiService::new(db.clone()); // Сервис магазина
     let asset_service = AssetApiService::new(db.clone()).with_delete_db(asset_delete_db.clone()); // Сервис ассетов
+    asset_service.backfill_previews().await?; // Готовлю превью старых картинок перед открытием каталога
     let admin_service = AdminApiService::new(db).with_delete_db(asset_delete_db); // Сервис админа
     let addr = std::env::var("GRPC_BIND")
         .unwrap_or_else(|_| "0.0.0.0:50051".into())

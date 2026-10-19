@@ -1,3 +1,4 @@
+mod migrations; // Подключаю одноразовый запуск миграций
 #[cfg(test)]
 mod shop_transaction_tests; // Проверки покупок в транзакции
 #[cfg(test)]
@@ -381,42 +382,13 @@ impl EpisodeApi for EpisodeApiService {
     }
 }
 
-// Применение миграций из папки migrations/
-async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error::Error>> {
-    let migrations_dir = std::path::Path::new("migrations");
-
-    if !migrations_dir.exists() {
-        println!("Папка migrations/ не найдена, пропускаю");
-        return Ok(());
-    }
-
-    let mut entries: Vec<_> = std::fs::read_dir(migrations_dir)?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map(|ext| ext == "surql").unwrap_or(false))
-        .collect();
-
-    entries.sort_by_key(|e| e.path());
-
-    for entry in entries {
-        let path = entry.path();
-        let sql = std::fs::read_to_string(&path)?;
-        println!("Применяю миграцию: {:?}", path);
-        let mut result = db.query(&sql).await?;
-        // Показываю причину отказа, даже если соседние команды транзакции отменены
-        let errors = result.take_errors();
-        if !errors.is_empty() {
-            let details = errors.values().map(ToString::to_string).collect::<Vec<_>>().join("; ");
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
-                format!("Ошибка миграции {}: {}", path.display(), details)).into());
-        }
-    }
-
-    println!("Все миграции применены");
-    Ok(())
+// Применённые версии повторно не запускаю
+async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    migrations::apply_dir(db, std::path::Path::new("migrations")).await
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Проверяю ключ до подключения к БД и запуска API
     let jwt = jwt::JwtKeys::from_env()?;
 

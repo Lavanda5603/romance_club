@@ -2,16 +2,6 @@ use tonic::{Request, Response, Status}; // Импорт tonic
 use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
 use surrealdb::Surreal; // Импорт Surreal
 use serde_json::Value; // Импорт Value
-use argon2::{
-    password_hash::{
-        rand_core::OsRng, // Генератор случайных чисел для соли
-        PasswordHash, // Для чтения хэша из строки
-        PasswordHasher, // Для хэширования пароля
-        PasswordVerifier, // Для проверки пароля
-        SaltString, // Соль для хэша
-    },
-    Argon2, // Алгоритм хэширования
-};
 use crate::romance_club::auth_api_server::AuthApi; // Импорт трейта
 use crate::romance_club::{
     AuthResponse, RegisterRequest, LoginRequest, GetPlayerRequest, Player,
@@ -71,24 +61,13 @@ impl AuthApiService {
     }
 
     // Хэшировать пароль через Argon2
-    fn hash_password(password: &str) -> Result<String, String> {
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map(|hash| hash.to_string())
-            .map_err(|e| format!("Ошибка хэширования: {}", e))
+    async fn hash_password(password: &str) -> Result<String, Status> {
+        crate::password_work::hash(password.to_owned()).await
     }
 
     // Проверить пароль против хэша
-    fn verify_password(password: &str, hash: &str) -> bool {
-        let parsed_hash = match PasswordHash::new(hash) {
-            Ok(h) => h,
-            Err(_) => return false,
-        };
-        Argon2::default()
-            .verify_password(password.as_bytes(), &parsed_hash)
-            .is_ok()
+    async fn verify_password(password: &str, hash: &str) -> Result<bool, Status> {
+        crate::password_work::verify(password.to_owned(), hash.to_owned()).await
     }
 
     // Проверка логина
@@ -205,19 +184,7 @@ impl AuthApi for AuthApiService {
         }
 
         // Хэширую пароль
-        let password_hash = match Self::hash_password(&password) {
-            Ok(h) => h,
-            Err(e) => {
-                println!("[REGISTER] Ошибка хэширования: {}", e);
-                return Ok(Response::new(AuthResponse {
-                    success: false,
-                    message: "Ошибка сервера при регистрации".to_string(),
-                    player: None,
-                    token: String::new(),
-                    is_admin: false,
-                }));
-            }
-        };
+        let password_hash = Self::hash_password(&password).await?;
 
         // Создаю игрока (с хэшем пароля и is_admin = false)
         let result = self.create_player(&login, &email, &password_hash).await?;
@@ -350,7 +317,7 @@ impl AuthApi for AuthApiService {
                     .unwrap_or(false);
 
                 // Проверяю пароль
-                if !Self::verify_password(&password, &password_hash) {
+                if !Self::verify_password(&password, &password_hash).await? {
                     println!("[LOGIN] Неверный пароль для: {}", login);
                     return Ok(Response::new(AuthResponse {
                         success: false,

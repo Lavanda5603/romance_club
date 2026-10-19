@@ -16,7 +16,7 @@ async fn rows(db: &Surreal<Client>, login: &str) -> Result<Vec<Value>, surrealdb
 async fn scenarios(db: Surreal<Client>) -> TestResult {
     db.query(include_str!("../migrations/005_player.surql")).await?.check()?;
     db.query(include_str!("../migrations/012_player_admin.surql")).await?.check()?;
-    let hash = AuthApiService::hash_password("Legacy1!").unwrap();
+    let hash = AuthApiService::hash_password("Legacy1!").await?;
     db.query("CREATE player:old_a CONTENT {login:'old_login',email:'a@example.test',password_hash:$hash}; CREATE player:old_b CONTENT {login:'old_login',email:'b@example.test',password_hash:$hash};")
         .bind(("hash", hash)).await?.check()?;
     // Дубликаты останавливают миграцию, оба старых аккаунта остаются целыми

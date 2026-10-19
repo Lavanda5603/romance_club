@@ -4,6 +4,7 @@ mod shop_transaction_tests; // Проверки покупок в транзак
 mod operation_result_tests; // Проверки ошибок операций с базой
 mod progress_service; // Модуль прогресса
 mod auth_service; // Модуль авторизации
+mod password_work; // Ограниченный пул вычисления паролей
 mod achievement_service; // Модуль достижений
 mod shop_service; // Модуль магазина
 mod shop_catalog; // Серверный каталог товаров и цен

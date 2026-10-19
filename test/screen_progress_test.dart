@@ -403,24 +403,46 @@ void main() {
     expect(progress.singles, 0);
   });
 
-  testWidgets('Поздняя сводка не меняет выбранный пользователем эпизод', (tester) async {
-    final episodes = _Episodes(3);
-    addTearDown(episodes.close);
-    final progress = _Progress();
-    final observer = _Observer();
-    await tester.pumpWidget(MaterialApp(navigatorObservers: [observer], home: EpisodeSelectScreen(
-      episodeService: episodes, progressRepository: progress, loadPlayerId: () async => 'player:test',
-    )));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Эпизод 3'));
-    progress.pending.complete({1});
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('продолжить'));
-    final route = observer.route! as MaterialPageRoute;
-    final game = route.builder(tester.element(find.byType(EpisodeSelectScreen))) as GameScreen;
-    expect(game.episode.id, 3);
-    await tester.pumpWidget(const SizedBox());
-  });
+  for (final selected in [1, 3]) {
+    for (final retry in [false, true]) {
+      testWidgets('Поздняя сводка сохраняет ручной выбор $selected, повтор=$retry', (tester) async {
+        final episodes = _Episodes(3);
+        addTearDown(episodes.close);
+        final progress = _Progress();
+        final observer = _Observer();
+        await tester.pumpWidget(MaterialApp(navigatorObservers: [observer], home: EpisodeSelectScreen(
+          episodeService: episodes, progressRepository: progress, loadPlayerId: () async => 'player:test',
+        )));
+        await tester.pumpAndSettle();
+        expect(find.text('Статус эпизодов загружается...'), findsOneWidget);
+        // Выбираю несколько раз: первый эпизод тоже считается ручным выбором
+        await tester.tap(find.text('Эпизод 2'));
+        await tester.tap(find.text('Эпизод $selected'));
+        await tester.pumpAndSettle();
+        if (retry) {
+          progress.pending.completeError(StateError('Нет связи'));
+          await tester.pumpAndSettle();
+          progress.pending = Completer<Set<int>>();
+          await tester.tap(find.textContaining('Повторить'));
+          await tester.pump();
+        }
+        // Автовыбор по этой сводке дал бы эпизод 2, но сохраняю выбор игрока
+        progress.pending.complete({1});
+        await tester.pumpAndSettle();
+        expect(control(tester,'Эпизод $selected').style!.side!.resolve({})!.width, 2);
+        expect(control(tester,'Эпизод 2').style!.side!.resolve({}), BorderSide.none);
+        expect(control(tester,'Эпизод 1').style!.backgroundColor!.resolve({}), const Color(0xFFD30010));
+        expect(progress.summaries, retry ? 2 : 1);
+        expect(progress.singles, 0);
+        await tester.tap(find.text('продолжить'));
+        final route = observer.route! as MaterialPageRoute;
+        final game = route.builder(tester.element(find.byType(EpisodeSelectScreen))) as GameScreen;
+        expect(game.episode.id, selected);
+        await tester.pumpWidget(const SizedBox());
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
 
   testWidgets('Профиль показывает игрока, пока прогресс и достижения ещё загружаются', (tester) async {
     final episodes = _Episodes(50);

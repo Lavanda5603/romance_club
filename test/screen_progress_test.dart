@@ -518,6 +518,50 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final first in ['player', 'episodes', 'progress', 'achievements', 'together', 'disposed']) {
+    testWidgets('Ошибки параллельных запросов профиля обработаны: $first', (tester) async {
+      final episodes = _SlowEpisodes();
+      addTearDown(episodes.close);
+      final progress = _Progress();
+      final auth = _Auth();
+      final achievements = _Achievements();
+      await tester.pumpWidget(MaterialApp(home: ProfileScreen(
+        episodeService: episodes, progressRepository: progress, authRepository: auth,
+        achievementRepository: achievements, loadPlayerId: () async => 'player:test',
+      )));
+      await tester.pump();
+      expect(auth.calls, 1);
+      expect(progress.summaries, 1);
+      expect(achievements.calls, 1);
+      if (first == 'disposed') await tester.pumpWidget(const SizedBox());
+      final failures = <String, void Function()>{
+        'player': () => auth.pending.completeError(StateError('Игрок недоступен')),
+        'episodes': () => episodes.pending.completeError(StateError('Эпизоды недоступны')),
+        'progress': () => progress.pending.completeError(StateError('Прогресс недоступен')),
+        'achievements': () => achievements.pending.completeError(StateError('Достижения недоступны')),
+      };
+      // Каждый запрос по очереди завершается первым, остальные отказывают позже
+      final order = [if (failures.containsKey(first)) first,
+        ...failures.keys.where((key) => key != first)];
+      for (final name in order) {
+        failures[name]!();
+        if (first != 'together') {
+          await tester.pump();
+          expect(tester.takeException(), isNull, reason: 'Необработанная ошибка $name');
+        }
+      }
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      if (first != 'disposed') {
+        expect(find.text('Не удалось загрузить профиль'), findsOneWidget);
+        expect(find.text('Не удалось загрузить прогресс'), findsOneWidget);
+        expect(find.text('Не удалось загрузить достижения'), findsOneWidget);
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.textContaining('пройдено эпизодов:'), findsNothing);
+      }
+    });
+  }
+
   test('Репозиторий получает сводку одним RPC и убирает повторяющиеся ID', () async {
     final service = _SummaryService();
     addTearDown(service.close);

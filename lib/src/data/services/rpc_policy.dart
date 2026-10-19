@@ -1,4 +1,5 @@
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import '../../../services/session_store.dart'; // Импорт согласованной сессии
 
 // Ограничиваю ожидание по типу запроса
 class RpcDeadline extends ClientInterceptor {
@@ -21,8 +22,22 @@ class RpcDeadline extends ClientInterceptor {
       CallOptions options, ClientUnaryInvoker<Q, R> invoker) {
     final limit = timeoutFor(method.path);
     final timeout = options.timeout;
-    return invoker(method, request, options.mergedWith(CallOptions(
+    final response = invoker(method, request, options.mergedWith(CallOptions(
       timeout: timeout != null && timeout < limit ? timeout : limit)));
+    final bearer = options.metadata['authorization'];
+    // Отказ старому токену не должен завершать новый вход
+    if (bearer != null && bearer.startsWith('Bearer ')) {
+      response.then<void>((_) {}, onError: (Object error, StackTrace stack) async {
+        if (error is GrpcError && error.code == StatusCode.unauthenticated) {
+          try {
+            await SessionStore.shared.invalidate(bearer.substring(7));
+          } catch (_) {
+            // Хранилище сообщает экрану об ошибке очистки
+          }
+        }
+      });
+    }
+    return response;
   }
 }
 

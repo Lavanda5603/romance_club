@@ -1,3 +1,4 @@
+import '../services/session_store.dart'; // Импорт единого хранилища сессии
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import '../generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
@@ -215,9 +216,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // Если пользователь подтвердил - выхожу
     if (confirmed == true) {
-      // Удаляю player_id и JWT-токен из Storage
-      await StorageService.savePlayerId('');
-      await StorageService.deleteToken();
+      // При ошибке записи выхода оставляю экран и показываю причину
+      try {
+        await SessionStore.shared.clear();
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось сохранить выход. Повторите попытку.')),
+        );
+        return;
+      }
 
       if (!mounted) return;
 

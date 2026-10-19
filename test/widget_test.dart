@@ -5,14 +5,17 @@ import 'package:flutter/services.dart'; // Импорт платформенны
 import 'package:flutter_test/flutter_test.dart'; // Импорт для тестов Flutter
 import 'package:romance_club/main.dart'; // Импорт приложения
 import 'package:romance_club/screens/login_screen.dart'; // Импорт экрана входа
+import 'package:romance_club/services/session_store.dart'; // Импорт целой сессии
 
 void main() {
   const channel = MethodChannel('plugins.flutter.io/path_provider');
   late Directory storage;
   setUp(() async {
+    SessionStore.shared = SessionStore();
     storage = await Directory.systemTemp.createTemp('romance_app_test_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (_) async => storage.path);
+    await SessionStore.shared.clear();
   });
   tearDown(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -23,7 +26,7 @@ void main() {
   Future<void> openLogin(WidgetTester tester) async {
     await tester.pumpWidget(const RomanceClubApp());
     // Чтение файла выполняется вне времени анимаций теста
-    for (var attempt = 0; attempt < 50 && find.byType(LoginScreen).evaluate().isEmpty; attempt++) {
+    for (var attempt = 0; attempt < 200 && find.byType(LoginScreen).evaluate().isEmpty; attempt++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
       await tester.pump(const Duration(milliseconds: 100));
     }

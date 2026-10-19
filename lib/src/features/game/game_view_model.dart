@@ -1,3 +1,5 @@
+import 'package:grpc/grpc.dart'; // Импорт ошибки авторизации
+import '../../../services/session_store.dart'; // Импорт проверки отсутствующей сессии
 import '../../data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/foundation.dart'; // Импорт для ChangeNotifier и debugPrint
 import '../../core/async_state.dart'; // Импорт состояния
@@ -173,7 +175,11 @@ class GameViewModel extends ChangeNotifier {
       // После чтения хранилища тоже проверяю, что загрузка ещё нужна
       final playerId = await StorageService.loadPlayerId();
       if (_disposed || loadId != _loadId) return;
-      _playerId = playerId.isEmpty ? 'player:1' : playerId;
+      if (playerId.isEmpty) {
+        await SessionStore.shared.notifyMissing();
+        throw const GrpcError.unauthenticated('Требуется вход');
+      }
+      _playerId = playerId;
       final episode = await _repository.getEpisode(id);
       if (_disposed || loadId != _loadId) return;
 

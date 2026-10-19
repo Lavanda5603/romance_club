@@ -1,3 +1,4 @@
+import 'package:romance_club/services/session_store.dart'; // Импорт тестовой сессии
 import 'package:romance_club/src/domain/repositories/achievement_repository.dart'; // Импорт интерфейса репозитория достижений
 import 'package:romance_club/src/domain/models/achievement_model.dart'; // Импорт модели достижений
 import 'dart:io'; // Импорт для работы с файлами
@@ -94,9 +95,11 @@ void main() {
   late EpisodeRepositoryRemote mapper;
   const channel = MethodChannel('plugins.flutter.io/path_provider');
   setUp(() async {
+    SessionStore.shared = SessionStore();
     temp = await Directory.systemTemp.createTemp('scene_links_test_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (_) async => temp.path);
+    await SessionStore.shared.save(const Session('player:1', 'test-token'));
     service = EpisodeGrpcService();
     mapper = EpisodeRepositoryRemote(service);
   });
@@ -115,6 +118,16 @@ void main() {
     Scene(sceneKey: 'scene:branch', orderIndex: 1, title: 'Ветка', texts: ['Ветка'], nextSceneKey: 'scene:ending'),
     Scene(sceneKey: 'scene:ending', orderIndex: 2, title: 'Конец', texts: ['Конец']),
   ]);
+
+  test('При потере сессии не загружаю игру от имени player:1', () async {
+    await SessionStore.shared.clear();
+    final repository = _PendingEpisodes(mapper.toDomain(story()));
+    final vm = GameViewModel(repository);
+    await vm.loadEpisode(1);
+    expect(repository.pending, isEmpty);
+    expect(vm.state.error, contains('войдите снова'));
+    vm.dispose();
+  });
 
   for (final fails in [false, true]) {
     test('После dispose игнорирую ${fails ? 'ошибку' : 'ответ'} загрузки эпизода', () async {

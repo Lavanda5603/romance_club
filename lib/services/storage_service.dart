@@ -1,3 +1,4 @@
+import 'session_store.dart'; // Импорт единого хранилища сессии
 import 'dart:io'; // Импорт для работы с файлами
 import 'dart:typed_data'; // Импорт для работы с байтами
 import 'package:path_provider/path_provider.dart'; // Импорт для пути к папке
@@ -102,57 +103,8 @@ class StorageService {
     return Settings.fromBuffer(bytes);
   }
 
-  // Получение файла для хранения player_id
-  static Future<File> _getPlayerFile() async {
-    final directory = await getApplicationDocumentsDirectory(); // Папка приложения
-    return File('${directory.path}/player_id.txt'); // Файл player_id.txt
-  }
+  // Оба значения читаю из одной записи сессии
+  static Future<String> loadPlayerId() async => (await SessionStore.shared.load())?.playerId ?? '';
 
-  // Сохранение player_id
-  static Future<void> savePlayerId(String id) async {
-    final file = await _getPlayerFile(); // Получаю файл
-    await file.writeAsString(id); // Записываю ID
-  }
-
-  // Загрузка player_id
-  static Future<String> loadPlayerId() async {
-    final file = await _getPlayerFile(); // Получаю файл
-
-    if (!await file.exists()) {
-      return ''; // Если файла нет - возвращаю пустую строку
-    }
-
-    return await file.readAsString(); // Читаю ID
-  }
-
-  // Получение файла для хранения JWT-токена
-  static Future<File> _getTokenFile() async {
-    final directory = await getApplicationDocumentsDirectory(); // Папка приложения
-    return File('${directory.path}/token.txt'); // Файл token.txt
-  }
-
-  // Сохранение JWT-токена
-  static Future<void> saveToken(String token) async {
-    final file = await _getTokenFile(); // Получаю файл
-    await file.writeAsString(token); // Записываю токен
-  }
-
-  // Загрузка JWT-токена
-  static Future<String> loadToken() async {
-    final file = await _getTokenFile(); // Получаю файл
-
-    if (!await file.exists()) {
-      return ''; // Если файла нет - возвращаю пустую строку
-    }
-
-    return await file.readAsString(); // Читаю токен
-  }
-
-  // Удаление JWT-токена (при выходе)
-  static Future<void> deleteToken() async {
-    final file = await _getTokenFile(); // Получаю файл
-    if (await file.exists()) {
-      await file.delete(); // Удаляю файл
-    }
-  }
+  static Future<String> loadToken() async => (await SessionStore.shared.load())?.token ?? '';
 }

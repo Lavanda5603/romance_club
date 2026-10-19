@@ -1,10 +1,10 @@
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
-import 'login_screen.dart'; // Импорт экрана авторизации
+import 'main_menu_screen.dart'; // Импорт главного меню
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория
 import '../src/data/services/auth_grpc_service.dart'; // Импорт gRPC-сервиса
 import '../src/core/validators.dart'; // Импорт валидаторов
-import '../services/storage_service.dart'; // Импорт сервиса хранения
+import '../services/session_store.dart'; // Импорт единого хранилища сессии
 
 // Экран регистрации
 class RegisterScreen extends StatefulWidget {
@@ -99,19 +99,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       if (result.success) {
-        // Сохраняю player_id и JWT-токен локально
-        await StorageService.savePlayerId(result.playerId);
-        await StorageService.saveToken(result.token);
+        // Сохраняю ID и токен одной записью
+        await SessionStore.shared.save(Session(result.playerId, result.token));
 
         if (!mounted) return;
 
-        // Успех - переход на логин
+        // После сохранения полной сессии открываю меню
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Регистрация успешна! Добро пожаловать, ${result.login}!')),
         );
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          MaterialPageRoute(builder: (context) => const MainMenu()),
         );
       } else {
         // Ошибка

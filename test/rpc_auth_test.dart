@@ -1,10 +1,11 @@
 import 'dart:io'; // Импорт для временного хранилища
+import 'dart:async'; // Импорт задержанного ответа сервера
 import 'package:flutter/services.dart'; // Импорт платформенных каналов
 import 'package:flutter_test/flutter_test.dart'; // Импорт тестов Flutter
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import 'package:romance_club/generated/asset_api.pbgrpc.dart'; // Импорт контракта ассетов
 import 'package:romance_club/generated/auth_api.pbgrpc.dart'; // Импорт контракта авторизации
-import 'package:romance_club/services/storage_service.dart'; // Импорт хранения токена
+import 'package:romance_club/services/session_store.dart'; // Импорт хранения сессии
 import 'package:romance_club/src/data/services/asset_grpc_service.dart'; // Импорт сервиса ассетов
 import 'package:romance_club/src/data/services/auth_grpc_service.dart'; // Импорт сервиса авторизации
 import 'package:romance_club/src/data/services/admin_grpc_service.dart'; // Импорт сервиса админа
@@ -13,6 +14,8 @@ import 'package:romance_club/src/data/services/rpc_policy.dart'; // Импорт
 class _Assets extends AssetApiServiceBase {
   final calls = <ServiceCall>[];
   bool expired = false;
+  Completer<void>? pause;
+  final started = Completer<void>();
   void check(ServiceCall call) {
     calls.add(call);
     if (expired) throw const GrpcError.unauthenticated('Expired token');
@@ -22,6 +25,8 @@ class _Assets extends AssetApiServiceBase {
   }
   @override
   Future<GetAssetsResponse> getAssets(ServiceCall call, GetAssetsRequest request) async {
+    if (!started.isCompleted) started.complete();
+    await pause?.future;
     check(call);
     return GetAssetsResponse();
   }
@@ -66,6 +71,7 @@ void main() {
   late AuthGrpcService auth;
   late AdminGrpcService admin;
   setUp(() async {
+    SessionStore.shared = SessionStore();
     storage = await Directory.systemTemp.createTemp('rpc_auth_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (_) async => storage.path);
@@ -87,7 +93,7 @@ void main() {
   });
 
   test('Все методы ассетов отправляют текущий токен вместе с deadline', () async {
-    await StorageService.saveToken('first');
+    await SessionStore.shared.save(const Session('player:1', 'first'));
     await assets.getAssetPage('background');
     await assets.getAsset(id: 'asset:1');
     await assets.uploadAsset(type: 'background', name: 'test', emotion: '',
@@ -99,13 +105,13 @@ void main() {
       expect(call.deadline, isNotNull);
     }
     // После нового входа сервис беру тот же, а токен уже другой
-    await StorageService.saveToken('second');
+    await SessionStore.shared.save(const Session('player:1', 'second'));
     await assets.getAssetPage('background');
     expect(handler.calls.last.clientMetadata?['authorization'], 'Bearer second');
   });
 
   test('Login и Register публичные даже при сохранённом старом токене', () async {
-    await StorageService.saveToken('expired');
+    await SessionStore.shared.save(const Session('player:1', 'expired'));
     await auth.login(login: 'test', password: 'test');
     await auth.register(login: 'test', email: 'test@example.com', password: 'test');
     await auth.getPlayer('player:1');
@@ -126,8 +132,9 @@ void main() {
   });
 
   test('Истёкшая сессия показывает причину и допускает повтор после входа', () async {
-    await StorageService.saveToken('expired');
+    await SessionStore.shared.save(const Session('player:1', 'expired'));
     handler.expired = true;
+    final expired = SessionStore.shared.expired.first;
     try {
       await assets.getAssetPage('background');
       fail('Сервер должен отклонить токен');
@@ -135,10 +142,26 @@ void main() {
       expect(error.code, StatusCode.unauthenticated);
       expect(networkError(error), contains('войдите снова'));
     }
+    await expired;
+    expect(await SessionStore.shared.load(), isNull);
     handler.expired = false;
-    await StorageService.saveToken('new-session');
+    await SessionStore.shared.save(const Session('player:1', 'new-session'));
     await assets.getAssetPage('background');
     expect(handler.calls.last.clientMetadata?['authorization'], 'Bearer new-session');
     expect(networkError(const GrpcError.permissionDenied('Только админ')), 'Только админ');
+  });
+
+  test('Поздний UNAUTHENTICATED старого RPC не очищает новый вход', () async {
+    await SessionStore.shared.save(const Session('player:a', 'old'));
+    handler.pause = Completer<void>();
+    handler.expired = true;
+    final result = expectLater(assets.getAssetPage('background'),
+      throwsA(isA<GrpcError>().having((error) => error.code, 'code', StatusCode.unauthenticated)));
+    await handler.started.future;
+    await SessionStore.shared.save(const Session('player:b', 'new'));
+    handler.pause!.complete();
+    await result;
+    // Чтение очереди дожидается проверки отказавшего токена
+    expect((await SessionStore.shared.load())!.token, 'new');
   });
 }

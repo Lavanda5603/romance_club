@@ -2,6 +2,7 @@
     <!-- Разрешаю приложению обращаться к серверу во всех сборках -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
+        android:allowBackup="false"
         android:label="romance_club"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

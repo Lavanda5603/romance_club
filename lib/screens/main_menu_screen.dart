@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'programmer_screen.dart'; // Импорт экрана режима разработчика
 import 'profile_screen.dart'; // Импорт экрана профиля
@@ -102,21 +103,21 @@ class _MainMenuState extends State<MainMenu> {
                         children: [
                           IconButton( // Настройки
                             icon: const Icon(Icons.settings, color: Color(0xFFD30010), size: 28),
-                            onPressed: () {
+                            onPressed: withButtonSound(() {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => const SettingsScreen()),
                               );
-                            },
+                            }),
                           ),
                           IconButton( // Магазин
                             icon: const Icon(Icons.shopping_cart, color: Color(0xFFD30010), size: 28),
-                            onPressed: () {
+                            onPressed: withButtonSound(() {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => const ShopScreen()),
                               );
-                            },
+                            }),
                           ),
                         ],
                       ),
@@ -130,12 +131,12 @@ class _MainMenuState extends State<MainMenu> {
                       // Правая часть: профиль
                       IconButton( // Профиль
                         icon: const Icon(Icons.person_outline, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
+                        onPressed: withButtonSound(() {
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (context) => const ProfileScreen()),
                           );
-                        },
+                        }),
                       ),
                     ],
                   ),
@@ -179,14 +180,14 @@ class _MainMenuState extends State<MainMenu> {
                           width: 220,
                           height: 60,
                           child: ElevatedButton(
-                            onPressed: () {
+                            onPressed: withButtonSound(() {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => const EpisodeSelectScreen(),
                                 ),
                               );
-                            },
+                            }),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(
@@ -212,14 +213,14 @@ class _MainMenuState extends State<MainMenu> {
                           width: 220,
                           height: 60,
                           child: ElevatedButton(
-                            onPressed: (_isLoading || !_isAdmin)
+                            onPressed: withButtonSound((_isLoading || !_isAdmin)
                                 ? null // Серая, неактивная
                                 : () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(builder: (context) => const ProgrammerScreen()),
                                     );
-                                  },
+                                  }),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               // Серая для неактивной

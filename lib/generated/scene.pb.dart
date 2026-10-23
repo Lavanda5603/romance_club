@@ -35,6 +35,7 @@ class Scene extends $pb.GeneratedMessage {
     $core.int? nextSceneId,
     $core.String? nextSceneKey,
     $core.int? orderIndex,
+    $core.Iterable<SceneRoute>? routes,
   }) {
     final result = Scene._();
     if (id != null) result.id = id;
@@ -51,6 +52,7 @@ class Scene extends $pb.GeneratedMessage {
     if (nextSceneId != null) result.nextSceneId = nextSceneId;
     if (nextSceneKey != null) result.nextSceneKey = nextSceneKey;
     if (orderIndex != null) result.orderIndex = orderIndex;
+    if (routes != null) result.routes.addAll(routes);
     return result;
   }
 
@@ -82,6 +84,8 @@ class Scene extends $pb.GeneratedMessage {
     ..aI(12, _omitFieldNames ? '' : 'nextSceneId')
     ..aOS(13, _omitFieldNames ? '' : 'nextSceneKey')
     ..aI(14, _omitFieldNames ? '' : 'orderIndex')
+    ..pPM<SceneRoute>(15, _omitFieldNames ? '' : 'routes',
+        subBuilder: SceneRoute.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -217,6 +221,76 @@ class Scene extends $pb.GeneratedMessage {
   $core.bool hasOrderIndex() => $_has(13);
   @$pb.TagNumber(14)
   void clearOrderIndex() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $pb.PbList<SceneRoute> get routes => $_getList(14);
+}
+
+class SceneRoute extends $pb.GeneratedMessage {
+  factory SceneRoute({
+    $core.String? condition,
+    $core.String? sceneKey,
+  }) {
+    final result = SceneRoute._();
+    if (condition != null) result.condition = condition;
+    if (sceneKey != null) result.sceneKey = sceneKey;
+    return result;
+  }
+
+  SceneRoute._();
+
+  factory SceneRoute.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SceneRoute()..mergeFromBuffer(data, registry);
+  factory SceneRoute.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SceneRoute()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SceneRoute',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: SceneRoute.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'condition')
+    ..aOS(2, _omitFieldNames ? '' : 'sceneKey')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SceneRoute clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SceneRoute copyWith(void Function(SceneRoute) updates) =>
+      super.copyWith((message) => updates(message as SceneRoute)) as SceneRoute;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use SceneRoute() / SceneRoute.new instead')
+  static SceneRoute create() => SceneRoute._();
+  static $pb.GeneratedMessage $_createMessage() => SceneRoute._();
+  @$core.override
+  SceneRoute createEmptyInstance() => SceneRoute._();
+  @$core.pragma('dart2js:noInline')
+  static SceneRoute getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SceneRoute>(SceneRoute.$_createMessage);
+  static SceneRoute? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get condition => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set condition($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCondition() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCondition() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get sceneKey => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set sceneKey($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSceneKey() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSceneKey() => $_clearField(2);
 }
 
 const $core.bool _omitFieldNames =

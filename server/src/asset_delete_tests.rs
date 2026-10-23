@@ -84,6 +84,7 @@ async fn grpc_scenarios(db: Surreal<Client>, limited: Surreal<Client>) -> TestRe
 
 async fn scenarios(db: Surreal<Client>, database: String) -> TestResult {
     db.query("CREATE player:test SET marker='keep'; CREATE episode:1 SET marker='keep'; CREATE progress:test SET marker='keep'; CREATE asset:one; CREATE asset:123; CREATE asset:`player:test`; CREATE asset:other;").await?.check()?;
+    crate::request_auth::seed_test_admin(&db,"player:test").await?;
     let before = snapshot(&db).await?;
     db.query(include_str!("../migrations/022_asset_delete_access.surql")).await?.check()?;
     let limited = connection(&db,"romance_club",&database).await?;

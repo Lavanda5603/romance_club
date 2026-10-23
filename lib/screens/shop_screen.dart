@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
@@ -112,7 +113,7 @@ class _ShopScreenState extends State<ShopScreen> {
       if (!mounted) return;
       setState(() { _isLoading = false; });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(e)),
-        action: SnackBarAction(label: 'Повторить', onPressed: _loadData)));
+        action: SnackBarAction(label: 'Повторить', onPressed: withButtonSound(_loadData)!)));
     }
   }
 
@@ -129,11 +130,11 @@ class _ShopScreenState extends State<ShopScreen> {
           content: const Text('Вы уверены, что хотите купить подписку за 500 алмазов?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: withButtonSound(() => Navigator.pop(context, false)),
               child: const Text('Отмена'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: withButtonSound(() => Navigator.pop(context, true)),
               child: const Text('Купить'),
             ),
           ],
@@ -226,7 +227,7 @@ class _ShopScreenState extends State<ShopScreen> {
   // Виджет пакета валюты (вспомогательный метод)
   Widget _buildCurrencyPackage(int amount, int price) {
     return GestureDetector(
-      onTap: () => _buyCurrency(amount),
+      onTap: withButtonSound(() => _buyCurrency(amount)),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -285,9 +286,9 @@ class _ShopScreenState extends State<ShopScreen> {
                       // Кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
+                        onPressed: withButtonSound(() {
                           Navigator.pop(context);
-                        },
+                        }),
                       ),
 
                       // Заголовок
@@ -388,7 +389,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                           ],
                                         ),
                                         TextButton(
-                                          onPressed: _hasSubscription ? null : _buySubscription,
+                                          onPressed: withButtonSound(_hasSubscription ? null : _buySubscription),
                                           child: Text(
                                             _hasSubscription ? 'активна' : 'купить',
                                             style: TextStyle(
@@ -439,7 +440,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                             width: 100,
                                             height: 36,
                                             child: ElevatedButton(
-                                              onPressed: () {
+                                              onPressed: withButtonSound(() {
                                                 Navigator.push(
                                                   context,
                                                   MaterialPageRoute(
@@ -449,7 +450,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                                     ),
                                                   ),
                                                 );
-                                              },
+                                              }),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: Colors.white,
                                                 shape: RoundedRectangleBorder(

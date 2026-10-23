@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import '../src/domain/repositories/progress_repository.dart'; // Импорт интерфейса репозитория прогресса
@@ -161,8 +162,8 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
           title: const Text('Сбросить прогресс?'),
           content: const Text('Вы точно уверены, что хотите сбросить весь прогресс? Это действие нельзя отменить.'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
-            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Сбросить')),
+            TextButton(onPressed: withButtonSound(() => Navigator.pop(context, false)), child: const Text('Отмена')),
+            TextButton(onPressed: withButtonSound(() => Navigator.pop(context, true)), child: const Text('Сбросить')),
           ],
         ),
       );
@@ -233,13 +234,13 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                       // Кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: _isResetting ? null : () {
+                        onPressed: withButtonSound(_isResetting ? null : () {
                           // Переход в главное меню
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(builder: (context) => const MainMenu()),
                           );
-                        },
+                        }),
                       ),
                       
                       // Заголовок
@@ -279,7 +280,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                         if (_progressLoading)
                           const Text('Статус эпизодов загружается...', style: TextStyle(color: Colors.white)),
                         if (_progressError != null)
-                          TextButton(onPressed: _isResetting || _isStarting ? null : _loadProgressSummary, child: Text('$_progressError. Повторить')),
+                          TextButton(onPressed: withButtonSound(_isResetting || _isStarting ? null : _loadProgressSummary), child: Text('$_progressError. Повторить')),
                         // Список эпизодов
                         Expanded(
                           child: _isLoading
@@ -317,12 +318,12 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                                   width: 220,
                                                   height: 55,
                                                   child: ElevatedButton(
-                                                    onPressed: _isResetting || _isStarting ? null : () {
+                                                    onPressed: withButtonSound(_isResetting || _isStarting ? null : () {
                                                       setState(() {
                                                         _selectionTouched = true;
                                                         _selectedIndex = index; // Выбираю эпизод
                                                       });
-                                                    },
+                                                    }),
                                                     style: ElevatedButton.styleFrom(
                                                       // Обвожу выбранный эпизод белым
                                                       side: _selectedIndex == index
@@ -362,7 +363,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                             width: 200,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: _actionsReady && _episodes.isNotEmpty ? _startGame : null,
+                              onPressed: withButtonSound(_actionsReady && _episodes.isNotEmpty ? _startGame : null),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(
@@ -390,7 +391,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                             width: 200,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: _actionsReady ? _resetProgress : null, // Сброс прогресса
+                              onPressed: withButtonSound(_actionsReady ? _resetProgress : null), // Сброс прогресса
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF534F50), // Серый
                                 shape: RoundedRectangleBorder(

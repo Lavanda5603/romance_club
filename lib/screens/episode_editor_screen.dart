@@ -1,3 +1,5 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
+import '../src/core/scene_condition.dart'; // Подключаю проверку условий перед сохранением
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import '../src/core/scene_links.dart'; // Ключи переходов
 import 'package:flutter/material.dart'; // Импорт Material UI
@@ -83,11 +85,11 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false), // Отмена
+              onPressed: withButtonSound(() => Navigator.pop(context, false)), // Отмена
               child: const Text('Отмена'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true), // Подтверждение
+              onPressed: withButtonSound(() => Navigator.pop(context, true)), // Подтверждение
               child: const Text('Удалить'),
             ),
           ],
@@ -106,6 +108,15 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
   // Сохранить эпизод
   Future<void> _saveEpisode() async {
     if (_isSaving) return;
+    for (final scene in _episode.scenes) {
+      for (final condition in [scene.condition, ...scene.routes.map((r) => r.condition)]) {
+        final error = SceneCondition.error(condition);
+        if (error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Сцена «${scene.title}»: $error')));
+          return;
+        }
+      }
+    }
     _episode.title = _titleController.text;
     setState(() => _isSaving = true);
     try {
@@ -153,7 +164,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: withButtonSound(() => Navigator.pop(context)),
                       ),
                       const Text(
                         'Клуб романтики',
@@ -234,7 +245,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.edit, color: Colors.white, size: 24),
-                                            onPressed: _isSaving ? null : () {
+                                            onPressed: withButtonSound(_isSaving ? null : () {
                                               Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
@@ -250,11 +261,11 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                                   ),
                                                 ),
                                               );
-                                            },
+                                            }),
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
-                                            onPressed: _isSaving ? null : () => _deleteScene(index),
+                                            onPressed: withButtonSound(_isSaving ? null : () => _deleteScene(index)),
                                           ),
                                         ],
                                       ),
@@ -267,7 +278,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                           width: 260,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _isSaving ? null : _addScene,
+                            onPressed: withButtonSound(_isSaving ? null : _addScene),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(
@@ -290,7 +301,7 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                           width: 200,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _isSaving ? null : _saveEpisode,
+                            onPressed: withButtonSound(_isSaving ? null : _saveEpisode),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(

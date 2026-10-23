@@ -69,6 +69,10 @@ impl AchievementApi for AchievementApiService {
         let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
         let req = request.into_inner();
         let name = req.name;
+        // Разрешаю только достижения, которые существуют в приложении.
+        if !matches!(name.as_str(), "all_episodes" | "all_endings" | "max_points" | "secret_scene" | "all_friends") {
+            return Err(Status::invalid_argument("Неизвестное достижение"));
+        }
 
         println!("[UNLOCK_ACHIEVEMENT] player={}, name={}", player_id, name);
 

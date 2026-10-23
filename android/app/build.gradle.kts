@@ -1,7 +1,7 @@
-
+import java.util.Base64 // Читаю флаг отдельной сборки из параметров Flutter
 plugins {
     id("com.android.application")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // Подключаю Flutter после Android-плагина.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -16,24 +16,33 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // Задаю ID основного приложения.
         applicationId = "com.example.romance_club"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // Задаю поддерживаемые версии Android.
+        // Минимальную версию беру из Flutter.
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
-        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
-        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
-        // flag during build.
+        // Беру номер и название версии из pubspec.yaml.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     buildTypes {
+        debug {
+            // Для проверки звука создаю отдельное приложение с отдельными локальными данными.
+            val audioCheck = (project.findProperty("dart-defines") as? String).orEmpty()
+                .split(',').any { encoded ->
+                    runCatching {
+                        String(Base64.getDecoder().decode(encoded)) == "ROMANCE_AUDIO_CHECK=true"
+                    }.getOrDefault(false)
+                }
+            if (audioCheck) {
+                applicationIdSuffix = ".audio_check"
+            }
+        }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Для учебной release-сборки оставляю отладочную подпись.
+            // Для публикации понадобится отдельная подпись.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

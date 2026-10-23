@@ -9,6 +9,13 @@ pub const MAX_SIDE: u32 = 8192;
 pub const MAX_PIXELS: u64 = 16_000_000;
 pub const MAX_DECODED_BYTES: u64 = 64 * 1024 * 1024;
 static WORKERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
+// Ограничиваю и работающие задачи, и ожидающие картинки в памяти.
+static ADMISSION: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(8);
+
+// Отказываю сразу, когда все места очереди заняты.
+fn reserve_image_slot(queue: &tokio::sync::Semaphore) -> Result<tokio::sync::SemaphorePermit<'_>, Status> {
+    queue.try_acquire().map_err(|_| Status::resource_exhausted("Очередь обработки картинок заполнена"))
+}
 
 #[derive(Clone, Debug, SurrealValue)]
 pub struct Variant {
@@ -38,12 +45,14 @@ async fn process(bytes: Vec<u8>, kind: &str, screens: bool) -> Result<Prepared, 
 async fn process_limited(bytes: Vec<u8>, kind: &str, screens: bool,
     workers: &'static tokio::sync::Semaphore, queue_wait: std::time::Duration, budget: std::time::Duration,
 ) -> Result<Prepared, Status> {
+    let admission = reserve_image_slot(&ADMISSION)?;
     let permit = tokio::time::timeout(queue_wait, workers.acquire()).await
         .map_err(|_| Status::resource_exhausted("Сервер обрабатывает другие картинки. Повторите загрузку"))?
         .map_err(|_| Status::unavailable("Обработка изображений остановлена"))?;
     let kind = kind.to_owned();
     let started = std::time::Instant::now();
     let job = tokio::task::spawn_blocking(move || {
+        let _admission = admission;
         let _permit = permit;
         let check_time = || if started.elapsed() > budget {
             Err(Status::deadline_exceeded("Обработка картинки заняла больше 20 секунд"))
@@ -145,6 +154,15 @@ async fn process_limited(bytes: Vec<u8>, kind: &str, screens: bool,
 mod budget_tests {
     use super::*;
     use std::time::Duration;
+    #[test]
+    fn waiting_images_have_a_fixed_capacity() {
+        let queue = tokio::sync::Semaphore::new(2);
+        let first = reserve_image_slot(&queue).unwrap();
+        let _second = reserve_image_slot(&queue).unwrap();
+        assert_eq!(reserve_image_slot(&queue).unwrap_err().code(), tonic::Code::ResourceExhausted);
+        drop(first);
+        assert!(reserve_image_slot(&queue).is_ok());
+    }
     #[tokio::test]
     async fn full_queue_returns_error_before_decoding() {
         static BUSY: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(0);

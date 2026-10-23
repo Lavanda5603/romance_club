@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
@@ -151,11 +152,11 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: withButtonSound(() => Navigator.pop(context, false)),
               child: const Text('Отмена'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: withButtonSound(() => Navigator.pop(context, true)),
               child: const Text('Удалить'),
             ),
           ],
@@ -223,7 +224,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: withButtonSound(() => Navigator.pop(context)),
                       ),
                       const Text(
                         'Клуб романтики',
@@ -274,7 +275,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                                   ? Center(
                                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                                         Text('Ошибка: $_error', style: const TextStyle(color: Colors.red)),
-                                        TextButton(onPressed: _loadEpisodes, child: const Text('Повторить')),
+                                        TextButton(onPressed: withButtonSound(_loadEpisodes), child: const Text('Повторить')),
                                       ]),
                                     )
                                   : _episodes.isEmpty
@@ -321,12 +322,12 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                                                   // Кнопка редактирования
                                                   IconButton(
                                                     icon: const Icon(Icons.edit, color: Colors.white, size: 24),
-                                                    onPressed: () => _openEditor(index),
+                                                    onPressed: withButtonSound(() => _openEditor(index)),
                                                   ),
                                                   // Кнопка удаления
                                                   IconButton(
                                                     icon: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
-                                                    onPressed: () => _deleteEpisode(index),
+                                                    onPressed: withButtonSound(() => _deleteEpisode(index)),
                                                   ),
                                                 ],
                                               ),
@@ -342,7 +343,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                           width: 260,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _addEpisode,
+                            onPressed: withButtonSound(_addEpisode),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(
@@ -368,11 +369,11 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                           width: 200,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: () {
+                            onPressed: withButtonSound(() {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Сохранено!')),
                               );
-                            },
+                            }),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(

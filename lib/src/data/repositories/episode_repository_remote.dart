@@ -67,6 +67,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
           nextSceneId: scene.nextSceneId,
           nextSceneKey: scene.nextSceneKey,
           orderIndex: scene.orderIndex,
+          routes: scene.routes.map((r) => SceneRouteModel(condition: r.condition, sceneKey: r.sceneKey)).toList(),
           choices: scene.choices.map((choice) {
             return ChoiceModel(
               text: choice.text,
@@ -115,6 +116,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
         nextSceneId: scene.nextSceneId,
         nextSceneKey: scene.nextSceneKey,
         orderIndex: scene.orderIndex,
+        routes: scene.routes.map((r) => SceneRoute(condition: r.condition, sceneKey: r.sceneKey)),
       );
       protoScene.texts.addAll(scene.texts);
 

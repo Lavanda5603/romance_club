@@ -22,6 +22,14 @@ async fn finish(api:&ProgressApiService, episode_id:i32, scene_id:&str, ending:&
 async fn scenarios(db:Surreal<Client>) -> TestResult {
     use crate::romance_club::*;
     crate::apply_migrations(&db).await.map_err(|e|e.to_string())?;
+    crate::request_auth::seed_test_admin(&db,"player:test").await?;
+    // Старый токен админа перестаёт давать права после снятия роли в БД.
+    crate::request_auth::check_current_admin(&own(()), &db).await?;
+    db.query("UPDATE player:test SET is_admin=false;").await?.check()?;
+    assert_eq!(crate::request_auth::check_current_admin(&own(()), &db).await.unwrap_err().code(), tonic::Code::PermissionDenied);
+    db.query("DELETE player:test;").await?.check()?;
+    assert_eq!(crate::request_auth::check_current_admin(&own(()), &db).await.unwrap_err().code(), tonic::Code::PermissionDenied);
+    crate::request_auth::seed_test_admin(&db,"player:test").await?;
     let episodes = EpisodeApiService::new(db.clone());
     let progress = ProgressApiService::new(db.clone());
     let achievements = AchievementApiService::new(db.clone());

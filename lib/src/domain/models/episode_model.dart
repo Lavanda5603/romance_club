@@ -29,6 +29,7 @@ class SceneModel {
   final String characterPosition; // Позиция персонажа
   final int nextSceneId; // Числовой ID для старых данных
   final String nextSceneKey; // Ключ следующей сцены
+  final List<SceneRouteModel> routes; // Условные переходы по порядку
   final int orderIndex; // Порядок сцены
 
   String get nextSceneTarget => nextSceneKey.isNotEmpty
@@ -50,6 +51,7 @@ class SceneModel {
     required this.nextSceneId,
     this.nextSceneKey = '',
     this.orderIndex = 0,
+    this.routes = const [],
   });
 }
 
@@ -96,4 +98,10 @@ class ActionModel {
     required this.imagePath,
     required this.title,
   });
+}
+// Первое выполненное правило определяет следующий переход
+class SceneRouteModel {
+  final String condition;
+  final String sceneKey;
+  const SceneRouteModel({required this.condition, required this.sceneKey});
 }

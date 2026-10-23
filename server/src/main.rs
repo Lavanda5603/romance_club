@@ -50,7 +50,7 @@ use romance_club::{
     Episode, GetEpisodeRequest, GetAllEpisodesRequest, GetAllEpisodesResponse,
     SaveEpisodeRequest, SaveEpisodeResponse,
     DeleteEpisodeRequest, DeleteEpisodeResponse,
-    Scene, Choice, Action,
+    Scene, SceneRoute, Choice, Action,
 }; // Импорт структур
 
 // Интерцептор для проверки JWT
@@ -80,7 +80,7 @@ struct EpisodeRecord {
 struct ActionRecord {
     choice_id: surrealdb::types::RecordId,
     r#type: String, // Тип действия
-    scene_id: Option<i64>, // ID сцены
+    scene_id: Option<Value>, // Сохраняю старый числовой или строковый переход
     scene_key: Option<String>, // Ключ сцены
     flag_name: Option<String>, // Имя флага
     flag_value: Option<bool>, // Значение флага
@@ -179,17 +179,22 @@ impl EpisodeApi for EpisodeApiService {
                 // Собираю действия
                 let actions = action_records
                     .into_iter()
-                    .map(|a| Action {
-                        r#type: a.r#type,
-                        scene_id: a.scene_id.unwrap_or(0) as i32,
-                        scene_key: episode_store::target_key(a.scene_key.as_deref(), a.scene_id.unwrap_or(0) as i32),
-                        flag_name: a.flag_name.unwrap_or_default(),
-                        flag_value: a.flag_value.unwrap_or(false),
-                        counter_name: a.counter_name.unwrap_or_default(),
-                        counter_value: a.counter_value.unwrap_or(0) as i32,
-                        sound_path: a.sound_path.unwrap_or_default(),
-                        image_path: a.image_path.unwrap_or_default(),
-                        title: a.title,
+                    .map(|a| {
+                        let legacy_id = a.scene_id.as_ref().and_then(Value::as_i64)
+                            .and_then(|id| i32::try_from(id).ok()).unwrap_or(0);
+                        let key = a.scene_key.as_deref().or_else(|| a.scene_id.as_ref().and_then(Value::as_str));
+                        Action {
+                            r#type: a.r#type,
+                            scene_id: legacy_id,
+                            scene_key: episode_store::target_key(key, legacy_id),
+                            flag_name: a.flag_name.unwrap_or_default(),
+                            flag_value: a.flag_value.unwrap_or(false),
+                            counter_name: a.counter_name.unwrap_or_default(),
+                            counter_value: a.counter_value.unwrap_or(0) as i32,
+                            sound_path: a.sound_path.unwrap_or_default(),
+                            image_path: a.image_path.unwrap_or_default(),
+                            title: a.title,
+                        }
                     })
                     .collect();
 
@@ -215,6 +220,10 @@ impl EpisodeApi for EpisodeApiService {
                 next_scene_id,
                 next_scene_key: episode_store::target_key(scene_value.get("next_scene_key").and_then(Value::as_str), next_scene_id),
                 order_index,
+                routes: scene_value.get("routes").and_then(Value::as_array).map(|routes| routes.iter().map(|r| SceneRoute {
+                    condition:r.get("condition").and_then(Value::as_str).unwrap_or_default().to_owned(),
+                    scene_key:r.get("scene_key").and_then(Value::as_str).unwrap_or_default().to_owned(),
+                }).collect()).unwrap_or_default(),
             });
         }
 
@@ -268,7 +277,7 @@ impl EpisodeApi for EpisodeApiService {
         request: Request<SaveEpisodeRequest>,
     ) -> Result<Response<SaveEpisodeResponse>, Status> {
         // Проверяю админа
-        crate::request_auth::check_admin(&request)?;
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
 
         let episode = request.into_inner().episode
             .ok_or_else(|| Status::invalid_argument("Эпизод не передан"))?;
@@ -293,7 +302,7 @@ impl EpisodeApi for EpisodeApiService {
         request: Request<DeleteEpisodeRequest>,
     ) -> Result<Response<DeleteEpisodeResponse>, Status> {
         // Проверяю админа
-        crate::request_auth::check_admin(&request)?;
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
 
         let id = request.into_inner().id;
         println!("[DELETE_EPISODE] Удаляю эпизод ID: {}", id);
@@ -354,7 +363,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     asset_service.backfill_previews().await?; // Готовлю превью старых картинок перед открытием каталога
     let admin_service = AdminApiService::new(db).with_delete_db(asset_delete_db); // Сервис админа
     let addr = std::env::var("GRPC_BIND")
-        .unwrap_or_else(|_| "0.0.0.0:50051".into())
+        .unwrap_or_else(|_| "127.0.0.1:50051".into())
         .parse()?;
 
     println!("Сервер запущен на {}", addr);

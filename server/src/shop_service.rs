@@ -103,6 +103,10 @@ impl ShopApi for ShopApiService {
     ) -> Result<Response<PurchaseResponse>, Status> {
         let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
         let req = request.into_inner();
+        // Не сохраняю произвольно длинные ключи повторного запроса.
+        if req.request_id.len() > 128 {
+            return Err(Status::invalid_argument("Слишком длинный ключ покупки"));
+        }
         let item_id = req.item_id;
         let product = Product::find(&item_id)?;
         if req.item_type != product.kind {

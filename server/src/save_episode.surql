@@ -20,7 +20,7 @@ FOR $scene IN $scenes {
         episode_id: $episode, title: $scene.title,
         background: $scene.background, character: $scene.character,
         character_emotion: $scene.character_emotion, texts: $scene.texts,
-        condition: $scene.condition, text_position: $scene.text_position,
+        condition: $scene.condition, routes: $scene.routes, text_position: $scene.text_position,
         character_position: $scene.character_position,
         order_index: $scene.order_index, next_scene_id: $scene.next_scene_id,
         next_scene_key: $scene.next_scene_key

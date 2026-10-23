@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import '../src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
 import 'package:flutter/material.dart'; // Импорт Material UI
@@ -180,11 +181,11 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: withButtonSound(() => Navigator.pop(context, false)),
               child: const Text('Отмена'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: withButtonSound(() => Navigator.pop(context, true)),
               child: const Text('Загрузить'),
             ),
           ],
@@ -248,11 +249,11 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
           content: Text('Удалить "${asset.displayName}"?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: withButtonSound(() => Navigator.pop(context, false)),
               child: const Text('Отмена'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: withButtonSound(() => Navigator.pop(context, true)),
               child: const Text('Удалить'),
             ),
           ],
@@ -304,7 +305,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () => Navigator.pop(context, null),
+                        onPressed: withButtonSound(() => Navigator.pop(context, null)),
                       ),
                       Text(
                         widget.title,
@@ -312,7 +313,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.upload, color: Color(0xFFD30010), size: 28),
-                        onPressed: _loadingPage || _isUploading ? null : _uploadNewAsset,
+                        onPressed: withButtonSound(_loadingPage || _isUploading ? null : _uploadNewAsset),
                       ),
                     ],
                   ),
@@ -374,7 +375,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                               itemBuilder: (context, index) {
                                 final asset = _assets[index];
                                 return GestureDetector(
-                                  onTap: () => _selectAsset(asset),
+                                  onTap: withButtonSound(() => _selectAsset(asset)),
                                   child: Stack(
                                     children: [
                                       Container(
@@ -443,7 +444,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                         top: 4,
                                         right: 4,
                                         child: GestureDetector(
-                                          onTap: _loadingPage || _isUploading ? null : () => _deleteAsset(asset),
+                                          onTap: withButtonSound(_loadingPage || _isUploading ? null : () => _deleteAsset(asset)),
                                           child: Container(
                                             padding: const EdgeInsets.all(4),
                                             decoration: BoxDecoration(
@@ -465,11 +466,11 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                             ),
                           ),
                         if (!_isLoading && _assets.isEmpty && _error.isNotEmpty)
-                          TextButton(onPressed: () => _loadAssets(), child: const Text('Повторить')),
+                          TextButton(onPressed: withButtonSound(() => _loadAssets()), child: const Text('Повторить')),
                         if (!_isLoading && _assets.isNotEmpty && (_nextCursor.isNotEmpty || _error.isNotEmpty))
                           Column(children: [
                             if (_error.isNotEmpty) Text(_error, style: const TextStyle(color: Colors.red)),
-                            TextButton(onPressed: _loadingPage ? null : () => _loadAssets(reset: false),
+                            TextButton(onPressed: withButtonSound(_loadingPage ? null : () => _loadAssets(reset: false)),
                               child: Text(_loadingPage ? 'Загрузка...' : 'Загрузить ещё')),
                           ]),
                       ],

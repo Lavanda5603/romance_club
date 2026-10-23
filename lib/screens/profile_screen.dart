@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../services/session_store.dart'; // Импорт единого хранилища сессии
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
@@ -202,11 +203,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           actions: [
             TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, false), // Отмена
+              onPressed: withButtonSound(() => Navigator.pop(context, false)), // Отмена
               child: const Text('Отмена'),
             ),
             TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, true), // Подтверждение
+              onPressed: withButtonSound(() => Navigator.pop(context, true)), // Подтверждение
               child: const Text('Выйти'),
             ),
           ],
@@ -273,9 +274,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       // Кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
+                        onPressed: withButtonSound(() {
                           Navigator.pop(context);
-                        },
+                        }),
                       ),
 
                       // Заголовок
@@ -441,7 +442,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 width: 200,
                                 height: 55,
                                 child: ElevatedButton(
-                                  onPressed: _logout,
+                                  onPressed: withButtonSound(_logout),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF534F50),
                                     shape: RoundedRectangleBorder(

@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'main_menu_screen.dart'; // Импорт главного меню
@@ -160,11 +161,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       _obscurePassword ? Icons.visibility : Icons.visibility_off,
                       color: Colors.grey,
                     ),
-                    onPressed: () {
+                    onPressed: withButtonSound(() {
                       setState(() {
                         _obscurePassword = !_obscurePassword;
                       });
-                    },
+                    }),
                   )
                 : null,
             border: OutlineInputBorder(
@@ -260,7 +261,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: 260,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _register,
+                              onPressed: withButtonSound(_isLoading ? null : _register),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(
@@ -290,9 +291,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: 160,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: withButtonSound(() {
                                 Navigator.pop(context); // Назад на логин
-                              },
+                              }),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(

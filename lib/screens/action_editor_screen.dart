@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../generated/scene.pb.dart'; // Сцены эпизода
 import '../src/core/scene_links.dart'; // Ключи переходов
 import 'package:flutter/material.dart' hide Action; // Импорт Material UI (скрываю Action из Flutter)
@@ -72,6 +73,19 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
 
   // Сохранение действия
   void _saveAction() {
+    final name = _counterNameController.text.trim();
+    final value = _counterValueController.text.trim();
+    final flag = _flagNameController.text.trim();
+    if (['nextScene', 'changeFlag'].contains(_selectedType) && flag.isNotEmpty &&
+        !RegExp(r'^[A-Za-zА-Яа-яЁё_][A-Za-zА-Яа-яЁё_0-9]*$').hasMatch(flag)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Имя флага: русские или латинские буквы, цифры и подчёркивание')));
+      return;
+    }
+    if (['nextScene', 'changeCounter'].contains(_selectedType) && name.isNotEmpty && (!RegExp(r'^[A-Za-z_][A-Za-z_0-9]*$').hasMatch(name) ||
+        (value.isNotEmpty && (int.tryParse(value) == null || int.parse(value) < -2147483648 || int.parse(value) > 2147483647)))) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Проверьте имя счётчика и целое количество баллов')));
+      return;
+    }
     // Копирую действие, чтобы не потерять остальные параметры
     final newAction = widget.action?.deepCopy() ?? Action();
     newAction.type = _selectedType;
@@ -83,11 +97,11 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
       newAction.clearSceneId();
     }
     if (_selectedType == 'nextScene' || _selectedType == 'changeCounter') {
-      newAction.counterName = _counterNameController.text;
-      newAction.counterValue = int.tryParse(_counterValueController.text) ?? 0;
+      newAction.counterName = name;
+      newAction.counterValue = int.tryParse(value) ?? 0;
     }
     if (_selectedType == 'nextScene' || _selectedType == 'changeFlag') {
-      newAction.flagName = _flagNameController.text;
+      newAction.flagName = flag;
       newAction.flagValue = _flagValue;
     }
 
@@ -174,9 +188,9 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                       // Кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
+                        onPressed: withButtonSound(() {
                           Navigator.pop(context);
-                        },
+                        }),
                       ),
                       
                       // Заголовок
@@ -300,7 +314,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                               ),
                               Expanded(child: _buildField(_counterNameController)),
                               const SizedBox(width: 8),
-                              Expanded(child: _buildField(_counterValueController, keyboardType: TextInputType.number)),
+                              Expanded(child: _buildField(_counterValueController, keyboardType: const TextInputType.numberWithOptions(signed: true))),
                             ],
                           ),
                         ],
@@ -331,7 +345,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                           width: 200, // Уже
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _saveAction,
+                            onPressed: withButtonSound(_saveAction),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(

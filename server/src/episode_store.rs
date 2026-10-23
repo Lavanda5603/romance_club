@@ -88,6 +88,10 @@ fn prepare_scenes(episode: &Episode, records: &[Value]) -> Result<Vec<Value>, St
     let mut scenes = Vec::new();
     for (order, scene) in episode.scenes.iter().enumerate() {
         let next_key = resolve(&scene.next_scene_key, scene.next_scene_id)?;
+        let routes = scene.routes.iter().map(|route| {
+            if route.scene_key.is_empty() { return Err(Status::invalid_argument("Выберите сцену условного перехода")); }
+            Ok(json!({"condition":route.condition,"scene_key":resolve(&route.scene_key,0)?}))
+        }).collect::<Result<Vec<Value>,Status>>()?;
         let mut choices = Vec::new();
         for (index, choice) in scene.choices.iter().enumerate() {
             let mut actions = Vec::new();
@@ -107,7 +111,7 @@ fn prepare_scenes(episode: &Episode, records: &[Value]) -> Result<Vec<Value>, St
             "key":keys[order],"is_new":scene.scene_key.is_empty() || scene.scene_key.starts_with("draft:"),
             "title":scene.title,"background":scene.background,"character":scene.character,
             "character_emotion":scene.character_emotion,"texts":scene.texts,
-            "condition":scene.condition,"text_position":scene.text_position,
+            "condition":scene.condition,"routes":routes,"text_position":scene.text_position,
             "character_position":scene.character_position,"order_index":order,
             "next_scene_id":numeric_id(&next_key),"next_scene_key":next_key,"choices":choices
         }));

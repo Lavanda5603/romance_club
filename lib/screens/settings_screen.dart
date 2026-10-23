@@ -1,6 +1,9 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/settings.pb.dart'; // Импорт Protobuf-модели Settings
 import '../services/storage_service.dart'; // Импорт сервиса хранения
+import '../services/app_audio.dart'; // Импорт управления музыкой и щелчками
+import 'dart:async'; // Импорт изменения громкости без задержки интерфейса
 
 // Экран настроек
 class SettingsScreen extends StatefulWidget {
@@ -15,6 +18,10 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   double _musicVolume = 0.6; // Громкость музыки (0.0 - 1.0)
   double _soundVolume = 0.3; // Громкость звуков (0.0 - 1.0)
+  double _savedMusic = 0.6; // Последняя сохранённая громкость музыки
+  double _savedSound = 0.3; // Последняя сохранённая громкость щелчков
+  bool _loading = true; // Не даю поздней загрузке затереть движение ползунка
+  bool _saving = false; // Не сохраняю настройки несколько раз одновременно
 
   @override
   void initState() {
@@ -25,16 +32,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Загрузка настроек из файла
   Future<void> _loadSettings() async {
-    final settings = await StorageService.loadSettings(); // Загружаю
-    setState(() {
-      _musicVolume = settings.musicVolume; // Громкость музыки
-      _soundVolume = settings.soundVolume; // Громкость звуков
-    });
+    try {
+      final settings = await StorageService.loadSettings(); // Загружаю
+      if (!mounted) return;
+      setState(() {
+        _musicVolume = _savedMusic = settings.musicVolume.clamp(0.0, 1.0);
+        _soundVolume = _savedSound = settings.soundVolume.clamp(0.0, 1.0);
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось загрузить настройки')));
+    }
+  }
+
+  @override
+  void dispose() {
+    // Без сохранения возвращаю прежнюю громкость, как и остальные настройки.
+    if (!_loading) unawaited(AppAudio.shared.setVolumes(_savedMusic, _savedSound));
+    super.dispose();
+  }
+
+  Future<void> _saveSettings() async {
+    if (_saving || _loading) return;
+    setState(() => _saving = true);
+    try {
+      await StorageService.saveSettings(Settings(musicVolume: _musicVolume, soundVolume: _soundVolume));
+      _savedMusic = _musicVolume;
+      _savedSound = _soundVolume;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Настройки сохранены')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось сохранить настройки')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return PopScope(
+      canPop: !_saving, // Дожидаюсь записи настроек перед выходом
+      child: Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
       
       // Использую Stack, чтобы наложить контент на фон
@@ -65,9 +106,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       // Кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
+                        onPressed: withButtonSound(_saving ? null : () {
                           Navigator.pop(context);
-                        },
+                        }),
                       ),
                       
                       // Заголовок
@@ -117,10 +158,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Expanded(
                               child: Slider(
                                 value: _musicVolume,
-                                onChanged: (value) {
+                                onChanged: _loading || _saving ? null : (value) {
                                   setState(() {
                                     _musicVolume = value;
                                   });
+                                  unawaited(AppAudio.shared.setVolumes(_musicVolume, _soundVolume));
                                 },
                                 activeColor: Colors.white,
                                 inactiveColor: Colors.grey,
@@ -147,10 +189,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Expanded(
                               child: Slider(
                                 value: _soundVolume,
-                                onChanged: (value) {
+                                onChanged: _loading || _saving ? null : (value) {
                                   setState(() {
                                     _soundVolume = value;
                                   });
+                                  unawaited(AppAudio.shared.setVolumes(_musicVolume, _soundVolume));
                                 },
                                 activeColor: Colors.white,
                                 inactiveColor: Colors.grey,
@@ -169,23 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           width: 200, // Уже
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: () async {
-                              // Создаю объект настроек
-                              final settings = Settings(
-                                musicVolume: _musicVolume,
-                                soundVolume: _soundVolume,
-                              );
-
-                              // Сохраняю в файл
-                              await StorageService.saveSettings(settings);
-
-                              // Показываю уведомление
-                              if (!mounted) return;
-                              // ignore: use_build_context_synchronously
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Настройки сохранены')),
-                              );
-                            },
+                            onPressed: withButtonSound(_saving || _loading ? null : _saveSettings),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(
@@ -215,6 +242,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 }

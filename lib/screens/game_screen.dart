@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
@@ -217,7 +218,7 @@ class _GameScreenState extends State<GameScreen> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(_viewModel.saveError!, style: const TextStyle(color: Colors.red)),
                 ElevatedButton(
-                  onPressed: () => _viewModel.loadEpisode(widget.episode.id),
+                  onPressed: withButtonSound(() => _viewModel.loadEpisode(widget.episode.id)),
                   child: const Text('Загрузить сохранённый прогресс'),
                 ),
               ]),
@@ -237,18 +238,18 @@ class _GameScreenState extends State<GameScreen> {
                   children: [
                     Text('Ошибка: ${state.error ?? _assetError}', style: const TextStyle(color: Colors.red)),
                     if (!_viewModel.progressSceneMissing)
-                      TextButton(onPressed: () {
+                      TextButton(onPressed: withButtonSound(() {
                         if (state.error != null) {
                           _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
                         } else {
                           setState(() { _assetScene = ''; _assetError = null; });
                           _loadAssets();
                         }
-                      }, child: const Text('Повторить')),
+                      }), child: const Text('Повторить')),
                     if (_viewModel.progressSceneMissing) ...[
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () => _viewModel.loadEpisode(widget.episode.id, startFromBeginning: true),
+                        onPressed: withButtonSound(() => _viewModel.loadEpisode(widget.episode.id, startFromBeginning: true)),
                         child: const Text('Начать эпизод заново'),
                       ),
                     ],
@@ -274,11 +275,11 @@ class _GameScreenState extends State<GameScreen> {
           final charName = _getCharacterName(scene.character);
 
           return GestureDetector(
-            onTap: () {
+            onTap: withButtonSound(() {
               if (_viewModel.hasMoreTexts) {
                 _viewModel.nextText();
               }
-            },
+            }),
             child: Stack(
               children: [
                 // Фон сцены
@@ -346,7 +347,7 @@ class _GameScreenState extends State<GameScreen> {
                   child: Row(
                     children: [
                       GestureDetector(
-                    onTap: _leaveGame,
+                    onTap: withButtonSound(_leaveGame),
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -442,11 +443,11 @@ class _GameScreenState extends State<GameScreen> {
                             ),
                           ),
                         GestureDetector(
-                          onTap: () {
+                          onTap: withButtonSound(() {
                             if (_viewModel.hasMoreTexts) {
                               _viewModel.nextText();
                             }
-                          },
+                          }),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
@@ -483,7 +484,7 @@ class _GameScreenState extends State<GameScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: GestureDetector(
-                            onTap: () => _viewModel.onChoiceSelected(index),
+                            onTap: withButtonSound(() => _viewModel.onChoiceSelected(index)),
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
@@ -528,7 +529,7 @@ class _GameScreenState extends State<GameScreen> {
                         width: 200,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: _finishingEpisode ? null : () async {
+                          onPressed: withButtonSound(_finishingEpisode ? null : () async {
                             if (_viewModel.isLastScene) {
                               setState(() => _finishingEpisode = true);
                               final saved = await _viewModel.completeEpisode();
@@ -553,7 +554,7 @@ class _GameScreenState extends State<GameScreen> {
                               return;
                             }
                             _viewModel.nextScene();
-                          },
+                          }),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFD30010),
                             shape: RoundedRectangleBorder(

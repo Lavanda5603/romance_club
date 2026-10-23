@@ -1,5 +1,5 @@
 use super::*; // Подключаю код проверяемого сервиса
-use base64::{Engine as _, engine::general_purpose::STANDARD};
+use base64::{Engine as _, engine::general_purpose::STANDARD}; // Подключаю старый формат файлов для проверки переноса
 use crate::jwt::Claims; // Подключаю модули сервера
 use image::{DynamicImage, RgbaImage, Rgba, ImageFormat}; // Подключаю чтение и обработку картинок
 use std::{collections::HashSet, io::Cursor}; // Подключаю стандартные классы Rust
@@ -214,6 +214,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     assert_eq!(result.take::<Vec<String>>(0)?, vec!["not-base64"]);
     db.query("DELETE asset:bad; DELETE asset:migrate;").await?.check()?;
     crate::apply_migrations(&db).await.map_err(|e| e.to_string())?;
+    crate::request_auth::seed_test_admin(&db,"player:test").await?;
     let original = picture(1);
     db.query("FOR $n IN 0..55 { CREATE type::record('asset', 'old_' + <string>$n) CONTENT {type:'background',name:'old_' + <string>$n,url:'test',display_name:'Same name',episode_id:(IF $n=54 {episode:2} ELSE {NONE}),file_data:$file}; };")
         .bind(("file", Bytes::from(original.clone()))).await?.check()?;
@@ -353,11 +354,17 @@ async fn backfill_scenarios(db: Surreal<Client>) -> TestResult<()> {
     }
     db.query("CREATE asset:broken CONTENT {type:'background',name:'broken',url:'bad.png',display_name:'Ошибка',file_data:$bytes}; CREATE asset:missing CONTENT {type:'character',name:'missing',url:'none.png',display_name:'Нет файла'};")
         .bind(("bytes",Bytes::from(b"broken".to_vec()))).await?.check()?;
+    // Старый сервер уже записал JPEG-превью персонажа: его тоже пересоздаю из оригинала
+    let mut old_preview=Cursor::new(Vec::new());
+    image::load_from_memory(&original)?.to_rgb8().write_to(&mut old_preview,ImageFormat::Jpeg)?;
+    db.query("CREATE asset:legacy_character CONTENT {type:'character',name:'legacy_character',url:'old.png',display_name:'Старый фон',file_data:$source,preview_data:$preview};")
+        .bind(("source",Bytes::from(original.clone()))).bind(("preview",Bytes::from(old_preview.into_inner())))
+        .await?.check()?;
     let api = AssetApiService::new(db.clone());
     api.backfill_previews().await?;
     let mut response = db.query("SELECT * FROM asset ORDER BY id;").await?.check()?;
     let rows: Vec<AssetRow> = response.take(0)?;
-    assert_eq!(rows.len(),27);
+    assert_eq!(rows.len(),28);
     for row in &rows {
         assert_eq!(row.preview_source_version,row.version);
         match row.name.as_str() {
@@ -371,6 +378,10 @@ async fn backfill_scenarios(db: Surreal<Client>) -> TestResult<()> {
                 let image = image::load_from_memory(preview)?;
                 assert!(image.width() <= 160 && image.height() <= 160);
                 assert_eq!(row.display_name,"Старый фон");
+                if row.name == "legacy_character" {
+                    assert_eq!(image::guess_format(preview)?,ImageFormat::Png);
+                    assert!(image.into_rgba8().pixels().any(|pixel|pixel.0[3] < 255));
+                }
             }
         }
     }

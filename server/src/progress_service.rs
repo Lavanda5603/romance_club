@@ -136,6 +136,11 @@ impl ProgressApi for ProgressApiService {
         let req = request.into_inner();
         let episode_id = req.episode_id;
         let scene_id = req.scene_id;
+        // Ограничиваю размер состояния до сериализации и обращения к БД.
+        if req.flags.len() > 256 || req.counters.len() > 256 || scene_id.len() > 256
+            || req.ending.len() > 256 || req.flags.keys().chain(req.counters.keys()).any(|key| key.len() > 128) {
+            return Err(Status::invalid_argument("Слишком большое состояние прогресса"));
+        }
         let flags = req.flags;
         let counters = req.counters;
 

@@ -1,3 +1,4 @@
+import 'widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'screens/main_menu_screen.dart'; // Импорт главного меню
 import 'screens/login_screen.dart'; // Импорт экрана авторизации
@@ -6,10 +7,12 @@ import 'package:grpc/grpc.dart'; // Импорт статусов RPC
 import 'services/session_store.dart'; // Импорт единого хранилища сессии
 import 'src/data/services/auth_grpc_service.dart'; // Импорт проверки игрока на сервере
 import 'src/data/services/rpc_policy.dart'; // Импорт понятных ошибок сети
+import 'services/app_audio.dart'; // Импорт общей музыки и щелчков
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Инициализация Flutter
   runApp(const RomanceClubApp()); // Запуск приложения
+  unawaited(AppAudio.shared.initialize()); // Загружаю звук, не задерживая первый экран
 }
 
 // Корневой виджет приложения
@@ -22,14 +25,19 @@ class RomanceClubApp extends StatefulWidget {
   State<RomanceClubApp> createState() => _RomanceClubAppState();
 }
 
-class _RomanceClubAppState extends State<RomanceClubApp> {
+class _RomanceClubAppState extends State<RomanceClubApp> with WidgetsBindingObserver {
   final _navigator = GlobalKey<NavigatorState>();
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   late final StreamSubscription<String> _sessionChanges;
+  late final StreamSubscription<String> _audioErrors;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _audioErrors = AppAudio.shared.errors.listen((message) {
+      if (mounted) _messenger.currentState?.showSnackBar(SnackBar(content: Text(message)));
+    });
     _sessionChanges = SessionStore.shared.expired.listen((message) {
       if (!mounted) return;
       _navigator.currentState?.pushAndRemoveUntil(
@@ -40,8 +48,17 @@ class _RomanceClubAppState extends State<RomanceClubApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _audioErrors.cancel();
+    unawaited(AppAudio.shared.close());
     _sessionChanges.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // При сворачивании останавливаю оба звука, при возврате продолжаю музыку.
+    unawaited(AppAudio.shared.setForeground(state == AppLifecycleState.resumed));
   }
 
   @override
@@ -134,7 +151,7 @@ class _SplashScreenState extends State<SplashScreen> {
           ? const CircularProgressIndicator(color: Color(0xFFD30010))
           : Column(mainAxisSize: MainAxisSize.min, children: [
               Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)),
-              TextButton(onPressed: _checkLogin, child: const Text('Повторить')),
+              TextButton(onPressed: withButtonSound(_checkLogin), child: const Text('Повторить')),
             ]),
       ),
     );

@@ -15,16 +15,30 @@ async fn unavailable_database_never_returns_success() {
     let db = Surreal::<Client>::init();
     let achievements = AchievementApiService::new(db.clone());
     let progress = ProgressApiService::new(db);
-    assert_eq!(achievements.unlock_achievement(own(UnlockAchievementRequest { player_id:"player:test".into(), name:"test".into() })).await.unwrap_err().code(), Code::Internal);
+    assert_eq!(achievements.unlock_achievement(own(UnlockAchievementRequest { player_id:"player:test".into(), name:"secret_scene".into() })).await.unwrap_err().code(), Code::Internal);
     assert_eq!(progress.reset_progress(own(ResetProgressRequest { player_id:"player:test".into() })).await.unwrap_err().code(), Code::Internal);
     assert_eq!(progress.save_progress(own(SaveProgressRequest { player_id:"player:test".into(), episode_id:1, scene_id:"scene:test".into(), ..Default::default() })).await.unwrap_err().code(), Code::Internal);
 }
 
+// Большие и неизвестные значения отклоняю даже без соединения с БД.
+#[tokio::test]
+async fn invalid_payloads_are_rejected_before_database_access() {
+    let db = Surreal::<Client>::init();
+    let achievements = AchievementApiService::new(db.clone());
+    assert_eq!(achievements.unlock_achievement(own(UnlockAchievementRequest { player_id:"player:test".into(), name:"unknown".into() })).await.unwrap_err().code(), Code::InvalidArgument);
+    let progress = ProgressApiService::new(db.clone());
+    let flags = (0..257).map(|i| (format!("flag_{i}"), true)).collect();
+    assert_eq!(progress.save_progress(own(SaveProgressRequest {player_id:"player:test".into(),episode_id:1,scene_id:"scene:test".into(),flags,..Default::default()})).await.unwrap_err().code(),Code::InvalidArgument);
+    let shop = ShopApiService::new(db);
+    assert_eq!(shop.purchase(own(PurchaseRequest {player_id:"player:test".into(),item_id:"diamonds_100".into(),item_type:"currency".into(),request_id:"x".repeat(129)})).await.unwrap_err().code(),Code::InvalidArgument);
+}
+
 async fn scenarios(db: Surreal<Client>) -> TestResult {
     crate::apply_migrations(&db).await.map_err(|e|e.to_string())?;
+    crate::request_auth::seed_test_admin(&db,"player:test").await?;
     let achievements = AchievementApiService::new(db.clone());
-    let unlock = || own(UnlockAchievementRequest { player_id:"player:test".into(), name:"test".into() });
-    db.query("DEFINE FIELD OVERWRITE name ON achievement TYPE string ASSERT $value != 'test';").await?.check()?;
+    let unlock = || own(UnlockAchievementRequest { player_id:"player:test".into(), name:"secret_scene".into() });
+    db.query("DEFINE FIELD OVERWRITE name ON achievement TYPE string ASSERT $value != 'secret_scene';").await?.check()?;
     assert_eq!(achievements.unlock_achievement(unlock()).await.unwrap_err().code(), Code::Internal);
     let mut result = db.query("SELECT * FROM achievement;").await?.check()?;
     let rows: Vec<Value> = result.take(0)?;
@@ -54,7 +68,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult {
         episodes.save_episode(own(SaveEpisodeRequest { episode: Some(Episode {
             id, title:"Удаление".into(), version:1, scenes:vec![Scene {
                 scene_key:format!("draft:{id}"), choices:vec![Choice { text:"Выбор".into(),
-                    actions:vec![Action { r#type:"setFlag".into(), flag_name:"test".into(), flag_value:true, ..Default::default() }], ..Default::default() }], ..Default::default()
+                    actions:vec![Action { r#type:"setFlag".into(), flag_name:"secret_scene".into(), flag_value:true, ..Default::default() }], ..Default::default() }], ..Default::default()
             }],
         }) })).await?;
     }

@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../generated/scene.pb.dart'; // Сцены эпизода
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/choice.pb.dart'; // Импорт Protobuf-модели Choice
@@ -125,11 +126,11 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
           ),
           actions: [
             TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, false), // Отмена
+              onPressed: withButtonSound(() => Navigator.pop(context, false)), // Отмена
               child: const Text('Отмена'),
             ),
             TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, true), // Подтверждение
+              onPressed: withButtonSound(() => Navigator.pop(context, true)), // Подтверждение
               child: const Text('Удалить'),
             ),
           ],
@@ -178,9 +179,9 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                       // Кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
+                        onPressed: withButtonSound(() {
                           Navigator.pop(context);
-                        },
+                        }),
                       ),
                       
                       // Заголовок
@@ -291,12 +292,12 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                                     // Кнопка редактирования
                                     IconButton(
                                       icon: const Icon(Icons.edit, color: Colors.white),
-                                      onPressed: () => _editAction(index),
+                                      onPressed: withButtonSound(() => _editAction(index)),
                                     ),
                                     // Кнопка удаления (ИЗМЕНЕНО: белая)
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline, color: Colors.white),
-                                      onPressed: () => _deleteAction(index),
+                                      onPressed: withButtonSound(() => _deleteAction(index)),
                                     ),
                                   ],
                                 ),
@@ -309,7 +310,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                           alignment: Alignment.centerLeft,
                           child: IconButton(
                             icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)),
-                            onPressed: _addAction,
+                            onPressed: withButtonSound(_addAction),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -319,7 +320,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                           width: 200, // Уже
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _saveChoice,
+                            onPressed: withButtonSound(_saveChoice),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(

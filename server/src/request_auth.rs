@@ -27,6 +27,34 @@ pub fn check_admin<T>(request: &Request<T>) -> Result<(), Status> {
     Ok(())
 }
 
+// Перед изменением контента проверяю актуальную роль, а не только старый JWT.
+pub async fn check_current_admin<T>(request: &Request<T>, db: &surrealdb::Surreal<surrealdb::engine::remote::ws::Client>) -> Result<(), Status> {
+    check_admin(request)?;
+    let owner = request.extensions().get::<Claims>().unwrap().sub.clone();
+    let mut response = db.query("SELECT VALUE is_admin FROM ONLY type::record($owner)")
+        .bind(("owner", owner)).await
+        .map_err(|_| Status::unavailable("Не удалось проверить права администратора"))?
+        .check().map_err(|_| Status::unavailable("Не удалось проверить права администратора"))?;
+    let current: Option<bool> = response.take(0)
+        .map_err(|_| Status::unavailable("Не удалось проверить права администратора"))?;
+    require_current_admin(current)
+}
+
+// Удалённая учётная запись и снятая роль больше не дают прав на запись.
+fn require_current_admin(current: Option<bool>) -> Result<(), Status> {
+    if current == Some(true) { return Ok(()); }
+    Err(Status::permission_denied("Права администратора отозваны. Войдите снова"))
+}
+
+#[cfg(test)]
+// Создаю настоящую роль только в изолированной базе теста.
+pub async fn seed_test_admin(db: &surrealdb::Surreal<surrealdb::engine::remote::ws::Client>, owner: &str) -> Result<(), surrealdb::Error> {
+    db.query("UPSERT type::record($owner) MERGE {login:$login,email:'test@local.invalid',password_hash:'unused-test-hash',is_admin:true,created_at:time::now()};")
+        .bind(("owner",owner.to_owned())).bind(("login",owner.trim_start_matches("player:").to_owned()))
+        .await?.check()?;
+    Ok(())
+}
+
 // Разрешаю работать только со своими данными
 pub fn player_id<T>(request: &Request<T>, requested_id: &str) -> Result<String, Status> {
     let claims = request.extensions().get::<Claims>()
@@ -47,6 +75,14 @@ mod tests {
     use crate::romance_club::shop_api_server::ShopApi;
     use tonic::Code;
     use tonic::service::Interceptor;
+
+    #[test]
+    fn revoked_and_deleted_administrators_cannot_write() {
+        assert!(require_current_admin(Some(true)).is_ok());
+        for current in [Some(false), None] {
+            assert_eq!(require_current_admin(current).unwrap_err().code(), Code::PermissionDenied);
+        }
+    }
 
     // Этот ключ используется только в тестах
     fn test_keys() -> JwtKeys {

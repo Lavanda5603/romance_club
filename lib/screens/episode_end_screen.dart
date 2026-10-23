@@ -1,4 +1,6 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:flutter/material.dart'; // Импорт Material UI
+import '../src/core/ending_art.dart'; // Импорт картинок пяти концовок
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
 import 'episode_select_screen.dart'; // Импорт экрана выбора эпизода
@@ -91,8 +93,12 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
               color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
               // Картинка фона
               child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
+                // Показываю романтический финал только в конце пятого эпизода.
+                widget.currentEpisode.id == 5
+                    ? endingArtwork[widget.ending] ?? 'assets/images/main_background.png'
+                    : 'assets/images/main_background.png',
+                fit: widget.currentEpisode.id == 5 && endingArtwork.containsKey(widget.ending)
+                    ? BoxFit.contain : BoxFit.cover,
               ),
             ),
           ),
@@ -182,7 +188,7 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                               width: 260,
                               height: 55,
                               child: ElevatedButton(
-                                onPressed: () {
+                                onPressed: withButtonSound(() {
                                   // Переход на следующий эпизод
                                   Navigator.pushReplacement(
                                     context,
@@ -192,7 +198,7 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                                       ),
                                     ),
                                   );
-                                },
+                                }),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFD30010),
                                   shape: RoundedRectangleBorder(
@@ -228,7 +234,7 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                             width: 200,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: withButtonSound(() {
                                 // Переход на экран выбора эпизода
                                 Navigator.pushReplacement(
                                   context,
@@ -236,7 +242,7 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                                     builder: (context) => const EpisodeSelectScreen(),
                                   ),
                                 );
-                              },
+                              }),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF534F50), // Серый
                                 shape: RoundedRectangleBorder(

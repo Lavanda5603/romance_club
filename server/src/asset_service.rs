@@ -52,7 +52,7 @@ impl AssetApiService {
     pub async fn backfill_previews(&self) -> Result<(), Status> {
         let mut cursor = String::new();
         loop {
-            let mut response = self.db.query(format!("SELECT {CATALOG_FIELDS} FROM asset WHERE type IN ['background','character'] AND (preview_data=NONE OR bytes::len(preview_data)=0) AND (preview_status ?? '') NOT IN ['invalid','missing'] AND ($cursor='' OR id > type::record($cursor)) ORDER BY id LIMIT 24"))
+            let mut response = self.db.query(format!("SELECT {CATALOG_FIELDS} FROM asset WHERE type IN ['background','character'] AND (preview_data=NONE OR bytes::len(preview_data)=0 OR (type='character' AND (preview_status ?? '') != 'ready')) AND (preview_status ?? '') NOT IN ['invalid','missing'] AND ($cursor='' OR id > type::record($cursor)) ORDER BY id LIMIT 24"))
                 .bind(("cursor",cursor.clone())).await.map_err(internal)?.check().map_err(internal)?;
             let rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
             if rows.is_empty() { break; }
@@ -87,7 +87,10 @@ impl AssetApiService {
 
     // Старый оригинал читаю только тогда, когда записи нужно превью
     async fn preview(&self, mut row: AssetRow) -> Result<AssetRow, Status> {
-        if row.preview_data.as_ref().is_some_and(|bytes| !bytes.is_empty()) { return Ok(row); }
+        // Исправляю также JPEG-превью персонажей, созданные старой версией сервера
+        let old_jpeg = row.r#type == "character" && row.preview_data.as_ref()
+            .is_some_and(|bytes| image::guess_format(bytes).ok() == Some(image::ImageFormat::Jpeg));
+        if row.preview_data.as_ref().is_some_and(|bytes| !bytes.is_empty()) && !old_jpeg { return Ok(row); }
         if !matches!(row.r#type.as_str(), "background" | "character") { return Ok(row); }
         if matches!(row.preview_status.as_deref(),Some("invalid" | "missing")) && row.preview_source_version == row.version { return Ok(row); }
         let id = row.id.to_sql();
@@ -107,9 +110,9 @@ impl AssetApiService {
             None => (None,source_version,"missing"),
         };
         // Не затираю картинку, которую успели заменить во время обработки
-        self.db.query("UPDATE type::record($id) SET preview_data=$preview, version=$version, preview_status=$status, preview_source_version=$version WHERE file_data=$source AND (preview_data=NONE OR bytes::len(preview_data)=0)")
+        self.db.query("UPDATE type::record($id) SET preview_data=$preview, version=$version, preview_status=$status, preview_source_version=$version WHERE file_data=$source AND preview_data=$previous")
             .bind(("id", id.clone())).bind(("preview", preview)).bind(("status",status))
-            .bind(("version", version)).bind(("source", source))
+            .bind(("version", version)).bind(("source", source)).bind(("previous", full.preview_data))
             .await.map_err(internal)?.check().map_err(internal)?;
         let mut response = self.db.query(format!("SELECT {CATALOG_FIELDS} FROM type::record($id)"))
             .bind(("id", id)).await.map_err(internal)?.check().map_err(internal)?;
@@ -213,12 +216,17 @@ impl AssetApi for AssetApiService {
     }
 
     async fn upload_asset(&self, request: Request<UploadAssetRequest>) -> Result<Response<UploadAssetResponse>, Status> {
-        crate::request_auth::check_admin(&request)?;
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
         let req = request.into_inner();
         if !matches!(req.r#type.as_str(), "background" | "character") || req.name.is_empty() || req.file_data.is_empty() {
             return Err(Status::invalid_argument("Нужны тип, имя и изображение"));
         }
         if req.file_data.len() > MAX_UPLOAD_BYTES { return Err(Status::invalid_argument("Файл больше 5 MiB (5 242 880 байт)")); }
+        // Проверяю метаданные до обработки изображения и записи в БД.
+        if req.name.len() > 256 || req.emotion.len() > 128 || req.display_name.len() > 512 || req.episode_id.len() > 128
+            || (!req.episode_id.is_empty() && !req.episode_id.starts_with("episode:")) {
+            return Err(Status::invalid_argument("Неверные или слишком длинные данные ассета"));
+        }
         let prepared = asset_preview::make_variants(req.file_data.clone(), &req.r#type).await?;
         let mut response = self.db.query("SELECT id FROM asset WHERE type = $type AND name = $name AND (emotion ?? '') = $emotion AND episode_id = (IF $ep = '' { NONE } ELSE { type::record($ep) }) LIMIT 1")
             .bind(("type", req.r#type.clone())).bind(("name", req.name.clone()))
@@ -242,6 +250,8 @@ impl AssetApi for AssetApiService {
 
     async fn delete_asset(&self, request: Request<DeleteAssetRequest>) -> Result<Response<DeleteAssetResponse>, Status> {
         crate::request_auth::check_admin(&request)?;
+        crate::asset_delete::asset_id(&request.get_ref().id)?;
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
         let id = request.into_inner().id;
         crate::asset_delete::delete(&self.delete_db, &id).await?;
         Ok(Response::new(DeleteAssetResponse { success: true, message: "Ассет удалён".into() }))

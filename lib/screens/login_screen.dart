@@ -1,3 +1,4 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'register_screen.dart'; // Импорт экрана регистрации
@@ -206,11 +207,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 _obscurePassword ? Icons.visibility : Icons.visibility_off,
                                 color: Colors.grey,
                               ),
-                              onPressed: () {
+                              onPressed: withButtonSound(() {
                                 setState(() {
                                   _obscurePassword = !_obscurePassword;
                                 });
-                              },
+                              }),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -233,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 160,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _login,
+                              onPressed: withButtonSound(_isLoading ? null : _login),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(
@@ -263,14 +264,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 200,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: withButtonSound(() {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => const RegisterScreen(),
                                   ),
                                 );
-                              },
+                              }),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(

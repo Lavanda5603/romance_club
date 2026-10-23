@@ -1,3 +1,5 @@
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
+import '../src/core/scene_condition.dart'; // Подключаю проверку условий
 import '../src/core/scene_links.dart'; // Ключи переходов
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'dart:typed_data'; // Импорт Uint8List
@@ -34,6 +36,8 @@ class SceneEditorScreen extends StatefulWidget {
 class _SceneEditorScreenState extends State<SceneEditorScreen> {
   late Scene _scene; // Черновик сцены
   late TextEditingController _titleController; // Контроллер названия сцены
+  String? _conditionError; // Показываю ошибку выражения
+  late List<SceneRoute> _routes; // Редактирую копии условных переходов
   late TextEditingController _conditionController; // Контроллер условия
   late TextEditingController _musicController; // Контроллер музыки
 
@@ -95,6 +99,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     // Создаю контроллеры
     _titleController = TextEditingController(text: _scene.title);
     _conditionController = TextEditingController(text: _scene.condition);
+    _routes = _scene.routes.map((r) => r.deepCopy()).toList();
     _musicController = TextEditingController();
 
     // Создаю контроллеры для текстов сцены
@@ -252,8 +257,48 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     });
   }
 
+  // Правила выполняю сверху вниз, обычный переход оставляю запасным
+  Widget _buildRoutes() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const SizedBox(height: 16),
+    const Text('Условные переходы', style: TextStyle(color: Colors.white, fontSize: 18)),
+    const Text('Первое подходящее правило. Иначе — «Следующая сцена».', style: TextStyle(color: Colors.grey)),
+    for (var i = 0; i < _routes.length; i++) ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(_routes[i].condition.isEmpty ? 'Всегда' : _routes[i].condition, style: const TextStyle(color: Colors.white)),
+      subtitle: Text(widget.allScenes.where((s) => s.sceneKey == _routes[i].sceneKey).firstOrNull?.title ?? _routes[i].sceneKey,
+        style: const TextStyle(color: Colors.pinkAccent)),
+      onTap: withButtonSound(() => _editRoute(i)),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(tooltip: 'Выше', icon: const Icon(Icons.arrow_upward), onPressed: withButtonSound(i == 0 ? null : () => setState(() {
+          final rule = _routes.removeAt(i); _routes.insert(i - 1, rule);
+        }))),
+        IconButton(tooltip: 'Убрать правило', icon: const Icon(Icons.close), onPressed: withButtonSound(() => setState(() => _routes.removeAt(i)))),
+      ]),
+    ),
+    TextButton(onPressed: withButtonSound(_editRoute), child: const Text('Добавить условный переход')),
+  ]);
+
+  Future<void> _editRoute([int? index]) async {
+    final original = index == null ? null : _routes[index];
+    final scenes = {for (final scene in widget.allScenes) if (scene.sceneKey.isNotEmpty) scene.sceneKey: scene};
+    scenes[_scene.sceneKey] = _scene;
+    if (original != null && !scenes.containsKey(original.sceneKey)) {
+      scenes[original.sceneKey] = Scene(sceneKey: original.sceneKey, title: 'Недоступная сцена');
+    }
+    final result = await showDialog<SceneRoute>(context: context,
+      builder: (_) => _SceneRouteDialog(original: original, scenes: scenes));
+    if (!mounted) return;
+    if (result != null) setState(() { if (index == null) { _routes.add(result); } else { _routes[index] = result; } });
+  }
+
   // Сохранить сцену
   void _saveScene() {
+    final error = SceneCondition.error(_conditionController.text);
+    setState(() => _conditionError = error);
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка условия: $error')));
+      return;
+    }
     final newScene = Scene(
       id: _scene.id,
       title: _titleController.text,
@@ -266,6 +311,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       textPosition: _selectedTextPosition,
       nextSceneKey: _selectedNextSceneKey,
       orderIndex: _scene.orderIndex,
+      routes: _routes.map((r) => r.deepCopy()),
     );
 
     // Добавляю тексты
@@ -335,11 +381,11 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: withButtonSound(() => Navigator.pop(context, false)),
               child: const Text('Отмена'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: withButtonSound(() => Navigator.pop(context, true)),
               child: const Text('Удалить'),
             ),
           ],
@@ -629,7 +675,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: withButtonSound(() => Navigator.pop(context)),
                       ),
                       const Text(
                         'Клуб романтики',
@@ -684,7 +730,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         ),
                         const SizedBox(height: 4),
                         GestureDetector(
-                          onTap: _pickBackground,
+                          onTap: withButtonSound(_pickBackground),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                             decoration: BoxDecoration(
@@ -718,7 +764,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           children: [
                             Expanded(
                               child: GestureDetector(
-                                onTap: _pickCharacter,
+                                onTap: withButtonSound(_pickCharacter),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                                   decoration: BoxDecoration(
@@ -746,7 +792,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                                 padding: const EdgeInsets.only(left: 8),
                                 child: IconButton(
                                   icon: const Icon(Icons.close, color: Color(0xFFD30010)),
-                                  onPressed: _removeCharacter,
+                                  onPressed: withButtonSound(_removeCharacter),
                                 ),
                               ),
                           ],
@@ -813,7 +859,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.delete_outline, color: Color(0xFFFFA0A0)),
-                                    onPressed: () => _removeTextField(index),
+                                    onPressed: withButtonSound(() => _removeTextField(index)),
                                   ),
                                 ],
                               ),
@@ -825,17 +871,22 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           alignment: Alignment.centerLeft,
                           child: IconButton(
                             icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)),
-                            onPressed: _addTextField,
+                            onPressed: withButtonSound(_addTextField),
                           ),
                         ),
 
                         // Условие
-                        _buildField('условие', _conditionController),
+                        TextField(
+                          controller: _conditionController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(labelText: 'условие', errorText: _conditionError),
+                          onChanged: (_) { if (_conditionError != null) setState(() => _conditionError = SceneCondition.error(_conditionController.text)); },
+                        ),
                         // Подсказка по формату условия
                         const Padding(
                           padding: EdgeInsets.only(top: 4, bottom: 8),
                           child: Text(
-                            'Формат: flag:имя=true, flag:имя=false, points>=5, points<=3',
+                            'Примеры: friendship>=5, romance_adrian>romance_cat, flag:secret=true И points>=5. Можно использовать ИЛИ и скобки. Новый счётчик до начисления равен 0.',
                             style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 12),
                           ),
                         ),
@@ -843,6 +894,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
                         // Следующая сцена
                         _buildNextSceneDropdown(),
+                        _buildRoutes(),
 
                         // Выборы
                         const Text(
@@ -896,11 +948,11 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                                         children: [
                                           IconButton(
                                             icon: const Icon(Icons.edit, color: Colors.white),
-                                            onPressed: () => _editChoice(index),
+                                            onPressed: withButtonSound(() => _editChoice(index)),
                                           ),
                                           IconButton(
                                             icon: const Icon(Icons.delete_outline, color: Color(0xFFFFA0A0)),
-                                            onPressed: () => _deleteChoice(index),
+                                            onPressed: withButtonSound(() => _deleteChoice(index)),
                                           ),
                                         ],
                                       ),
@@ -915,7 +967,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           alignment: Alignment.centerLeft,
                           child: IconButton(
                             icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)),
-                            onPressed: _addChoice,
+                            onPressed: withButtonSound(_addChoice),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -929,7 +981,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           width: 200,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _saveScene,
+                            onPressed: withButtonSound(_saveScene),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(
@@ -960,4 +1012,45 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       ),
     );
   }
+}
+
+// Диалог владеет своими полями и освобождает их вместе с маршрутом
+class _SceneRouteDialog extends StatefulWidget {
+  final SceneRoute? original;
+  final Map<String, Scene> scenes;
+  const _SceneRouteDialog({required this.original, required this.scenes});
+  @override
+  State<_SceneRouteDialog> createState() => _SceneRouteDialogState();
+}
+class _SceneRouteDialogState extends State<_SceneRouteDialog> {
+  final _form = GlobalKey<FormState>();
+  late final TextEditingController _condition;
+  String? _target;
+  @override
+  void initState() {
+    super.initState();
+    _condition = TextEditingController(text: widget.original?.condition ?? '');
+    _target = widget.original?.sceneKey;
+  }
+  @override
+  void dispose() { _condition.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Условный переход'),
+    content: Form(key: _form, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      TextFormField(controller: _condition, decoration: const InputDecoration(labelText: 'Условие', hintText: 'friendship>=5 И flag:met=true'),
+        validator: (value) => SceneCondition.error(value ?? '')),
+      DropdownButtonFormField<String>(initialValue: _target, isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Перейти к сцене'),
+        items: widget.scenes.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value.title, overflow: TextOverflow.ellipsis))).toList(),
+        onChanged: (value) => _target = value,
+        validator: (value) => value == null || value.isEmpty ? 'Выберите сцену' : null),
+    ]))),
+    actions: [
+      TextButton(onPressed: withButtonSound(() => Navigator.pop(context)), child: const Text('Отмена')),
+      TextButton(onPressed: withButtonSound(() {
+        if (_form.currentState!.validate()) Navigator.pop(context, SceneRoute(condition: _condition.text.trim(), sceneKey: _target!));
+      }), child: const Text('Применить')),
+    ],
+  );
 }

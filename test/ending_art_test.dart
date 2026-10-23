@@ -5,6 +5,15 @@ import 'package:romance_club/src/core/ending_art.dart'; // Импорт карт
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('Старые ссылки сцен ведут на точные картинки пяти пар', () {
+    expect(endingSceneArtwork('ep1/kiss_marinet_adrian'), endingArtwork['МариАдриан']);
+    expect(endingSceneArtwork('ep1/kiss_marinet_catnoir'), endingArtwork['МариКот']);
+    expect(endingSceneArtwork('ep1/kiss_ladybug_adrian'), endingArtwork['АдриБаг']);
+    expect(endingSceneArtwork('ep1/kiss_ladybug_catnoir'), endingArtwork['СуперБаг']);
+    expect(endingSceneArtwork('ep1/kiss_marinet_luka'), endingArtwork['Лука']);
+    expect(endingSceneArtwork('неизвестный фон'), isNull);
+  });
+
   test('Все пять концовок получают отдельный настоящий PNG из сборки', () async {
     expect(endingArtwork.length, 5);
     expect(endingArtwork.values.toSet().length, 5);

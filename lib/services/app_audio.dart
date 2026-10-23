@@ -165,7 +165,11 @@ class AppAudio {
   Future<void> setForeground(bool foreground) {
     _foreground = foreground;
     _clickRequest++;
-    return _command((_) => _apply());
+    return _command((backend) async {
+      // После возврата сбрасываю устаревшее «играет», если Android потерял аудиофокус.
+      if (foreground && _foreground) await backend.pauseAll();
+      await _apply(); // Продолжаю с прежней позиции и сохранённой громкостью
+    });
   }
 
   Future<void> click() {

@@ -112,6 +112,19 @@ void main() {
     await Future.wait([opening, pausing]);
     expect(backend.playing, false);
   });
+  test('Возврат восстанавливает музыку даже при устаревшем состоянии играет', () async {
+    await audio.initialize();
+    final pauses = backend.paused;
+    await audio.setForeground(true);
+    expect(backend.paused, pauses + 1);
+    expect(backend.playing, true);
+    expect(backend.prepared, 1);
+    await audio.setVolumes(0.4, 0.5);
+    expect(backend.paused, pauses + 1);
+    await audio.setVolumes(0, 0.5);
+    await audio.setForeground(true);
+    expect(backend.playing, false);
+  });
   test('При закрытии во время подготовки не включаю музыку', () async {
     backend.prepareGate = Completer<void>();
     final opening = audio.initialize();

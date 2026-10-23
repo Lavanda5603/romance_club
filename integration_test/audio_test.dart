@@ -1,5 +1,6 @@
 import 'package:audioplayers/audioplayers.dart'; // Подключаю состояния Android-проигрывателя
 import 'package:flutter/material.dart'; // Подключаю настоящие кнопки и навигацию
+import 'package:flutter/services.dart'; // Подключаю проверку паузы на стороне Android
 import 'package:flutter_test/flutter_test.dart'; // Подключаю проверки интерфейса
 import 'package:integration_test/integration_test.dart'; // Подключаю проверку на устройстве
 import 'package:romance_club/screens/settings_screen.dart'; // Подключаю настоящий экран настроек
@@ -131,6 +132,14 @@ void main() {
           greaterThanOrEqualTo(paused.inMilliseconds - 100),
         );
         expect(audio.error, null);
+        // Воспроизвожу зависшую паузу Android при устаревшем состоянии Dart «играет».
+        await const MethodChannel('xyz.luan/audioplayers').invokeMethod<void>('pause', {'playerId': backend.music.playerId});
+        expect(backend.music.state, PlayerState.playing);
+        final stalled = await backend.music.getCurrentPosition();
+        await audio.setForeground(true);
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+        final recovered = await backend.music.getCurrentPosition();
+        expect(recovered!.inMilliseconds, greaterThan(stalled!.inMilliseconds + 100));
         debugPrint(
           'AUDIO_CHECK: music=${duration.inMilliseconds}ms, click=${clickDuration.inMilliseconds}ms; navigation, mute, save, pause and resume passed',
         );

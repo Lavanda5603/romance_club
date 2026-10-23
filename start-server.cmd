@@ -11,5 +11,7 @@ set "SURREAL_NAMESPACE=romance_club"
 set "SURREAL_DATABASE=main"
 if not defined GRPC_BIND set "GRPC_BIND=127.0.0.1:50051"
 cd /d "%~dp0server"
-target\debug\romance_club_server.exe
+cargo run --locked
+set "SERVER_EXIT=%ERRORLEVEL%"
 pause
+exit /b %SERVER_EXIT%

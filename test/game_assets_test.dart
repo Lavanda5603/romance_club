@@ -4,6 +4,7 @@ import 'dart:ui' as ui; // Импорт кодирования тестовой 
 import 'package:flutter/material.dart'; // Импорт игровых виджетов
 import 'package:flutter/services.dart'; // Импорт канала хранилища и байтов
 import 'package:flutter_test/flutter_test.dart'; // Импорт тестов Flutter
+import 'package:grpc/grpc.dart'; // Импорт ответа об отсутствующей картинке
 import 'package:romance_club/generated/episode.pb.dart'; // Импорт метаданных эпизода
 import 'package:romance_club/screens/game_screen.dart'; // Импорт игрового экрана
 import 'package:romance_club/services/session_store.dart'; // Импорт полной тестовой сессии
@@ -35,6 +36,7 @@ EpisodeModel story(int id) => EpisodeModel(id: id, title: 'Полный эпиз
 
 class _Assets implements AssetRepository {
   final Uint8List bytes;
+  bool missing = false; // Проверяю точную локальную копию при отсутствии файла на сервере
   final calls = <String>[];
   _Assets(this.bytes);
   @override
@@ -48,6 +50,7 @@ class _Assets implements AssetRepository {
     expect(targetWidth, greaterThan(0));
     expect(targetHeight, greaterThan(0));
     calls.add('$episodeId|$type|$name|$emotion');
+    if (missing) throw const GrpcError.notFound('Точной картинки нет в каталоге');
     return AssetModel(id: 'asset:$name', type: type, name: name, emotion: emotion,
       url: '', displayName: name, episodeId: episodeId, fileData: bytes);
   }
@@ -87,6 +90,27 @@ void main() {
     }
   }
   Finder pictures() => find.byWidgetPredicate((widget) => widget is Image && widget.image is MemoryImage);
+
+  testWidgets('Точные локальные картинки пары и бегущей Маринетт доступны после NotFound', (tester) async {
+    final episode = story(1);
+    final first = episode.scenes.first;
+    final localStory = EpisodeModel(id: 1, title: episode.title, version: 1,
+      scenes: [SceneModel(id: first.id, sceneKey: first.sceneKey, title: first.title,
+        background: 'ep1/kiss_marinet_adrian', character: 'marinet', characterEmotion: 'running',
+        texts: first.texts, choices: [], condition: '', textPosition: first.textPosition,
+        characterPosition: first.characterPosition, nextSceneId: 0, nextSceneKey: '')]);
+    final episodes = _Episodes()..pending = Completer<EpisodeModel>();
+    final assets = _Assets(bytes)..missing = true;
+    final vm = GameViewModel(episodes);
+    addTearDown(vm.dispose);
+    await tester.pumpWidget(MaterialApp(home: GameScreen(episode: Episode(id: 1), viewModel: vm, assetRepository: assets)));
+    episodes.pending!.complete(localStory);
+    await drain(tester);
+    expect(assets.calls, ['episode:1|background|ep1/kiss_marinet_adrian|', 'episode:1|character|marinet|running']);
+    expect(pictures(), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('Пустые метаданные ждут полного эпизода, после загрузки видны обе картинки', (tester) async {
     final episodes = _Episodes()..pending = Completer<EpisodeModel>();

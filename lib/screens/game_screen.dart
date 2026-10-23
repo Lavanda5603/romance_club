@@ -15,6 +15,8 @@ import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-се
 import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
 import '../src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
 import 'episode_end_screen.dart'; // Импорт экрана конца эпизода
+import 'package:flutter/services.dart' show rootBundle; // Импорт точных картинок из ресурсов приложения
+import '../src/core/ending_art.dart'; // Импорт соответствий картинок концовок
 
 // Игровой экран
 class GameScreen extends StatefulWidget {
@@ -114,12 +116,23 @@ class _GameScreenState extends State<GameScreen> {
     String? error;
     Future<Uint8List?> load(String type, String name, String emotion) async {
       if (name.isEmpty) return null;
+      // Локальная копия нужна только при отсутствии точной картинки на сервере.
+      final local = type == 'background' ? endingSceneArtwork(name)
+        : name == 'marinet' && emotion == 'running' ? 'assets/characters/marinet_running.png' : null;
       try {
         return (await _assetRepository.getAsset(type: type, name: name, emotion: emotion,
           episodeId: 'episode:${widget.episode.id}', variant: 'screen',
           targetWidth: View.of(context).physicalSize.width.ceil(),
           targetHeight: View.of(context).physicalSize.height.ceil())).fileData;
       } catch (e) {
+        if (local != null && e is GrpcError && e.code == StatusCode.notFound) {
+          try {
+            final bytes = await rootBundle.load(local);
+            return bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
+          } catch (localError) {
+            debugPrint('Не удалось прочитать точную локальную картинку: $localError');
+          }
+        }
         if (e is GrpcError && (e.code == StatusCode.deadlineExceeded || e.code == StatusCode.unavailable)) error = networkError(e);
         debugPrint('Ошибка загрузки картинки сцены: $e');
         return null;

@@ -1,3 +1,4 @@
+import 'server_connection_screen.dart'; // Импорт выбора сервера
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
@@ -168,6 +169,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 32),
 
+                        TextButton(
+                          onPressed: _isLoading ? null : () async {
+                            final changed = await Navigator.push<bool>(context,
+                              MaterialPageRoute(builder: (_) => const ServerConnectionScreen()));
+                            if (changed == true && mounted) {
+                              _service.close();
+                              _service = AuthGrpcService();
+                              _repository = AuthRepositoryRemote(_service);
+                            }
+                          },
+                          child: const Text('Подключение к серверу'),
+                        ),
                         // Подпись
                         const Text('логин', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16)),
                         const SizedBox(height: 8),

@@ -1,3 +1,5 @@
+import 'screens/server_connection_screen.dart'; // Импорт настройки подключения при ошибке сети
+import 'services/server_connection.dart'; // Импорт сохранённого подключения
 import 'widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'screens/main_menu_screen.dart'; // Импорт главного меню
@@ -11,6 +13,7 @@ import 'services/app_audio.dart'; // Импорт общей музыки и щ�
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Инициализация Flutter
+  await ServerConnection.load(); // Загружаю адрес до сетевых запросов
   runApp(const RomanceClubApp()); // Запуск приложения
   unawaited(AppAudio.shared.initialize()); // Загружаю звук, не задерживая первый экран
 }
@@ -152,6 +155,11 @@ class _SplashScreenState extends State<SplashScreen> {
           : Column(mainAxisSize: MainAxisSize.min, children: [
               Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)),
               TextButton(onPressed: withButtonSound(_checkLogin), child: const Text('Повторить')),
+              TextButton(onPressed: () async {
+                final changed = await Navigator.push<bool>(context,
+                  MaterialPageRoute(builder: (_) => const ServerConnectionScreen()));
+                if (changed == true && mounted) await _checkLogin();
+              }, child: const Text('Подключение к серверу')),
             ]),
       ),
     );

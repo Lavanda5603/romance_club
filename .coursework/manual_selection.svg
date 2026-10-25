@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="1000" viewBox="0 0 700 1000">
+<rect width="700" height="1000" fill="white"/>
+<g fill="white" stroke="black" stroke-width="1.4">
+<rect x="45" y="15" width="610" height="905"/>
+<line x1="90" y1="920" x2="90" y2="15"/>
+<text x="72" y="470" transform="rotate(-90 72 470)" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="20">Покупатель</text>
+<circle cx="350" cy="50" r="18"/>
+<text x="415" y="56" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="17">Начало</text>
+<rect x="225" y="80" width="250" height="65" rx="10"/>
+<text x="350" y="107" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">Определить условия</text>
+<text x="350" y="131" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">выбора</text>
+<rect x="225" y="180" width="250" height="65" rx="10"/>
+<text x="350" y="207" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">Открыть каталог</text>
+<text x="350" y="231" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">и применить фильтры</text>
+<rect x="225" y="280" width="250" height="65" rx="10"/>
+<text x="350" y="307" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">Изучить состав</text>
+<text x="350" y="331" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">и описание товара</text>
+<polygon points="350,395 410,440 350,485 290,440"/>
+<text x="350" y="434" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">Товар</text>
+<text x="350" y="455" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">подходит?</text>
+<rect x="225" y="495" width="250" height="65" rx="10"/>
+<text x="350" y="522" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">Сохранить подходящий</text>
+<text x="350" y="546" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">вариант</text>
+<polygon points="350,610 410,655 350,700 290,655"/>
+<text x="350" y="649" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">Достаточно</text>
+<text x="350" y="670" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">вариантов?</text>
+<rect x="225" y="710" width="250" height="65" rx="10"/>
+<text x="350" y="737" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">Сравнить варианты</text>
+<text x="350" y="761" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="19">и выбрать товар</text>
+<circle cx="350" cy="860" r="18"/>
+<circle cx="350" cy="860" r="14"/>
+<text x="415" y="866" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="17">Конец</text>
+<line x1="350" y1="68" x2="350" y2="80"/>
+<polygon fill="black" points="350,80 353.5047650807779,71.710451053974 346.4952349192221,71.710451053974"/>
+<line x1="350" y1="145" x2="350" y2="180"/>
+<polygon fill="black" points="350,180 353.5047650807779,171.710451053974 346.4952349192221,171.710451053974"/>
+<line x1="350" y1="245" x2="350" y2="280"/>
+<polygon fill="black" points="350,280 353.5047650807779,271.710451053974 346.4952349192221,271.710451053974"/>
+<line x1="350" y1="345" x2="350" y2="395"/>
+<polygon fill="black" points="350,395 353.5047650807779,386.710451053974 346.4952349192221,386.710451053974"/>
+<line x1="350" y1="485" x2="350" y2="495"/>
+<polygon fill="black" points="350,495 353.5047650807779,486.710451053974 346.4952349192221,486.710451053974"/>
+<line x1="350" y1="560" x2="350" y2="610"/>
+<polygon fill="black" points="350,610 353.5047650807779,601.7104510539741 346.4952349192221,601.7104510539741"/>
+<line x1="350" y1="700" x2="350" y2="710"/>
+<polygon fill="black" points="350,710 353.5047650807779,701.7104510539741 346.4952349192221,701.7104510539741"/>
+<line x1="350" y1="775" x2="350" y2="842"/>
+<polygon fill="black" points="350,842 353.5047650807779,833.710451053974 346.4952349192221,833.710451053974"/>
+<text x="374" y="482" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">Да</text>
+<text x="374" y="697" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">Да</text>
+<line x1="290" y1="440" x2="140" y2="440"/>
+<line x1="140" y1="440" x2="140" y2="313"/>
+<line x1="140" y1="313" x2="225" y2="313"/>
+<polygon fill="black" points="225,313 216.71045105397403,309.4952349192222 216.71045105397403,316.5047650807778"/>
+<text x="255" y="432" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">Нет</text>
+<text x="190" y="385" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">Другой</text>
+<text x="190" y="406" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">товар</text>
+<line x1="410" y1="655" x2="565" y2="655"/>
+<line x1="565" y1="655" x2="565" y2="313"/>
+<line x1="565" y1="313" x2="475" y2="313"/>
+<polygon fill="black" points="475,313 483.28954894602595,316.5047650807778 483.28954894602595,309.4952349192222"/>
+<text x="445" y="646" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">Нет</text>
+<text x="602" y="490" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">Другой</text>
+<text x="602" y="511" text-anchor="middle" fill="black" stroke="none" font-family="Arial, sans-serif" font-size="16">товар</text>
+</g>
+</svg>

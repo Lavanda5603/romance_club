@@ -1,3 +1,4 @@
+import '../../../services/server_connection.dart'; // Импорт выбранного адреса сервера
 import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'auth_options.dart'; // Метаданные с токеном
 import '../../../services/storage_service.dart'; // Импорт сервиса хранения
@@ -15,11 +16,11 @@ class AssetGrpcService {
   late final AssetApiClient _client; // gRPC-клиент
 
   // Конструктор
-  AssetGrpcService({this.host = '10.0.2.2', this.port = 50051, RpcDeadline? deadlines}) {
+  AssetGrpcService({String? host, int? port, RpcDeadline? deadlines}) : host = host ?? ServerConnection.host, port = port ?? ServerConnection.port {
     // Создаю канал связи с сервером
     _channel = ClientChannel(
-      host,
-      port: port,
+      this.host,
+      port: this.port,
       options: const ChannelOptions(
         credentials: ChannelCredentials.insecure(), // Без шифрования
       ),

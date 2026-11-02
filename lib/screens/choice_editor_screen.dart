@@ -33,12 +33,14 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
   late Choice _choice; // Локальный выбор (создаётся, если widget.choice == null)
   late TextEditingController _diaryController; // Текст записи после этого решения
   late TextEditingController _consequenceController; // Короткая реакция на выбор
+  late TextEditingController _priceController; // 0 — бесплатно, иначе 15–50 алмазов
 
   @override
   void initState() {
     super.initState();
     // Меняю копию, пока выбор не сохранён
     _choice = widget.choice?.deepCopy() ?? Choice();
+    _priceController = TextEditingController(text: '${_choice.diamondPrice}');
     final entries = _choice.actions.where((a) => a.flagName.startsWith('diary_'));
     _diaryController = TextEditingController(text: entries.isEmpty ? '' : entries.first.title);
     final notices = _choice.actions.where((a) => a.type == 'notification');
@@ -68,11 +70,21 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     _titleController.dispose();
     _diaryController.dispose();
     _consequenceController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
   // Сохранение выбора
   void _saveChoice() {
+    final price = int.tryParse(_priceController.text.trim());
+    if (price == null || (price != 0 && (price < 15 || price > 50))) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Цена: 0 бесплатно или от 15 до 50 алмазов')));
+      return;
+    }
+    if (price > 0 && _choice.actions.where((a) => a.type == 'nextScene' && a.sceneTarget.isNotEmpty).length != 1) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Добавь платному выбору переход к отдельной сцене')));
+      return;
+    }
     final notice = _consequenceController.text.trim();
     if (notice.runes.length > 160) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Уведомление — не больше 160 символов')));
@@ -81,6 +93,8 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     // Обновляю название и текст выбора
     _choice.title = _titleController.text;
     _choice.text = _textController.text;
+    _choice.diamondPrice = price;
+    if (price > 0 && _choice.premiumKey.isEmpty) _choice.premiumKey = 'choice:${newSceneKey().substring(6)}';
     // Храню запись в обычном действии: сервер сохраняет её вместе с выбором.
     final entries = _choice.actions.where((a) => a.flagName.startsWith('diary_')).toList();
     final text = _diaryController.text.trim();
@@ -383,6 +397,10 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                             helperStyle: TextStyle(color: Colors.white70),
                           ),
                         ),
+                        TextField(key: const ValueKey('choice-diamond-price'), controller: _priceController,
+                          keyboardType: TextInputType.number, style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(labelText: 'Цена в алмазах', helperText: '0 — бесплатно. Платный выбор: 15–50 и отдельная сцена.',
+                            labelStyle: TextStyle(color: Color(0xFFFFA0A0)), helperStyle: TextStyle(color: Colors.white70))),
                         // Кнопка сохранить
                         SizedBox(
                           width: 200, // Уже

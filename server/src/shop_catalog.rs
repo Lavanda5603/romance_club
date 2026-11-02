@@ -11,6 +11,7 @@ pub struct Product {
 impl Product {
     pub fn find(sku: &str) -> Result<Self, Status> {
         let (kind, price, amount, episode_id) = match sku {
+            value if valid_choice_sku(value) => ("choice", 0, 0, 0),
             "subscription" => ("subscription", 500, 0, 0),
             // Бесплатные пакеты для учебного демо, реальные платежи здесь не обрабатываю
             "diamonds_100" => ("currency", 0, 100, 0),
@@ -25,4 +26,9 @@ impl Product {
         };
         Ok(Self { kind, price, amount, episode_id })
     }
+}
+
+pub fn valid_choice_sku(sku: &str) -> bool {
+    sku.strip_prefix("choice:").is_some_and(|key| !key.is_empty() && key.len() <= 64 &&
+        key.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_'))
 }

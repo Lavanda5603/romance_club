@@ -57,12 +57,16 @@ class SceneModel {
 
 // Доменная модель выбора
 class ChoiceModel {
+  final int diamondPrice; // Цена необязательного выбора
+  final String premiumKey; // Постоянная покупка для повторного прохождения
   final String text; // Текст выбора
   final String title; // Название
   final List<ActionModel> actions; // Действия
 
   // Конструктор
   const ChoiceModel({
+    this.diamondPrice = 0,
+    this.premiumKey = '',
     required this.text,
     required this.title,
     required this.actions,

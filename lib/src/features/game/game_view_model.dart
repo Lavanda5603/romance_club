@@ -117,6 +117,22 @@ class GameViewModel extends ChangeNotifier {
   // Геттер для баллов (общих)
   int get points => _points;
 
+  // Проверяю доступность платной сцены до оплаты, учитывая эффекты ответа без их применения.
+  bool canOpenPaidChoice(ChoiceModel choice) {
+    final targets = choice.actions.where((a) => a.type == 'nextScene').toList();
+    if (targets.length != 1 || _state.data == null) return false;
+    final scenes = _state.data!.scenes.where((s) => s.sceneKey == targets.single.sceneTarget);
+    if (scenes.isEmpty) return false;
+    final counters = {'points': _points, ..._counters};
+    final flags = Map<String, bool>.of(_flags);
+    for (final action in choice.actions) {
+      if (action.type == 'notification') continue;
+      if (action.counterName.isNotEmpty) counters[action.counterName] = (counters[action.counterName] ?? 0) + action.counterValue;
+      if (action.flagName.isNotEmpty) flags[action.flagName] = action.flagValue;
+    }
+    return SceneCondition.parse(scenes.first.condition).evaluate(counters, flags);
+  }
+
   // Геттер для счётчиков
   Map<String, int> get counters => _counters;
 

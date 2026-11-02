@@ -30,7 +30,7 @@ async fn invalid_payloads_are_rejected_before_database_access() {
     let flags = (0..257).map(|i| (format!("flag_{i}"), true)).collect();
     assert_eq!(progress.save_progress(own(SaveProgressRequest {player_id:"player:test".into(),episode_id:1,scene_id:"scene:test".into(),flags,..Default::default()})).await.unwrap_err().code(),Code::InvalidArgument);
     let shop = ShopApiService::new(db);
-    assert_eq!(shop.purchase(own(PurchaseRequest {player_id:"player:test".into(),item_id:"diamonds_100".into(),item_type:"currency".into(),request_id:"x".repeat(129)})).await.unwrap_err().code(),Code::InvalidArgument);
+    assert_eq!(shop.purchase(own(PurchaseRequest {player_id:"player:test".into(),item_id:"diamonds_100".into(),item_type:"currency".into(),request_id:"x".repeat(129), expected_price: 0})).await.unwrap_err().code(),Code::InvalidArgument);
 }
 
 async fn scenarios(db: Surreal<Client>) -> TestResult {
@@ -52,7 +52,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult {
 
     let shop = ShopApiService::new(db.clone());
     db.query("DEFINE FIELD OVERWRITE diamonds ON player_currency TYPE int ASSERT $value < 50;").await?.check()?;
-    assert_eq!(shop.purchase(own(PurchaseRequest { player_id:"player:test".into(), item_id:"diamonds_100".into(), item_type:"currency".into(), request_id:"test-topup".into() })).await.unwrap_err().code(), Code::Internal);
+    assert_eq!(shop.purchase(own(PurchaseRequest { player_id:"player:test".into(), item_id:"diamonds_100".into(), item_type:"currency".into(), request_id:"test-topup".into() , expected_price: 0})).await.unwrap_err().code(), Code::Internal);
     let mut result = db.query("SELECT * FROM purchase; SELECT * FROM player_currency;").await?.check()?;
     let purchases: Vec<Value> = result.take(0)?;
     let balances: Vec<Value> = result.take(1)?;

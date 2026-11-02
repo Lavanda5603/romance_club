@@ -146,7 +146,9 @@ class _MainMenuState extends State<MainMenu> {
 
                 // Основной блок с текстом и кнопками
                 Expanded(
-                  child: Padding(
+                  child: LayoutBuilder(builder: (context, constraints) => SingleChildScrollView(
+                    child: ConstrainedBox(constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -210,18 +212,6 @@ class _MainMenuState extends State<MainMenu> {
 
                         const SizedBox(height: 20),
 
-                        TextButton.icon(
-                          onPressed: withButtonSound(() => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const HiddenSceneAlbumScreen()))),
-                          icon: const Icon(Icons.auto_stories, color: Colors.white),
-                          label: const Text('Альбом скрытых сцен', style: TextStyle(color: Colors.white)),
-                        ),
-                        TextButton.icon(
-                          onPressed: withButtonSound(() => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const DiaryScreen()))),
-                          icon: const Icon(Icons.book_outlined, color: Color(0xFFFFA0A0)),
-                          label: const Text('Мой дневник', style: TextStyle(color: Color(0xFFFFA0A0))),
-                        ),
                         // Кнопка разработчик (активна только для админа)
                         SizedBox(
                           width: 220,
@@ -257,9 +247,22 @@ class _MainMenuState extends State<MainMenu> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: withButtonSound(() => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const HiddenSceneAlbumScreen()))),
+                          child: const Text('Альбом скрытых сцен', style: TextStyle(color: Colors.white)),
+                        ),
+                        TextButton(
+                          onPressed: withButtonSound(() => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const DiaryScreen()))),
+                          child: const Text('Мой дневник', style: TextStyle(color: Color(0xFFFFA0A0))),
+                        ),
                       ],
                     ),
                   ),
+                    ),
+                  )),
                 ),
               ],
             ),

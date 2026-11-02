@@ -96,7 +96,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
                     Choice { text: "Первый".into(), title: "С действиями".into(), actions: vec![
                         Action { r#type: "setFlag".into(), flag_name: "met".into(), flag_value: true, title: "Флаг".into(), ..Default::default() },
                         Action { r#type: "changeCounter".into(), counter_name: "score".into(), counter_value: -3, title: "Баллы".into(), ..Default::default() },
-                    ] },
+                    ], ..Default::default() },
                     Choice { text: "Второй".into(), title: "Без действий".into(), ..Default::default() },
                 ], ..Default::default() },
             Scene { scene_key: "draft:a".into(), title: "Потом".into(), ..Default::default() },

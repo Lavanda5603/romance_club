@@ -296,12 +296,14 @@ class PurchaseRequest extends $pb.GeneratedMessage {
     $core.String? itemId,
     $core.String? itemType,
     $core.String? requestId,
+    $core.int? expectedPrice,
   }) {
     final result = PurchaseRequest._();
     if (playerId != null) result.playerId = playerId;
     if (itemId != null) result.itemId = itemId;
     if (itemType != null) result.itemType = itemType;
     if (requestId != null) result.requestId = requestId;
+    if (expectedPrice != null) result.expectedPrice = expectedPrice;
     return result;
   }
 
@@ -322,6 +324,7 @@ class PurchaseRequest extends $pb.GeneratedMessage {
     ..aOS(2, _omitFieldNames ? '' : 'itemId')
     ..aOS(3, _omitFieldNames ? '' : 'itemType')
     ..aOS(4, _omitFieldNames ? '' : 'requestId')
+    ..aI(5, _omitFieldNames ? '' : 'expectedPrice')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -381,6 +384,15 @@ class PurchaseRequest extends $pb.GeneratedMessage {
   $core.bool hasRequestId() => $_has(3);
   @$pb.TagNumber(4)
   void clearRequestId() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get expectedPrice => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set expectedPrice($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasExpectedPrice() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearExpectedPrice() => $_clearField(5);
 }
 
 /// Ответ после покупки

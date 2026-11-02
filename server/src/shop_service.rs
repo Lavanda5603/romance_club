@@ -58,7 +58,7 @@ impl ShopApi for ShopApiService {
 
         let mut response = self
             .db
-            .query("SELECT * FROM purchase WHERE player_id = type::record($player_id); SELECT VALUE id FROM episode;")
+            .query("SELECT * FROM purchase WHERE player_id = type::record($player_id); SELECT VALUE id FROM episode; SELECT VALUE premium_key FROM choice WHERE diamond_price >= 15 AND diamond_price <= 50;")
             .bind(("player_id", player_id.clone()))
             .await
             .map_err(|e| Status::internal(e.to_string()))?
@@ -68,6 +68,7 @@ impl ShopApi for ShopApiService {
             .take(0)
             .map_err(|e| Status::internal(e.to_string()))?;
         let episodes: Vec<RecordId> = response.take(1).map_err(|e| Status::internal(e.to_string()))?;
+        let premium_keys: Vec<String> = response.take(2).map_err(|e| Status::internal(e.to_string()))?;
 
         let purchases = values
             .into_iter()
@@ -83,6 +84,7 @@ impl ShopApi for ShopApiService {
                 // Старые записи с неправильным SKU или типом не выдают право
                 let entitlement_active = Product::find(&item_id).is_ok_and(|product|
                     product.kind == item_type && (product.kind == "subscription" ||
+                        (product.kind == "choice" && premium_keys.contains(&item_id)) ||
                         (product.kind == "episode" && episodes.iter().any(|id| id.to_sql() == item_id))));
                 Purchase {
                     item_id,
@@ -108,7 +110,16 @@ impl ShopApi for ShopApiService {
             return Err(Status::invalid_argument("Слишком длинный ключ покупки"));
         }
         let item_id = req.item_id;
-        let product = Product::find(&item_id)?;
+        let mut product = Product::find(&item_id)?;
+        if product.kind == "choice" {
+            let mut result = self.db.query("SELECT VALUE diamond_price FROM choice WHERE premium_key = $sku AND diamond_price >= 15 AND diamond_price <= 50 AND record::exists(scene_id) LIMIT 2")
+                .bind(("sku", item_id.clone())).await.map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
+            let prices: Vec<i32> = result.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            if prices.len() != 1 { return Err(Status::invalid_argument("Платный выбор не найден или неоднозначен")); }
+            product.price = prices[0];
+            if req.expected_price != product.price { return Err(Status::failed_precondition("Цена изменилась. Заново откройте эпизод")); }
+        }
         if req.item_type != product.kind {
             return Err(Status::invalid_argument("Тип покупки не соответствует товару"));
         }

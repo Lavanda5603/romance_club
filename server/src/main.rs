@@ -1,5 +1,7 @@
 mod relationship_rules; // Подключаю настройки уровней отношений
 #[cfg(test)]
+mod premium_choice_tests; // Проверяю платный выбор без расходов рабочего игрока
+#[cfg(test)]
 mod ending_gallery_tests; // Проверяю историю финалов отдельно от рабочего прогресса
 mod episode_delete; // Подключаю транзакционное удаление дерева эпизода
 mod migrations; // Подключаю одноразовый запуск миграций
@@ -222,7 +224,9 @@ impl EpisodeApi for EpisodeApiService {
                     })
                     .collect();
 
-                choices.push(Choice { text, title: choice_title, actions });
+                choices.push(Choice { text, title: choice_title, actions,
+                    diamond_price: choice_value.get("diamond_price").and_then(Value::as_i64).unwrap_or(0) as i32,
+                    premium_key: choice_value.get("premium_key").and_then(Value::as_str).unwrap_or_default().to_owned() });
             }
 
             // Читаю next_scene_id (0 = конец)

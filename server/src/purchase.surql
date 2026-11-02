@@ -1,4 +1,9 @@
 BEGIN TRANSACTION;
+-- Повторно сверяю цену выбора внутри транзакции: клиент не назначает стоимость.
+IF $item_type = 'choice' {
+    LET $offers = SELECT VALUE diamond_price FROM choice WHERE premium_key = $item_id AND record::exists(scene_id);
+    IF array::len($offers) != 1 OR $offers[0] != $price OR $price < 15 OR $price > 50 { THROW 'SHOP_UNKNOWN_SKU'; };
+};
 -- Проверяю существование эпизода в той же транзакции, что и оплату
 IF $item_type = 'episode' AND !record::exists(type::record('episode', $episode_id)) { THROW 'SHOP_UNKNOWN_SKU'; };
 LET $player = type::record($player_id);

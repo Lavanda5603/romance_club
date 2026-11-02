@@ -70,6 +70,8 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
           routes: scene.routes.map((r) => SceneRouteModel(condition: r.condition, sceneKey: r.sceneKey)).toList(),
           choices: scene.choices.map((choice) {
             return ChoiceModel(
+              diamondPrice: choice.diamondPrice,
+              premiumKey: choice.premiumKey,
               text: choice.text,
               title: choice.title,
               actions: choice.actions.map((action) {
@@ -123,6 +125,8 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
       // Добавляю выборы
       for (final choice in scene.choices) {
         final protoChoice = Choice(
+          diamondPrice: choice.diamondPrice,
+          premiumKey: choice.premiumKey,
           text: choice.text,
           title: choice.title,
         );

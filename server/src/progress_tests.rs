@@ -36,6 +36,8 @@ async fn current_save(api: &ProgressApiService, points: i32) -> Result<Request<S
 }
 
 async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Сводка включает коллекцию финалов; здесь история намеренно пустая.
+    db.query("DEFINE TABLE IF NOT EXISTS episode_completion SCHEMALESS;").await?.check()?;
     db.query(include_str!("../migrations/006_progress.surql")).await?.check()?;
     db.query(include_str!("../migrations/016_progress_completed.surql")).await?.check()?;
     db.query(include_str!("../migrations/020_progress_generation.surql")).await?.check()?;

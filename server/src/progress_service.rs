@@ -185,6 +185,9 @@ impl ProgressApi for ProgressApiService {
             if messages.contains("PROGRESS_SCENE_INVALID") {
                 return Err(Status::invalid_argument("Сцена не принадлежит эпизоду"));
             }
+            if messages.contains("PREMIUM_CHOICE_REQUIRED") {
+                return Err(Status::permission_denied("Сначала откройте этот особый выбор за алмазы"));
+            }
             return Err(Status::internal(messages));
         }
         result.check().map_err(|e| Status::internal(e.to_string()))?;

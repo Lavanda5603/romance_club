@@ -36,12 +36,14 @@ class ShopGrpcService {
     required String itemId,
     required String itemType,
     String? requestId,
+    int expectedPrice = 0,
   }) async {
     final request = PurchaseRequest(
       playerId: playerId,
       itemId: itemId,
       itemType: itemType,
       requestId: requestId ?? List.generate(16, (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0')).join(),
+      expectedPrice: expectedPrice,
     );
     return await _client.purchase(request, options: await authOptions());
   }

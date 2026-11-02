@@ -13,6 +13,8 @@ import 'package:romance_club/src/domain/models/asset_model.dart'; // Импор�
 import 'package:romance_club/src/domain/repositories/episode_repository.dart'; // Импорт загрузки эпизода
 import 'package:romance_club/src/domain/repositories/asset_repository.dart'; // Импорт загрузки картинок
 import 'package:romance_club/src/features/game/game_view_model.dart'; // Импорт игровой логики
+import 'package:romance_club/src/data/services/shop_grpc_service.dart'; // Импорт подмены оплаты
+import 'package:romance_club/generated/shop_api.pb.dart' as shop; // Импорт результата покупки
 
 class _Episodes implements EpisodeRepository {
   final calls = <int>[];
@@ -61,6 +63,20 @@ class _Assets implements AssetRepository {
     required String displayName, required String episodeId, required Uint8List fileData, required String fileName}) async => null;
 }
 
+class _Shop extends ShopGrpcService {
+  int payments = 0;
+  bool success = true;
+  @override
+  Future<shop.GetPurchasesResponse> getPurchases(String playerId) async => shop.GetPurchasesResponse();
+  @override
+  Future<shop.PurchaseResponse> purchase({required String playerId, required String itemId, required String itemType,
+    String? requestId, int expectedPrice = 0}) async {
+    expect(expectedPrice,30);
+    payments++;
+    return shop.PurchaseResponse(success: success, message: success ? 'Готово' : 'Не хватает алмазов');
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('plugins.flutter.io/path_provider');
@@ -90,6 +106,36 @@ void main() {
     }
   }
   Finder pictures() => find.byWidgetPredicate((widget) => widget is Image && widget.image is MemoryImage);
+
+  for (final enough in [true,false]) {
+    testWidgets('Платный выбор открываю только после подтверждения сервера: $enough', (tester) async {
+      final original = story(1);
+      final first = original.scenes.first;
+      final scenes = [SceneModel(id:first.id,sceneKey:first.sceneKey,title:first.title,background:first.background,
+        character:first.character,characterEmotion:first.characterEmotion,texts:['Разговор на крыше'],
+        choices:[ChoiceModel(text:'Остаться',title:'Разговор',diamondPrice:30,premiumKey:'choice:test',actions:[
+          const ActionModel(type:'nextScene',sceneId:0,sceneKey:'scene:12',flagName:'',flagValue:false,counterName:'',counterValue:0,soundPath:'',imagePath:'',title:'Переход'),
+        ])],condition:'',textPosition:'bottom_center',characterPosition:'center',nextSceneId:0),original.scenes.last];
+      final episodes = _Episodes()..pending=Completer<EpisodeModel>();
+      final vm = GameViewModel(episodes);
+      final payments = _Shop()..success=enough;
+      addTearDown(vm.dispose);
+      addTearDown(payments.close);
+      await tester.pumpWidget(MaterialApp(home:GameScreen(episode:Episode(id:1),viewModel:vm,assetRepository:_Assets(bytes),shopService:payments)));
+      episodes.pending!.complete(EpisodeModel(id:1,title:'Тест',version:1,scenes:scenes));
+      await drain(tester);
+      expect(find.text(' 30'),findsOneWidget);
+      await tester.tap(find.text('Остаться'));
+      await drain(tester);
+      expect(payments.payments,0);
+      expect(find.text('Особый выбор'),findsOneWidget);
+      await tester.tap(find.text('Открыть'));
+      await drain(tester);
+      expect(payments.payments,1);
+      expect(vm.currentScene!.sceneKey,enough ? 'scene:12' : first.sceneKey);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 
   testWidgets('Сообщение появляется только после выбора, без эффектов и повторов загрузки', (tester) async {
     final source = story(1).scenes.first;

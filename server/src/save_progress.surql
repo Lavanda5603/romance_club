@@ -13,6 +13,9 @@ IF ($saved.revision ?? 0) != $expected_revision { THROW 'PROGRESS_CONFLICT'; };
 IF !record::exists(type::record($scene_id)) OR (SELECT VALUE episode_id FROM ONLY type::record($scene_id)) != type::record('episode', $episode_id) {
     THROW 'PROGRESS_SCENE_INVALID';
 };
+-- Не сохраняю вход в платную сцену без подтверждённой покупки.
+LET $premium = (SELECT VALUE premium_key FROM ONLY type::record($scene_id)) ?? '';
+IF $premium != '' AND array::len(SELECT VALUE id FROM purchase WHERE player_id = type::record($player_id) AND item_id = $premium AND item_type = 'choice') = 0 { THROW 'PREMIUM_CHOICE_REQUIRED'; };
 UPSERT $key CONTENT {
     player_id: type::record($player_id),
     episode_id: type::record('episode', $episode_id),

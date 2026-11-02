@@ -1,4 +1,7 @@
 import '../widgets/consequence_notice.dart'; // Импорт реакции после выбора
+import '../src/data/services/shop_grpc_service.dart'; // Импорт подтверждения оплаты на сервере
+import '../services/storage_service.dart'; // Импорт владельца покупки
+import '../src/domain/models/episode_model.dart'; // Импорт модели платного выбора
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
@@ -23,6 +26,7 @@ import '../src/core/ending_art.dart'; // Импорт соответствий �
 class GameScreen extends StatefulWidget {
   final AssetRepository? assetRepository;
   final GameViewModel? viewModel;
+  final ShopGrpcService? shopService; // Подменяю только оплату в проверках
   final Episode episode; // Эпизод (Protobuf)
   final bool startFromBeginning;
 
@@ -32,6 +36,7 @@ class GameScreen extends StatefulWidget {
     required this.episode,
     this.assetRepository,
     this.viewModel,
+    this.shopService,
     this.startFromBeginning = false,
   });
 
@@ -40,6 +45,61 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
+  late final ShopGrpcService _shop; // Не списываю баланс локально
+  bool _buyingChoice = false;
+  final _ownedChoices = <String>{}; // Подтверждённые покупки текущего экрана
+
+  Future<void> _choose(int index, ChoiceModel choice) async {
+    if (_buyingChoice || _leaving || _finishingEpisode || _viewModel.saveError != null) return;
+    final choices = _viewModel.currentScene?.choices;
+    if (choices == null || index < 0 || index >= choices.length || !identical(choices[index], choice)) return;
+    final sceneKey = _viewModel.currentScene?.sceneKey;
+    if (choice.diamondPrice > 0) {
+      if (!_viewModel.canOpenPaidChoice(choice)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Условия этой сцены пока не выполнены. Алмазы не списаны.')));
+        return;
+      }
+      setState(() => _buyingChoice = true);
+      try {
+        final player = await StorageService.loadPlayerId();
+        if (player.isEmpty) throw StateError('Сначала войди в аккаунт');
+        final purchases = await _shop.getPurchases(player);
+        if (!mounted) return;
+        final owned = purchases.purchases.any((p) => p.itemId == choice.premiumKey && p.itemType == 'choice' && p.entitlementActive);
+        if (!owned) {
+          final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF3F0404),
+            title: const Text('Особый выбор', style: TextStyle(color: Color(0xFFFFA0A0))),
+            content: Text('Открыть этот выбор за ${choice.diamondPrice} алмазов? Покупка останется при переигрывании.', style: const TextStyle(color: Colors.white)),
+            actions: [
+              TextButton(onPressed: withButtonSound(() => Navigator.pop(context, false)), child: const Text('Отмена',style:TextStyle(color:Color(0xFFFFA0A0)))),
+              TextButton(onPressed: withButtonSound(() => Navigator.pop(context, true)), child: const Text('Открыть',style:TextStyle(color:Color(0xFFFFA0A0)))),
+            ],
+          ));
+          if (confirmed != true || !mounted) return;
+        }
+        // Повтор покупки возвращает подтверждённое право без нового списания.
+        final paid = await _shop.purchase(playerId: player, itemId: choice.premiumKey, itemType: 'choice', expectedPrice: choice.diamondPrice);
+        if (!mounted) return;
+        if (!paid.success) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${paid.message}. Можно выбрать бесплатное продолжение или пополнить алмазы в магазине.')));
+          return;
+        }
+        _ownedChoices.add(choice.premiumKey);
+      } catch (error) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(error))));
+        return;
+      } finally {
+        if (mounted) setState(() => _buyingChoice = false);
+      }
+    }
+    if (!mounted || _viewModel.currentScene?.sceneKey != sceneKey) return;
+    final current = _viewModel.currentScene!.choices;
+    if (index >= current.length || !identical(current[index], choice)) return;
+    final notices = choice.actions.where((a) => a.type == 'notification');
+    _viewModel.onChoiceSelected(index);
+    _consequence.show(context, notices.isEmpty ? '' : notices.first.title);
+  }
   final _consequence = ConsequenceNotice(); // Не сохраняю уведомления между запусками
   late GameViewModel _viewModel; // ViewModel
   late EpisodeGrpcService _episodeService; // gRPC-сервис эпизодов
@@ -64,6 +124,7 @@ class _GameScreenState extends State<GameScreen> {
 
   // Перед выходом дожидаюсь последнего сохранения
   Future<void> _leaveGame() async {
+    if (_buyingChoice) return;
     if (_leaving) return;
     _leaving = true;
     await _viewModel.flushProgress();
@@ -79,6 +140,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    _shop = widget.shopService ?? ShopGrpcService();
     _episodeService = EpisodeGrpcService();
     _progressService = ProgressGrpcService();
     _achievementService = AchievementGrpcService();
@@ -95,6 +157,7 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    if (widget.shopService == null) _shop.close();
     _consequence.hide();
     _viewModel.removeListener(_loadAssets);
     _episodeService.close();
@@ -500,13 +563,7 @@ class _GameScreenState extends State<GameScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: GestureDetector(
-                            onTap: withButtonSound(() {
-                              if (_leaving || _finishingEpisode || _viewModel.saveError != null) return;
-                              final notices = choice.actions.where((a) => a.type == 'notification');
-                              final message = notices.isEmpty ? '' : notices.first.title;
-                              _viewModel.onChoiceSelected(index);
-                              _consequence.show(context, message);
-                            }),
+                            onTap: withButtonSound(_buyingChoice ? null : () => _choose(index, choice)),
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
@@ -524,7 +581,13 @@ class _GameScreenState extends State<GameScreen> {
                                       ),
                                     ),
                                   ),
-                                  Container(
+                                  if (choice.diamondPrice > 0) ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.diamond_outlined, size: 19, color: Color(0xFF3F0404)),
+                                    if (_buyingChoice) const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2,color:Color(0xFF3F0404)))
+                                    else Text(_ownedChoices.contains(choice.premiumKey) ? ' Открыто' : ' ${choice.diamondPrice}',
+                                      style: const TextStyle(color: Color(0xFF3F0404), fontWeight: FontWeight.bold)),
+                                  ] else Container(
                                     width: 12,
                                     height: 12,
                                     decoration: const BoxDecoration(

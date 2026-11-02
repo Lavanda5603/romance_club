@@ -17,7 +17,7 @@ DELETE choice WHERE scene_id IN $old_scenes;
 FOR $scene IN $scenes {
     LET $scene_id = type::record($scene.key);
     LET $data = {
-        episode_id: $episode, title: $scene.title,
+        episode_id: $episode, title: $scene.title, premium_key: $scene.premium_key,
         background: $scene.background, character: $scene.character,
         character_emotion: $scene.character_emotion, texts: $scene.texts,
         condition: $scene.condition, routes: $scene.routes, text_position: $scene.text_position,
@@ -31,10 +31,12 @@ FOR $scene IN $scenes {
         UPDATE $scene_id MERGE $data;
     };
     FOR $choice IN $scene.choices {
+        IF $choice.diamond_price > 0 AND array::len(SELECT VALUE id FROM choice WHERE premium_key = $choice.premium_key AND diamond_price > 0) > 0 { THROW 'PREMIUM_KEY_DUPLICATE'; };
         LET $choice_id = type::record('choice', rand::ulid());
         CREATE $choice_id CONTENT {
             scene_id: $scene_id, text: $choice.text,
-            title: $choice.title, order_index: $choice.order_index
+            title: $choice.title, order_index: $choice.order_index,
+            diamond_price: $choice.diamond_price, premium_key: $choice.premium_key
         };
         FOR $action IN $choice.actions {
             CREATE action CONTENT {

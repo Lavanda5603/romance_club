@@ -24,11 +24,15 @@ class Choice extends $pb.GeneratedMessage {
     $core.String? text,
     $core.Iterable<$0.Action>? actions,
     $core.String? title,
+    $core.int? diamondPrice,
+    $core.String? premiumKey,
   }) {
     final result = Choice._();
     if (text != null) result.text = text;
     if (actions != null) result.actions.addAll(actions);
     if (title != null) result.title = title;
+    if (diamondPrice != null) result.diamondPrice = diamondPrice;
+    if (premiumKey != null) result.premiumKey = premiumKey;
     return result;
   }
 
@@ -49,6 +53,8 @@ class Choice extends $pb.GeneratedMessage {
     ..pPM<$0.Action>(2, _omitFieldNames ? '' : 'actions',
         subBuilder: $0.Action.$_createMessage)
     ..aOS(3, _omitFieldNames ? '' : 'title')
+    ..aI(4, _omitFieldNames ? '' : 'diamondPrice')
+    ..aOS(5, _omitFieldNames ? '' : 'premiumKey')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -91,6 +97,24 @@ class Choice extends $pb.GeneratedMessage {
   $core.bool hasTitle() => $_has(2);
   @$pb.TagNumber(3)
   void clearTitle() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get diamondPrice => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set diamondPrice($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasDiamondPrice() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearDiamondPrice() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get premiumKey => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set premiumKey($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasPremiumKey() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearPremiumKey() => $_clearField(5);
 }
 
 const $core.bool _omitFieldNames =

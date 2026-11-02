@@ -3,6 +3,8 @@ import '../generated/scene.pb.dart'; // Сцены эпизода
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/choice.pb.dart'; // Импорт Protobuf-модели Choice
 import 'action_editor_screen.dart'; // Импорт экрана редактора действия
+import '../generated/action.pb.dart' as story; // Импорт записи решения как действия
+import '../src/core/scene_links.dart'; // Импорт постоянного ключа записи
 
 // Экран редактирования выбора
 class ChoiceEditorScreen extends StatefulWidget {
@@ -29,12 +31,15 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
   late TextEditingController _titleController; // Контроллер для поля ввода названия
   late TextEditingController _textController; // Контроллер для поля ввода текста
   late Choice _choice; // Локальный выбор (создаётся, если widget.choice == null)
+  late TextEditingController _diaryController; // Текст записи после этого решения
 
   @override
   void initState() {
     super.initState();
     // Меняю копию, пока выбор не сохранён
     _choice = widget.choice?.deepCopy() ?? Choice();
+    final entries = _choice.actions.where((a) => a.flagName.startsWith('diary_'));
+    _diaryController = TextEditingController(text: entries.isEmpty ? '' : entries.first.title);
 
     // Если выбор новый - задаю текст по умолчанию
     if (_choice.text.isEmpty) {
@@ -58,6 +63,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     // Освобождение ресурса контроллера при закрытии экрана
     _textController.dispose();
     _titleController.dispose();
+    _diaryController.dispose();
     super.dispose();
   }
 
@@ -66,6 +72,18 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     // Обновляю название и текст выбора
     _choice.title = _titleController.text;
     _choice.text = _textController.text;
+    // Храню запись в обычном действии: сервер сохраняет её вместе с выбором.
+    final entries = _choice.actions.where((a) => a.flagName.startsWith('diary_')).toList();
+    final text = _diaryController.text.trim();
+    if (text.length > 500) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Запись дневника — не больше 500 символов')));
+      return;
+    }
+    final key = entries.isEmpty ? 'diary_${newSceneKey().substring(6)}' : entries.first.flagName;
+    _choice.actions.removeWhere((a) => a.flagName.startsWith('diary_'));
+    if (text.isNotEmpty) {
+      _choice.actions.add(story.Action(type: 'changeFlag', flagName: key, flagValue: true, title: text));
+    }
 
     // Вызываю функцию onSave (передаю выбор родителю)
     widget.onSave(_choice.deepCopy());
@@ -315,6 +333,19 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                         ),
                         const SizedBox(height: 8),
 
+                        TextField(
+                          key: const ValueKey('diary-entry-editor'),
+                          controller: _diaryController,
+                          maxLength: 500,
+                          maxLines: 3,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Запись в «Мой дневник»',
+                            helperText: 'Появится после этого выбора. Пусто — без записи.',
+                            labelStyle: TextStyle(color: Color(0xFFFFA0A0)),
+                            helperStyle: TextStyle(color: Colors.white70),
+                          ),
+                        ),
                         // Кнопка сохранить
                         SizedBox(
                           width: 200, // Уже

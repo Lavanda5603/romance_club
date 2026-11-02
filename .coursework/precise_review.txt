@@ -1,0 +1,149 @@
+TEXT CHANGES 
+HEADING 24 ВВЕДЕНИЕ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 44 1 АНАЛИЗ ПРЕДМЕТНОЙ ОБЛАСТИ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 45 1.1 АНАЛИЗ ОБЪЕКТА ИССЛЕДОВАНИЯ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 46 1.1.1 Общая характеристика процесса выбора косметики line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 51 1.1.2 Характеристика субъектов и объектов системы line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 56 1.1.3 Основные проблемы и недостатки текущего процесса line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 59 1.2 СТРАТЕГИЯ ИНФОРМАТИЗАЦИИ ОБЪЕКТА ИССЛЕДОВАНИЯ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 60 1.2.1 Обзор существующих решений line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 64 1.2.2 Цель и принципы стратегии line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 71 1.2.3 Механизм реализации стратегии line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 78 1.3 АНАЛИЗ ПРЕДМЕТА ИССЛЕДОВАНИЯ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 79 1.3.1 Суть алгоритма подбора косметических средств line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 87 1.3.2 Методика расчёта рейтинга совместимости line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 90 1.3.3 Моделирование пользовательских сценариев line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 102 1.4 ПОСТАНОВКА ЗАДАЧИ НА АВТОМАТИЗАЦИЮ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 103 1.4.1 Функциональные требования к системе line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 117 Таблица 1 – Спецификация функциональных требований
+NONJUSTIFY 118 Продолжение таблицы 1
+HEADING 119 1.4.2 Нефункциональные требования line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 123 2 ПРОЕКТНАЯ ЧАСТЬ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 124 2.1 ПРОЕКТИРОВАНИЕ ИНФОРМАЦИОННОГО ОБЕСПЕЧЕНИЯ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 125 2.1.1 Архитектура системы line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 131 Рисунок 1 – Схема клиент-серверного взаимодействия
+HEADING 132 2.1.2 Обоснование выбора СУБД line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 142 Рисунок 2 – Установленные «NuGet-пакеты»
+HEADING 143 2.1.3 Логическая модель базы данных line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 145 Таблица 2 – Состав таблиц базы данных
+HEADING 148 2.1.4 Физическая реализация базы данных line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 153 Рисунок 3 – Структура таблицы «Products» в «pgAdmin»
+HEADING 155 2.1.5 Классификаторы и система кодирования информации line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 157 Таблица 3 – Способы хранения классификационных признаков
+NONJUSTIFY 160 Таблица 4 – Перечень классификаторов и их значений
+NONJUSTIFY 161 Продолжение таблицы 4
+HEADING 163 2.1.6 Организация информационной базы line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 168 Таблица 5 – Описание таблиц НСИ и ОИ
+HEADING 170 2.1.7 Формы выходных документов line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 175 Рисунок 4 – Каталог товаров
+NONJUSTIFY 177 Рисунок 5 – Страница подборки
+NONJUSTIFY 179 Рисунок 6 – Личный кабинет
+NONJUSTIFY 181 Рисунок 7 – Админ-панель
+HEADING 182 2.2 ПРОЕКТИРОВАНИЕ ПРОГРАММНОГО ОБЕСПЕЧЕНИЯ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 183 2.2.1 Структура программного обеспечения line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 190 Рисунок 8 – Дерево программных модулей
+NONJUSTIFY 198 Рисунок 9 – «UML-диаграмма» классов
+HEADING 199 2.2.2 Алгоритм подбора – ядро системы line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 204 Таблица 6 – Правила начисления баллов алгоритма подбора
+NONJUSTIFY 205 Продолжение таблицы 6
+NONJUSTIFY 208 Рисунок 10 – Блок-схема алгоритма подбора
+HEADING 223 2.2.3 Логика обработки ответов пользователя line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 227 2.2.4 Моделирование пользовательских сценариев line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 232 Рисунок 11 – «BPMN-диаграмма» пользовательского сценария
+HEADING 233 2.3 УПРАВЛЕНИЕ ПРОЕКТОМ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 234 2.3.1 Календарный план-график работ line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 248 Рисунок 12 – Диаграмма Ганта
+HEADING 249 2.3.2 Бюджет на разработку line 1.5 before 0 after 0 align CENTER (1) keep True
+HEADING 252 2.3.3 Оценка рисков и способы их минимизации line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 254 Таблица 7 – Риски проекта и способы их минимизации
+HEADING 256 3 РАЗРАБОТКА ИНФОРМАЦИОННОЙ СИСТЕМЫ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 257 3.1 ПРОГРАММНО-ТЕХНИЧЕСКАЯ РЕАЛИЗАЦИЯ РЕШЕНИЯ ПОСТАВЛЕННОЙ ЗАДАЧИ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 258 3.1.1 Структура программного обеспечения line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 260 3.1.2 Спецификации программных модулей line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 273 3.1.3 Пользовательский интерфейс line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 278 Рисунок 13 – Страница анкеты (первый шаг)
+NONJUSTIFY 282 Рисунок 14 – Корзина с товарами
+NONJUSTIFY 285 Рисунок 15 – Страница оформления заказа
+NONJUSTIFY 288 Рисунок 16 – Страница «Спасибо за заказ»
+NONJUSTIFY 293 Рисунок 17 – Диаграмма последовательности «UML»
+HEADING 294 3.1.4 Обеспечение информационной безопасности line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 299 Таблица 8 – Распределение прав доступа
+HEADING 303 3.2 ТЕСТИРОВАНИЕ, ОЦЕНКА КАЧЕСТВА И ВНЕДРЕНИЕ line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 304 3.2.1 Исходные данные и результаты работы системы line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 312 Таблица 9 – Результаты тестирования
+NONJUSTIFY 313 Продолжение таблицы 9
+HEADING 314 3.2.2 Поэтапное описание работы с системой line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 320 Рисунок 18 – «PWA» на домашнем экране телефона
+NONJUSTIFY 322 Рисунок 19 – «PWA» в полноэкранном режиме
+HEADING 323 3.2.3 Порядок внедрения проекта line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 326 3.3 ОЦЕНКА ЭФФЕКТИВНОСТИ ПРОЕКТА line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 327 3.3.1 Анализ затрат на ресурсное обеспечение line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 333 3.3.2 Качественные и количественные эффекты line 2.0 before 0 after 0 align CENTER (1) keep True
+HEADING 338 3.3.3 Расчёт экономической эффективности line 2.0 before 0 after 0 align CENTER (1) keep True
+NONJUSTIFY 340 Таблица 10 – Оценка затрат и возможной экономии
+HEADING 342 ЗАКЛЮЧЕНИЕ line 2.0 before 0 after 0 align CENTER (1) keep True
+TABLESTATS 0 Counter({('JUSTIFY (3)', '1.0', '0'): 24, ('CENTER (1)', '1.0', '0'): 4})
+TABLESTATS 1 Counter({('JUSTIFY (3)', '1.0', '0'): 8, ('CENTER (1)', '1.0', '0'): 4})
+TABLEALIGN 2 0 0 CENTER (1) Таблица
+TABLEALIGN 2 0 1 CENTER (1) Назначение
+TABLESTATS 2 Counter({('JUSTIFY (3)', '1.0', '0'): 22, ('CENTER (1)', '1.0', '0'): 2})
+TABLEALIGN 3 0 0 CENTER (1) Наименование признака
+TABLEALIGN 3 0 1 CENTER (1) Способ хранения
+TABLEALIGN 3 0 2 CENTER (1) Пример значения
+TABLEALIGN 3 0 3 CENTER (1) Вид классификатора
+TABLESTATS 3 Counter({('JUSTIFY (3)', '1.0', '0'): 40, ('CENTER (1)', '1.0', '0'): 4})
+TABLEALIGN 4 0 0 CENTER (1) Классификатор
+TABLEALIGN 4 0 1 CENTER (1) Значения
+TABLEALIGN 4 0 2 CENTER (1) Где используется
+TABLESTATS 4 Counter({('JUSTIFY (3)', '1.0', '0'): 18, ('CENTER (1)', '1.0', '0'): 3})
+TABLEALIGN 5 0 0 CENTER (1) Классификатор
+TABLEALIGN 5 0 1 CENTER (1) Значения
+TABLEALIGN 5 0 2 CENTER (1) Где используется
+TABLESTATS 5 Counter({('JUSTIFY (3)', '1.0', '0'): 18, ('CENTER (1)', '1.0', '0'): 3})
+TABLEALIGN 6 0 0 CENTER (1) Таблица
+TABLEALIGN 6 0 1 CENTER (1) Тип
+TABLEALIGN 6 0 2 CENTER (1) Назначение
+TABLEALIGN 6 0 3 CENTER (1) Когда применяется
+TABLESTATS 6 Counter({('JUSTIFY (3)', '1.0', '0'): 44, ('CENTER (1)', '1.0', '0'): 4})
+TABLEALIGN 7 0 0 CENTER (1) ,
+TABLEALIGN 7 0 1 RIGHT (2) (1)
+TABLESTATS 7 Counter({('CENTER (1)', '1.5', '0'): 1, ('RIGHT (2)', '1.5', '0'): 1})
+TABLEALIGN 8 0 0 CENTER (1) №
+TABLEALIGN 8 0 1 CENTER (1) Фактор
+TABLEALIGN 8 0 2 CENTER (1) Баллы
+TABLEALIGN 8 0 3 CENTER (1) Логика
+TABLESTATS 8 Counter({('JUSTIFY (3)', '1.0', '0'): 32, ('CENTER (1)', '1.0', '0'): 4})
+TABLEALIGN 9 0 0 CENTER (1) №
+TABLEALIGN 9 0 1 CENTER (1) Фактор
+TABLEALIGN 9 0 2 CENTER (1) Баллы
+TABLEALIGN 9 0 3 CENTER (1) Логика
+TABLESTATS 9 Counter({('JUSTIFY (3)', '1.0', '0'): 36, ('CENTER (1)', '1.0', '0'): 4})
+TABLEALIGN 10 0 0 CENTER (1) Риск
+TABLEALIGN 10 0 1 CENTER (1) Что произошло
+TABLEALIGN 10 0 2 CENTER (1) Как решено
+TABLESTATS 10 Counter({('JUSTIFY (3)', '1.0', '0'): 24, ('CENTER (1)', '1.0', '0'): 3})
+TABLEALIGN 11 0 0 CENTER (1) Функция
+TABLEALIGN 11 0 1 CENTER (1) Гость
+TABLEALIGN 11 0 2 CENTER (1) Пользователь
+TABLEALIGN 11 0 3 CENTER (1) Администратор
+TABLESTATS 11 Counter({('JUSTIFY (3)', '1.0', '0'): 60, ('CENTER (1)', '1.0', '0'): 4})
+TABLEALIGN 12 0 0 CENTER (1) №
+TABLEALIGN 12 0 1 CENTER (1) Профиль
+TABLEALIGN 12 0 2 CENTER (1) ТОП-3 товара
+TABLEALIGN 12 0 3 CENTER (1) Сбои при выполнении
+TABLESTATS 12 Counter({('JUSTIFY (3)', '1.0', '0'): 8, ('CENTER (1)', '1.0', '0'): 4})
+TABLEALIGN 13 0 0 CENTER (1) №
+TABLEALIGN 13 0 1 CENTER (1) Профиль
+TABLEALIGN 13 0 2 CENTER (1) ТОП-3 товара
+TABLEALIGN 13 0 3 CENTER (1) Сбои при выполнении
+TABLESTATS 13 Counter({('JUSTIFY (3)', '1.0', '0'): 12, ('CENTER (1)', '1.0', '0'): 4})
+TABLEALIGN 14 0 1 RIGHT (2) (2)
+TABLESTATS 14 Counter({('RIGHT (2)', '1.5', '0'): 1})
+TABLEALIGN 15 0 0 CENTER (1) Показатель
+TABLEALIGN 15 0 1 CENTER (1) Значение
+TABLESTATS 15 Counter({('JUSTIFY (3)', '1.0', '0'): 14, ('CENTER (1)', '1.0', '0'): 2})
+SECTION 0 margins 1.75 1.499 1.27 3.175
+SECTION 1 margins 3.0 1.499 2.0 2.0
+NOTES Counter({'24': 62}) Counter({'Times New Roman': 85})
+NOTESTYLE footnote text None 10.0
+NOTESTYLE footnote reference None None

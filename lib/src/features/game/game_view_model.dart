@@ -413,6 +413,8 @@ class GameViewModel extends ChangeNotifier {
     final choice = currentScene!.choices[choiceIndex];
     String target = '';
     for (final action in choice.actions) {
+      // Уведомление показывает экран: оно не меняет баллы, флаги и переходы.
+      if (action.type == 'notification') continue;
       // Переход на сцену (если тип nextScene)
       if (action.type == 'nextScene') {
         target = action.sceneTarget;

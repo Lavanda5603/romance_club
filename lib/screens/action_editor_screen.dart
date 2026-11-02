@@ -76,6 +76,10 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     final name = _counterNameController.text.trim();
     final value = _counterValueController.text.trim();
     final flag = _flagNameController.text.trim();
+    if (_selectedType == 'notification' && (_titleController.text.trim().isEmpty || _titleController.text.runes.length > 160)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Текст уведомления: от 1 до 160 символов')));
+      return;
+    }
     if (['nextScene', 'changeFlag'].contains(_selectedType) && flag.isNotEmpty &&
         !RegExp(r'^[A-Za-zА-Яа-яЁё_][A-Za-zА-Яа-яЁё_0-9]*$').hasMatch(flag)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Имя флага: русские или латинские буквы, цифры и подчёркивание')));
@@ -90,6 +94,11 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     final newAction = widget.action?.deepCopy() ?? Action();
     newAction.type = _selectedType;
     newAction.title = _titleController.text;
+    if (_selectedType == 'notification') {
+      newAction.clearFlagName(); newAction.clearFlagValue();
+      newAction.clearCounterName(); newAction.clearCounterValue();
+      newAction.clearSceneId(); newAction.clearSceneKey();
+    }
 
     // В зависимости от типа заполняю нужные поля
     if (_selectedType == 'nextScene') {
@@ -269,7 +278,8 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                             DropdownMenuItem(value: 'changeCounter', child: Text('баллы')),
                             DropdownMenuItem(value: 'changeFlag', child: Text('флаг')),
                             const DropdownMenuItem(value: 'ending', child: Text('концовка')),
-                            if (!['nextScene', 'changeCounter', 'changeFlag', 'ending'].contains(_selectedType))
+                            const DropdownMenuItem(value: 'notification', child: Text('уведомление')),
+                            if (!['nextScene', 'changeCounter', 'changeFlag', 'ending', 'notification'].contains(_selectedType))
                               DropdownMenuItem(value: _selectedType, child: Text(_selectedType)),
                           ],
                           onChanged: (value) {

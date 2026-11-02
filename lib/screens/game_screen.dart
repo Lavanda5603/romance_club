@@ -1,3 +1,4 @@
+import '../widgets/consequence_notice.dart'; // Импорт реакции после выбора
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
@@ -39,6 +40,7 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
+  final _consequence = ConsequenceNotice(); // Не сохраняю уведомления между запусками
   late GameViewModel _viewModel; // ViewModel
   late EpisodeGrpcService _episodeService; // gRPC-сервис эпизодов
   late ProgressGrpcService _progressService; // gRPC-сервис прогресса
@@ -93,6 +95,7 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    _consequence.hide();
     _viewModel.removeListener(_loadAssets);
     _episodeService.close();
     _viewModel.flushProgress().then((_) => _progressService.close());
@@ -497,7 +500,13 @@ class _GameScreenState extends State<GameScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: GestureDetector(
-                            onTap: withButtonSound(() => _viewModel.onChoiceSelected(index)),
+                            onTap: withButtonSound(() {
+                              if (_leaving || _finishingEpisode || _viewModel.saveError != null) return;
+                              final notices = choice.actions.where((a) => a.type == 'notification');
+                              final message = notices.isEmpty ? '' : notices.first.title;
+                              _viewModel.onChoiceSelected(index);
+                              _consequence.show(context, message);
+                            }),
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(

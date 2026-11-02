@@ -32,6 +32,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
   late TextEditingController _textController; // Контроллер для поля ввода текста
   late Choice _choice; // Локальный выбор (создаётся, если widget.choice == null)
   late TextEditingController _diaryController; // Текст записи после этого решения
+  late TextEditingController _consequenceController; // Короткая реакция на выбор
 
   @override
   void initState() {
@@ -40,6 +41,8 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     _choice = widget.choice?.deepCopy() ?? Choice();
     final entries = _choice.actions.where((a) => a.flagName.startsWith('diary_'));
     _diaryController = TextEditingController(text: entries.isEmpty ? '' : entries.first.title);
+    final notices = _choice.actions.where((a) => a.type == 'notification');
+    _consequenceController = TextEditingController(text: notices.isEmpty ? '' : notices.first.title);
 
     // Если выбор новый - задаю текст по умолчанию
     if (_choice.text.isEmpty) {
@@ -64,11 +67,17 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     _textController.dispose();
     _titleController.dispose();
     _diaryController.dispose();
+    _consequenceController.dispose();
     super.dispose();
   }
 
   // Сохранение выбора
   void _saveChoice() {
+    final notice = _consequenceController.text.trim();
+    if (notice.runes.length > 160) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Уведомление — не больше 160 символов')));
+      return;
+    }
     // Обновляю название и текст выбора
     _choice.title = _titleController.text;
     _choice.text = _textController.text;
@@ -84,6 +93,9 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     if (text.isNotEmpty) {
       _choice.actions.add(story.Action(type: 'changeFlag', flagName: key, flagValue: true, title: text));
     }
+    // Сообщение не содержит баллов, флагов и переходов: это только реакция интерфейса.
+    _choice.actions.removeWhere((a) => a.type == 'notification');
+    if (notice.isNotEmpty) _choice.actions.add(story.Action(type: 'notification', title: notice));
 
     // Вызываю функцию onSave (передаю выбор родителю)
     widget.onSave(_choice.deepCopy());
@@ -105,6 +117,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
           onSave: (newAction) {
             setState(() {
               _choice.actions.add(newAction); // Добавляю действие в список
+              if (newAction.type == 'notification') _consequenceController.text = newAction.title;
             });
           },
         ),
@@ -123,7 +136,12 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
           action: _choice.actions[index], // Действие
           onSave: (newAction) {
             setState(() {
+              final wasNotice = _choice.actions[index].type == 'notification';
               _choice.actions[index] = newAction; // Заменяю действие в списке
+              if (wasNotice || newAction.type == 'notification') {
+                final notices = _choice.actions.where((a) => a.type == 'notification');
+                _consequenceController.text = notices.isEmpty ? '' : notices.first.title;
+              }
             });
           },
         ),
@@ -159,7 +177,12 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     // Если пользователь подтвердил, удаляю действие
     if (confirmed == true) {
       setState(() {
+        final wasNotice = _choice.actions[index].type == 'notification';
         _choice.actions.removeAt(index);
+        if (wasNotice) {
+          final notices = _choice.actions.where((a) => a.type == 'notification');
+          _consequenceController.text = notices.isEmpty ? '' : notices.first.title;
+        }
       });
     }
   }
@@ -342,6 +365,20 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                           decoration: const InputDecoration(
                             labelText: 'Запись в «Мой дневник»',
                             helperText: 'Появится после этого выбора. Пусто — без записи.',
+                            labelStyle: TextStyle(color: Color(0xFFFFA0A0)),
+                            helperStyle: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                        TextField(
+                          key: const ValueKey('consequence-editor'),
+                          controller: _consequenceController,
+                          maxLength: 160,
+                          maxLines: 2,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Последствие выбора',
+                            hintText: 'Алья это запомнит',
+                            helperText: 'Короткое сообщение. Пусто — без уведомления.',
                             labelStyle: TextStyle(color: Color(0xFFFFA0A0)),
                             helperStyle: TextStyle(color: Colors.white70),
                           ),

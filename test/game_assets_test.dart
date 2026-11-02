@@ -91,6 +91,34 @@ void main() {
   }
   Finder pictures() => find.byWidgetPredicate((widget) => widget is Image && widget.image is MemoryImage);
 
+  testWidgets('Сообщение появляется только после выбора, без эффектов и повторов загрузки', (tester) async {
+    final source = story(1).scenes.first;
+    final scene = SceneModel(id: source.id, sceneKey: source.sceneKey, title: source.title,
+      background: source.background, character: source.character, characterEmotion: source.characterEmotion,
+      texts: ['Выбираю ответ'], choices: [ChoiceModel(text: 'Поддержать Алью', title: 'Поддержать', actions: [
+        const ActionModel(type: 'notification', sceneId: 0, flagName: 'should_not_change', flagValue: true,
+          counterName: 'points', counterValue: 100, soundPath: '', imagePath: '', title: 'Алья это запомнит'),
+      ])], condition: '', textPosition: 'bottom_center', characterPosition: 'center', nextSceneId: 0);
+    final episodes = _Episodes()..pending = Completer<EpisodeModel>();
+    final vm = GameViewModel(episodes);
+    addTearDown(vm.dispose);
+    await tester.pumpWidget(MaterialApp(home: GameScreen(episode: Episode(id: 1), viewModel: vm, assetRepository: _Assets(bytes))));
+    episodes.pending!.complete(EpisodeModel(id: 1, title: 'Тест', version: 1, scenes: [scene]));
+    await drain(tester);
+    expect(find.text('Алья это запомнит'), findsNothing);
+    await tester.tap(find.text('Поддержать Алью'));
+    await tester.pump();
+    expect(find.text('Алья это запомнит'), findsOneWidget);
+    expect(vm.points, 0);
+    expect(vm.flags['should_not_change'], isNull);
+    await tester.pump(const Duration(seconds: 4));
+    expect(find.text('Алья это запомнит'), findsNothing);
+    vm.notifyListeners();
+    await tester.pump();
+    expect(find.text('Алья это запомнит'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Точные локальные картинки пары и бегущей Маринетт доступны после NotFound', (tester) async {
     final episode = story(1);
     final first = episode.scenes.first;

@@ -96,6 +96,11 @@ fn prepare_scenes(episode: &Episode, records: &[Value]) -> Result<Vec<Value>, St
         for (index, choice) in scene.choices.iter().enumerate() {
             let mut actions = Vec::new();
             for action in &choice.actions {
+                if action.r#type == "notification" && (action.title.trim().is_empty() || action.title.chars().count() > 160 ||
+                    !action.flag_name.is_empty() || action.flag_value || !action.counter_name.is_empty() || action.counter_value != 0 ||
+                    action.scene_id != 0 || !action.scene_key.is_empty()) {
+                    return Err(Status::invalid_argument("Уведомление: текст от 1 до 160 символов, без баллов, флагов и переходов"));
+                }
                 let key = if action.r#type == "nextScene" { resolve(&action.scene_key, action.scene_id)? } else { String::new() };
                 actions.push(json!({
                     "type": action.r#type, "scene_id": numeric_id(&key), "scene_key": key,
@@ -130,6 +135,20 @@ mod tests {
 
     fn record(key: &str, episode: i32) -> Value {
         json!({"id":key, "episode_id":format!("episode:{episode}")})
+    }
+
+    #[test]
+    fn notification_is_text_only() {
+        let mut episode = Episode {id:1, scenes:vec![Scene {scene_key:"draft:notice".into(), choices:vec![Choice {
+            actions:vec![Action {r#type:"notification".into(),title:"Алья это запомнит".into(),..Default::default()}],
+            ..Default::default()}],..Default::default()}],..Default::default()};
+        let prepared = prepare_scenes(&episode,&[]).unwrap();
+        assert_eq!(prepared[0]["choices"][0]["actions"][0]["title"],"Алья это запомнит");
+        episode.scenes[0].choices[0].actions[0].counter_value = 2;
+        assert!(prepare_scenes(&episode,&[]).is_err());
+        episode.scenes[0].choices[0].actions[0].counter_value = 0;
+        episode.scenes[0].choices[0].actions[0].title = "я".repeat(161);
+        assert!(prepare_scenes(&episode,&[]).is_err());
     }
 
     #[test]

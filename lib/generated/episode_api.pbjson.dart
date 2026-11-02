@@ -30,11 +30,15 @@ final $typed_data.Uint8List getEpisodeRequestDescriptor =
 @$core.Deprecated('Use getAllEpisodesRequestDescriptor instead')
 const GetAllEpisodesRequest$json = {
   '1': 'GetAllEpisodesRequest',
+  '2': [
+    {'1': 'novel_id', '3': 1, '4': 1, '5': 9, '10': 'novelId'},
+  ],
 };
 
 /// Descriptor for `GetAllEpisodesRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getAllEpisodesRequestDescriptor =
-    $convert.base64Decode('ChVHZXRBbGxFcGlzb2Rlc1JlcXVlc3Q=');
+    $convert.base64Decode(
+        'ChVHZXRBbGxFcGlzb2Rlc1JlcXVlc3QSGQoIbm92ZWxfaWQYASABKAlSB25vdmVsSWQ=');
 
 @$core.Deprecated('Use getAllEpisodesResponseDescriptor instead')
 const GetAllEpisodesResponse$json = {
@@ -121,6 +125,7 @@ final $typed_data.Uint8List deleteEpisodeResponseDescriptor = $convert.base64Dec
 const RelationshipRules$json = {
   '1': 'RelationshipRules',
   '2': [
+    {'1': 'novel_id', '3': 3, '4': 1, '5': 9, '10': 'novelId'},
     {'1': 'json', '3': 1, '4': 1, '5': 9, '10': 'json'},
     {'1': 'revision', '3': 2, '4': 1, '5': 5, '10': 'revision'},
   ],
@@ -128,5 +133,5 @@ const RelationshipRules$json = {
 
 /// Descriptor for `RelationshipRules`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List relationshipRulesDescriptor = $convert.base64Decode(
-    'ChFSZWxhdGlvbnNoaXBSdWxlcxISCgRqc29uGAEgASgJUgRqc29uEhoKCHJldmlzaW9uGAIgAS'
-    'gFUghyZXZpc2lvbg==');
+    'ChFSZWxhdGlvbnNoaXBSdWxlcxIZCghub3ZlbF9pZBgDIAEoCVIHbm92ZWxJZBISCgRqc29uGA'
+    'EgASgJUgRqc29uEhoKCHJldmlzaW9uGAIgASgFUghyZXZpc2lvbg==');

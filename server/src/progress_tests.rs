@@ -37,7 +37,7 @@ async fn current_save(api: &ProgressApiService, points: i32) -> Result<Request<S
 
 async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Сводка включает коллекцию финалов; здесь история намеренно пустая.
-    db.query("DEFINE TABLE IF NOT EXISTS episode_completion SCHEMALESS;").await?.check()?;
+    db.query("DEFINE TABLE IF NOT EXISTS episode_completion SCHEMALESS; DEFINE TABLE IF NOT EXISTS novel SCHEMALESS; DEFINE TABLE IF NOT EXISTS episode SCHEMALESS; CREATE episode:1 CONTENT {novel_id:novel:ladybug};").await?.check()?;
     db.query(include_str!("../migrations/006_progress.surql")).await?.check()?;
     db.query(include_str!("../migrations/016_progress_completed.surql")).await?.check()?;
     db.query(include_str!("../migrations/020_progress_generation.surql")).await?.check()?;
@@ -113,11 +113,11 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     assert_eq!(rows.len(), 1);
     assert_eq!(read(&api).await?.revision, 1);
     // Сводка выбирает только свои активные записи существующих эпизодов
-    db.query("DEFINE TABLE episode SCHEMALESS; CREATE episode:1; CREATE episode:2; CREATE episode:3; CREATE progress:other CONTENT {player_id:player:other,episode_id:episode:2,scene_id:scene:test,flags:{},counters:{}}; CREATE progress:reset CONTENT {player_id:player:test,episode_id:episode:2,flags:{},counters:{}}; CREATE progress:third CONTENT {player_id:player:test,episode_id:episode:3,scene_id:scene:test,completed:true,flags:{},counters:{}}; CREATE progress:orphan CONTENT {player_id:player:test,episode_id:episode:99,scene_id:scene:test,flags:{},counters:{}};").await?.check()?;
-    let summary = api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner();
+    db.query("DEFINE TABLE IF NOT EXISTS episode SCHEMALESS; UPSERT episode:1; CREATE episode:2; CREATE episode:3; CREATE progress:other CONTENT {player_id:player:other,episode_id:episode:2,scene_id:scene:test,flags:{},counters:{}}; CREATE progress:reset CONTENT {player_id:player:test,episode_id:episode:2,flags:{},counters:{}}; CREATE progress:third CONTENT {player_id:player:test,episode_id:episode:3,scene_id:scene:test,completed:true,flags:{},counters:{}}; CREATE progress:orphan CONTENT {player_id:player:test,episode_id:episode:99,scene_id:scene:test,flags:{},counters:{}};").await?.check()?;
+    let summary = api.get_progress_summary(request(GetProgressSummaryRequest {novel_id:String::new(),player_id:"player:test".into()})).await?.into_inner();
     assert_eq!(summary.episode_ids, vec![3]);
     api.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})).await?;
-    assert!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
+    assert!(api.get_progress_summary(request(GetProgressSummaryRequest {novel_id:String::new(),player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
     db.query(include_str!("../migrations/007_achievement.surql")).await?.check()?;
     db.query("DEFINE TABLE action SCHEMALESS; DEFINE TABLE choice SCHEMALESS;").await?.check()?;
     db.query(include_str!("../migrations/017_episode_completion.surql")).await?.check()?;
@@ -127,17 +127,17 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     completion.get_mut().completed = true;
     assert!(api.save_progress(completion).await?.into_inner().success);
     assert!(read(&api).await?.completed);
-    assert_eq!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids, vec![1]);
+    assert_eq!(api.get_progress_summary(request(GetProgressSummaryRequest {novel_id:String::new(),player_id:"player:test".into()})).await?.into_inner().episode_ids, vec![1]);
     // Новый запуск и общий сброс снимают завершение
     assert!(api.save_progress(current_save(&api, 0).await?).await?.into_inner().success);
     assert!(!read(&api).await?.completed);
-    assert!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
+    assert!(api.get_progress_summary(request(GetProgressSummaryRequest {novel_id:String::new(),player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
     let mut completion = current_save(&api, 5).await?;
     completion.get_mut().completed = true;
     api.save_progress(completion).await?;
     api.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})).await?;
     assert!(!read(&api).await?.completed);
-    assert!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
+    assert!(api.get_progress_summary(request(GetProgressSummaryRequest {novel_id:String::new(),player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
     generation_scenarios(db).await?;
     Ok(())
 }

@@ -1,10 +1,14 @@
+import '../widgets/novel_background.dart'; // Импорт фона выбранной истории
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import '../src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
+
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'package:file_picker/file_picker.dart'; // Импорт выбора файла
+
 import 'dart:io'; // Импорт File
 import 'dart:typed_data'; // Импорт Uint8List
+
 import '../src/data/repositories/asset_repository_remote.dart'; // Импорт репозитория ассетов
 import '../src/data/repositories/admin_repository_remote.dart'; // Импорт админ-репозитория
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
@@ -54,7 +58,8 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     _service = AssetGrpcService();
     _adminService = AdminGrpcService();
     _repository = widget.repository ?? AssetRepositoryRemote(_service);
-    _adminRepository = widget.adminRepository ?? AdminRepositoryRemote(_adminService);
+    _adminRepository =
+        widget.adminRepository ?? AdminRepositoryRemote(_adminService);
     // Загружаю ассеты
     _loadAssets();
   }
@@ -71,14 +76,23 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
   Future<void> _loadAssets({bool reset = true}) async {
     if (_loadingPage) return;
     _loadingPage = true;
-    setState(() { _error = ''; if (reset) _isLoading = true; });
+    setState(() {
+      _error = '';
+      if (reset) _isLoading = true;
+    });
     try {
-      final page = await _repository.getAssetPage(widget.type,
-        episodeId: widget.episodeId, cursor: reset ? '' : _nextCursor);
+      final page = await _repository.getAssetPage(
+        widget.type,
+        episodeId: widget.episodeId,
+        cursor: reset ? '' : _nextCursor,
+      );
       if (!mounted) return;
       setState(() {
         final known = reset ? <String>{} : _assets.map((a) => a.id).toSet();
-        _assets = [if (!reset) ..._assets, ...page.assets.where((a) => known.add(a.id))];
+        _assets = [
+          if (!reset) ..._assets,
+          ...page.assets.where((a) => known.add(a.id)),
+        ];
         _nextCursor = page.nextCursor;
       });
     } catch (e) {
@@ -94,10 +108,18 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     if (_isUploading) return;
     setState(() => _isUploading = true);
     try {
-      final original = await _repository.getAsset(id: asset.id, type: asset.type, version: asset.version);
+      final original = await _repository.getAsset(
+        id: asset.id,
+        type: asset.type,
+        version: asset.version,
+      );
       if (mounted) Navigator.pop(context, original);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка загрузки: ${networkError(e)}')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка загрузки: ${networkError(e)}')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -117,7 +139,9 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     if (!mounted) return;
     if (file.size > AssetGrpcService.maxUploadBytes) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Файл больше 5 MiB (5 242 880 байт)')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Файл больше 5 MiB (5 242 880 байт)')),
+      );
       return;
     }
     Uint8List? bytes = file.bytes;
@@ -136,7 +160,9 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
     if (!mounted) return;
 
     if (bytes.length > AssetGrpcService.maxUploadBytes) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Файл больше 5 MiB (5 242 880 байт)')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Файл больше 5 MiB (5 242 880 байт)')),
+      );
       return;
     }
     final nameController = TextEditingController();
@@ -168,8 +194,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                       hintText: 'например: happy, sad',
                     ),
                   ),
-                if (widget.type == 'character')
-                  const SizedBox(height: 8),
+                if (widget.type == 'character') const SizedBox(height: 8),
                 TextField(
                   controller: displayController,
                   decoration: const InputDecoration(
@@ -198,21 +223,26 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     final name = nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Имя обязательно')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Имя обязательно')));
       return;
     }
 
     // Проверяю на дубликат
     final emotionCheck = emotionController.text.trim();
 
-    final alreadyExists = _assets.any((a) =>
-        a.name == name && a.emotion == emotionCheck && a.episodeId == widget.episodeId);
+    final alreadyExists = _assets.any(
+      (a) =>
+          a.name == name &&
+          a.emotion == emotionCheck &&
+          a.episodeId == widget.episodeId,
+    );
 
     if (alreadyExists) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ассет с таким именем и эмоцией уже существует')),
+        const SnackBar(
+          content: Text('Ассет с таким именем и эмоцией уже существует'),
+        ),
       );
       return;
     }
@@ -223,17 +253,25 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
     try {
       final asset = await _repository.uploadAsset(
-        type: widget.type, name: name, emotion: emotionController.text.trim(),
-        displayName: displayController.text.trim(), episodeId: widget.episodeId,
-        fileData: bytes, fileName: file.name,
+        type: widget.type,
+        name: name,
+        emotion: emotionController.text.trim(),
+        displayName: displayController.text.trim(),
+        episodeId: widget.episodeId,
+        fileData: bytes,
+        fileName: file.name,
       );
       if (asset == null) throw StateError('Не удалось загрузить ассет');
       if (!mounted) return;
       await _loadAssets();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ассет загружен')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Ассет загружен')));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(e))));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(networkError(e))));
+      }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -271,10 +309,16 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       if (!mounted) return;
       if (success) await _loadAssets();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
-        success ? 'Ассет удалён' : 'Нет прав на удаление')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Ассет удалён' : 'Нет прав на удаление'),
+        ),
+      );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(e))));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(networkError(e))));
+      }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -289,31 +333,46 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
           Positioned.fill(
             child: Container(
               color: const Color(0xFF1A1A1A),
-              child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
-              ),
+              child: const NovelBackground(),
             ),
           ),
           SafeArea(
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: withButtonSound(() => Navigator.pop(context, null)),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFFD30010),
+                          size: 28,
+                        ),
+                        onPressed: withButtonSound(
+                          () => Navigator.pop(context, null),
+                        ),
                       ),
                       Text(
                         widget.title,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.upload, color: Color(0xFFD30010), size: 28),
-                        onPressed: withButtonSound(_loadingPage || _isUploading ? null : _uploadNewAsset),
+                        icon: const Icon(
+                          Icons.upload,
+                          color: Color(0xFFD30010),
+                          size: 28,
+                        ),
+                        onPressed: withButtonSound(
+                          _loadingPage || _isUploading ? null : _uploadNewAsset,
+                        ),
                       ),
                     ],
                   ),
@@ -340,7 +399,9 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                         if (_isLoading)
                           const Expanded(
                             child: Center(
-                              child: CircularProgressIndicator(color: Color(0xFFD30010)),
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFD30010),
+                              ),
                             ),
                           )
                         else if (_error.isNotEmpty && _assets.isEmpty)
@@ -365,23 +426,28 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                         else
                           Expanded(
                             child: GridView.builder(
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 8,
-                                mainAxisSpacing: 8,
-                                childAspectRatio: 1.0,
-                              ),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 8,
+                                    childAspectRatio: 1.0,
+                                  ),
                               itemCount: _assets.length,
                               itemBuilder: (context, index) {
                                 final asset = _assets[index];
                                 return GestureDetector(
-                                  onTap: withButtonSound(() => _selectAsset(asset)),
+                                  onTap: withButtonSound(
+                                    () => _selectAsset(asset),
+                                  ),
                                   child: Stack(
                                     children: [
                                       Container(
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF3F0404),
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                           border: Border.all(
                                             color: const Color(0xFFFFA0A0),
                                             width: 1,
@@ -391,15 +457,24 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                           children: [
                                             Expanded(
                                               child: ClipRRect(
-                                                borderRadius: const BorderRadius.vertical(
-                                                  top: Radius.circular(11),
-                                                ),
-                                                child: (asset.previewData == null || asset.previewData!.isEmpty)
+                                                borderRadius:
+                                                    const BorderRadius.vertical(
+                                                      top: Radius.circular(11),
+                                                    ),
+                                                child:
+                                                    (asset.previewData ==
+                                                            null ||
+                                                        asset
+                                                            .previewData!
+                                                            .isEmpty)
                                                     ? Container(
-                                                        color: const Color(0xFF333333),
+                                                        color: const Color(
+                                                          0xFF333333,
+                                                        ),
                                                         child: const Center(
                                                           child: Icon(
-                                                            Icons.image_not_supported,
+                                                            Icons
+                                                                .image_not_supported,
                                                             color: Colors.white,
                                                             size: 24,
                                                           ),
@@ -409,18 +484,28 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                                         asset.previewData!,
                                                         fit: BoxFit.cover,
                                                         width: double.infinity,
-                                                        errorBuilder: (context, error, stackTrace) {
-                                                          return Container(
-                                                            color: const Color(0xFF333333),
-                                                            child: const Center(
-                                                              child: Icon(
-                                                                Icons.broken_image,
-                                                                color: Colors.white,
-                                                                size: 24,
-                                                              ),
-                                                            ),
-                                                          );
-                                                        },
+                                                        errorBuilder:
+                                                            (
+                                                              context,
+                                                              error,
+                                                              stackTrace,
+                                                            ) {
+                                                              return Container(
+                                                                color:
+                                                                    const Color(
+                                                                      0xFF333333,
+                                                                    ),
+                                                                child: const Center(
+                                                                  child: Icon(
+                                                                    Icons
+                                                                        .broken_image,
+                                                                    color: Colors
+                                                                        .white,
+                                                                    size: 24,
+                                                                  ),
+                                                                ),
+                                                              );
+                                                            },
                                                       ),
                                               ),
                                             ),
@@ -444,11 +529,17 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                                         top: 4,
                                         right: 4,
                                         child: GestureDetector(
-                                          onTap: withButtonSound(_loadingPage || _isUploading ? null : () => _deleteAsset(asset)),
+                                          onTap: withButtonSound(
+                                            _loadingPage || _isUploading
+                                                ? null
+                                                : () => _deleteAsset(asset),
+                                          ),
                                           child: Container(
                                             padding: const EdgeInsets.all(4),
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withValues(alpha: 0.7),
+                                              color: Colors.black.withValues(
+                                                alpha: 0.7,
+                                              ),
                                               shape: BoxShape.circle,
                                             ),
                                             child: const Icon(
@@ -466,13 +557,34 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
                             ),
                           ),
                         if (!_isLoading && _assets.isEmpty && _error.isNotEmpty)
-                          TextButton(onPressed: withButtonSound(() => _loadAssets()), child: const Text('Повторить')),
-                        if (!_isLoading && _assets.isNotEmpty && (_nextCursor.isNotEmpty || _error.isNotEmpty))
-                          Column(children: [
-                            if (_error.isNotEmpty) Text(_error, style: const TextStyle(color: Colors.red)),
-                            TextButton(onPressed: withButtonSound(_loadingPage ? null : () => _loadAssets(reset: false)),
-                              child: Text(_loadingPage ? 'Загрузка...' : 'Загрузить ещё')),
-                          ]),
+                          TextButton(
+                            onPressed: withButtonSound(() => _loadAssets()),
+                            child: const Text('Повторить'),
+                          ),
+                        if (!_isLoading &&
+                            _assets.isNotEmpty &&
+                            (_nextCursor.isNotEmpty || _error.isNotEmpty))
+                          Column(
+                            children: [
+                              if (_error.isNotEmpty)
+                                Text(
+                                  _error,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              TextButton(
+                                onPressed: withButtonSound(
+                                  _loadingPage
+                                      ? null
+                                      : () => _loadAssets(reset: false),
+                                ),
+                                child: Text(
+                                  _loadingPage
+                                      ? 'Загрузка...'
+                                      : 'Загрузить ещё',
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),

@@ -49,6 +49,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
   // Преобразование Protobuf-модели в доменную
   EpisodeModel toDomain(Episode episode) {
     return EpisodeModel(
+      novelId: episode.novelId,
       id: episode.id,
       title: episode.title,
       version: episode.version,
@@ -67,7 +68,14 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
           nextSceneId: scene.nextSceneId,
           nextSceneKey: scene.nextSceneKey,
           orderIndex: scene.orderIndex,
-          routes: scene.routes.map((r) => SceneRouteModel(condition: r.condition, sceneKey: r.sceneKey)).toList(),
+          routes: scene.routes
+              .map(
+                (r) => SceneRouteModel(
+                  condition: r.condition,
+                  sceneKey: r.sceneKey,
+                ),
+              )
+              .toList(),
           choices: scene.choices.map((choice) {
             return ChoiceModel(
               diamondPrice: choice.diamondPrice,
@@ -98,6 +106,7 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
   // Преобразование доменной модели в Protobuf
   Episode toProto(EpisodeModel episode) {
     final protoEpisode = Episode(
+      novelId: episode.novelId,
       id: episode.id,
       title: episode.title,
       version: episode.version,
@@ -118,7 +127,9 @@ class EpisodeRepositoryRemote implements EpisodeRepository {
         nextSceneId: scene.nextSceneId,
         nextSceneKey: scene.nextSceneKey,
         orderIndex: scene.orderIndex,
-        routes: scene.routes.map((r) => SceneRoute(condition: r.condition, sceneKey: r.sceneKey)),
+        routes: scene.routes.map(
+          (r) => SceneRoute(condition: r.condition, sceneKey: r.sceneKey),
+        ),
       );
       protoScene.texts.addAll(scene.texts);
 

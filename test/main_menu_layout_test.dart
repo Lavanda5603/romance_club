@@ -33,4 +33,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(diary.hitTestable(),findsOneWidget);
   });
+  testWidgets('Возвращаюсь в исходный каталог, не создавая его копию', (tester) async {
+    final folder = (await tester.runAsync(() => Directory.systemTemp.createTemp('menu_back_')))!;
+    const channel = MethodChannel('plugins.flutter.io/path_provider');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (_) async => folder.path);
+    SessionStore.shared = SessionStore();
+    addTearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+      await folder.delete(recursive: true);
+    });
+    await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) => Scaffold(body: TextButton(
+      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MainMenu())),
+      child: const Text('Исходный каталог'),
+    )))));
+    await tester.tap(find.text('Исходный каталог'));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Выбрать новеллу'));
+    await tester.tap(find.text('Выбрать новеллу'));
+    await tester.pumpAndSettle();
+    expect(find.text('Исходный каталог'), findsOneWidget);
+    expect(find.byType(MainMenu), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

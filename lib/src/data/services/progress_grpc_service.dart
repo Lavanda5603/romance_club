@@ -1,7 +1,10 @@
+import '../../../services/active_novel.dart'; // Импорт выбранной новеллы
 import '../../../services/server_connection.dart'; // Импорт выбранного адреса сервера
 import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'auth_options.dart'; // Метаданные с токеном
+
 import 'package:grpc/grpc.dart'; // Импорт gRPC
+
 import '../../../generated/progress.pb.dart'; // Импорт Protobuf-модели Progress
 import '../../../generated/progress_api.pbgrpc.dart'; // Импорт gRPC-клиента
 
@@ -16,17 +19,24 @@ class ProgressGrpcService {
     _channel = ClientChannel(
       host ?? ServerConnection.host,
       port: port ?? ServerConnection.port,
-      options: const ChannelOptions(
-        credentials: ChannelCredentials.insecure(),
-      ),
+      options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
     );
     // Создаю gRPC-клиент
-    _client = ProgressApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
+    _client = ProgressApiClient(
+      _channel,
+      interceptors: [deadlines ?? RpcDeadline()],
+    );
   }
 
   // Получить прогресс
   Future<GetProgressSummaryResponse> getProgressSummary(String playerId) async {
-    return _client.getProgressSummary(GetProgressSummaryRequest(playerId: playerId), options: await authOptions());
+    return _client.getProgressSummary(
+      GetProgressSummaryRequest(
+        playerId: playerId,
+        novelId: ActiveNovel.shared.id,
+      ),
+      options: await authOptions(),
+    );
   }
 
   // Получить прогресс

@@ -35,7 +35,7 @@ async fn scenarios(db:Surreal<Client>) -> TestResult {
     let achievements = AchievementApiService::new(db.clone());
     let mut keys = Vec::new();
     for id in [1,2] {
-        episodes.save_episode(own(SaveEpisodeRequest {episode:Some(Episode {id,title:format!("Эпизод {id}"),version:1,
+        episodes.save_episode(own(SaveEpisodeRequest {episode:Some(Episode {novel_id:String::new(),id,title:format!("Эпизод {id}"),version:1,
             scenes:vec![Scene {scene_key:format!("draft:{id}"),texts:vec!["Конец".into()],..Default::default()}]})})).await?;
         keys.push(episodes.get_episode(own(GetEpisodeRequest {id})).await?.into_inner().scenes[0].scene_key.clone());
     }

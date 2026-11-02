@@ -1,11 +1,17 @@
+import 'widgets/novel_background.dart'; // Импорт общего оформления истории
 import 'screens/server_connection_screen.dart'; // Импорт настройки подключения при ошибке сети
 import 'services/server_connection.dart'; // Импорт сохранённого подключения
 import 'widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
+
 import 'package:flutter/material.dart'; // Импорт Material UI
-import 'screens/main_menu_screen.dart'; // Импорт главного меню
+
+import 'screens/novel_catalog_screen.dart'; // Импорт главного меню
 import 'screens/login_screen.dart'; // Импорт экрана авторизации
+
 import 'dart:async'; // Импорт подписки на окончание сессии
+
 import 'package:grpc/grpc.dart'; // Импорт статусов RPC
+
 import 'services/session_store.dart'; // Импорт единого хранилища сессии
 import 'src/data/services/auth_grpc_service.dart'; // Импорт проверки игрока на сервере
 import 'src/data/services/rpc_policy.dart'; // Импорт понятных ошибок сети
@@ -15,20 +21,27 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Инициализация Flutter
   await ServerConnection.load(); // Загружаю адрес до сетевых запросов
   runApp(const RomanceClubApp()); // Запуск приложения
-  unawaited(AppAudio.shared.initialize()); // Загружаю звук, не задерживая первый экран
+  unawaited(
+    AppAudio.shared.initialize(),
+  ); // Загружаю звук, не задерживая первый экран
 }
 
 // Корневой виджет приложения
 class RomanceClubApp extends StatefulWidget {
   final Future<bool> Function(Session)? validateSession;
   final Widget Function()? buildMenu;
-  const RomanceClubApp({super.key, this.validateSession, this.buildMenu}); // Корневой виджет
+  const RomanceClubApp({
+    super.key,
+    this.validateSession,
+    this.buildMenu,
+  }); // Корневой виджет
 
   @override
   State<RomanceClubApp> createState() => _RomanceClubAppState();
 }
 
-class _RomanceClubAppState extends State<RomanceClubApp> with WidgetsBindingObserver {
+class _RomanceClubAppState extends State<RomanceClubApp>
+    with WidgetsBindingObserver {
   final _navigator = GlobalKey<NavigatorState>();
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   late final StreamSubscription<String> _sessionChanges;
@@ -39,12 +52,16 @@ class _RomanceClubAppState extends State<RomanceClubApp> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _audioErrors = AppAudio.shared.errors.listen((message) {
-      if (mounted) _messenger.currentState?.showSnackBar(SnackBar(content: Text(message)));
+      if (mounted) {
+        _messenger.currentState?.showSnackBar(SnackBar(content: Text(message)));
+      }
     });
     _sessionChanges = SessionStore.shared.expired.listen((message) {
       if (!mounted) return;
       _navigator.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
       _messenger.currentState?.showSnackBar(SnackBar(content: Text(message)));
     });
   }
@@ -61,7 +78,9 @@ class _RomanceClubAppState extends State<RomanceClubApp> with WidgetsBindingObse
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // При сворачивании останавливаю оба звука, при возврате продолжаю музыку.
-    unawaited(AppAudio.shared.setForeground(state == AppLifecycleState.resumed));
+    unawaited(
+      AppAudio.shared.setForeground(state == AppLifecycleState.resumed),
+    );
   }
 
   @override
@@ -70,10 +89,20 @@ class _RomanceClubAppState extends State<RomanceClubApp> with WidgetsBindingObse
       navigatorKey: _navigator,
       scaffoldMessengerKey: _messenger,
       title: 'Клуб Романтики',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFD30010)), // Тема
+      builder: (context, child) => Stack(
+        fit: StackFit.expand,
+        children: [const NovelBackground(), ?child],
       ),
-      home: SplashScreen(validate: widget.validateSession, buildMenu: widget.buildMenu), // Стартовый экран
+      theme: ThemeData(
+        scaffoldBackgroundColor: Colors.transparent,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFD30010),
+        ), // Тема
+      ),
+      home: SplashScreen(
+        validate: widget.validateSession,
+        buildMenu: widget.buildMenu,
+      ), // Стартовый экран
     );
   }
 }
@@ -101,7 +130,9 @@ class _SplashScreenState extends State<SplashScreen> {
     final service = AuthGrpcService();
     try {
       final result = await service.getPlayer(session.playerId);
-      return result.success && result.hasPlayer() && result.player.id == session.playerId;
+      return result.success &&
+          result.hasPlayer() &&
+          result.player.id == session.playerId;
     } finally {
       await service.close();
     }
@@ -118,13 +149,17 @@ class _SplashScreenState extends State<SplashScreen> {
         try {
           valid = await (widget.validate ?? _validate)(session);
         } on GrpcError catch (error) {
-          if (error.code != StatusCode.unauthenticated && error.code != StatusCode.permissionDenied) rethrow;
+          if (error.code != StatusCode.unauthenticated &&
+              error.code != StatusCode.permissionDenied) {
+            rethrow;
+          }
         }
         if (!mounted) return;
         // Ответ проверки не должен открыть меню для уже сменившегося аккаунта
         final current = await SessionStore.shared.load();
         if (!mounted) return;
-        if (current?.token != session.token || current?.playerId != session.playerId) {
+        if (current?.token != session.token ||
+            current?.playerId != session.playerId) {
           await _checkLogin();
           return;
         }
@@ -136,12 +171,17 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => valid
-          ? (widget.buildMenu?.call() ?? const MainMenu()) : const LoginScreen()),
+        MaterialPageRoute(
+          builder: (_) => valid
+              ? (widget.buildMenu?.call() ?? const NovelCatalogScreen())
+              : const LoginScreen(),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
-      setState(() => _error = 'Не удалось проверить сессию. ${networkError(error)}');
+      setState(
+        () => _error = 'Не удалось проверить сессию. ${networkError(error)}',
+      );
     }
   }
 
@@ -151,16 +191,33 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Color(0xFF1A1A1A), // Фон
       body: Center(
         child: _error == null
-          ? const CircularProgressIndicator(color: Color(0xFFD30010))
-          : Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)),
-              TextButton(onPressed: withButtonSound(_checkLogin), child: const Text('Повторить')),
-              TextButton(onPressed: () async {
-                final changed = await Navigator.push<bool>(context,
-                  MaterialPageRoute(builder: (_) => const ServerConnectionScreen()));
-                if (changed == true && mounted) await _checkLogin();
-              }, child: const Text('Подключение к серверу')),
-            ]),
+            ? const CircularProgressIndicator(color: Color(0xFFD30010))
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  TextButton(
+                    onPressed: withButtonSound(_checkLogin),
+                    child: const Text('Повторить'),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final changed = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ServerConnectionScreen(),
+                        ),
+                      );
+                      if (changed == true && mounted) await _checkLogin();
+                    },
+                    child: const Text('Подключение к серверу'),
+                  ),
+                ],
+              ),
       ),
     );
   }

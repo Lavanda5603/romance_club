@@ -11,6 +11,7 @@ pub fn target_key(key: Option<&str>, id: i32) -> String {
 }
 
 pub async fn save(db: &Surreal<Client>, episode: &Episode) -> Result<(), Status> {
+    let novel_id=crate::novel_service::scope(&episode.novel_id)?;
     if episode.id <= 0 {
         return Err(Status::invalid_argument("Неверный ID эпизода"));
     }
@@ -24,6 +25,7 @@ pub async fn save(db: &Surreal<Client>, episode: &Episode) -> Result<(), Status>
     // Все изменения выполняю вместе. При ошибке база откатывает транзакцию
     let mut response = db.query(include_str!("save_episode.surql"))
         .bind(("episode_id", episode.id))
+        .bind(("novel_id",novel_id))
         .bind(("title", episode.title.clone()))
         .bind(("version", episode.version))
         .bind(("scenes", scenes))

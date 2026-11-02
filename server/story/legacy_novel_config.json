@@ -1,0 +1,204 @@
+{
+  "relationships": [
+    {
+      "counter": "romance_adrian",
+      "title": "Маринетт + Адриан",
+      "character": "adrian",
+      "emotion": "smile",
+      "kind": "romance",
+      "image_name": "relationship_marinette_adrian"
+    },
+    {
+      "counter": "romance_cat",
+      "title": "Маринетт + Супер-Кот",
+      "character": "catnoir",
+      "emotion": "smile",
+      "kind": "romance",
+      "image_name": "relationship_marinette_cat"
+    },
+    {
+      "counter": "romance_ladybug_adrian",
+      "title": "Леди Баг + Адриан",
+      "character": "adrian",
+      "emotion": "smile",
+      "kind": "romance",
+      "image_name": "relationship_ladybug_adrian"
+    },
+    {
+      "counter": "romance_ladybug_cat",
+      "title": "Леди Баг + Супер-Кот",
+      "character": "catnoir",
+      "emotion": "smile",
+      "kind": "romance",
+      "image_name": "relationship_ladybug_cat"
+    },
+    {
+      "counter": "romance_luka",
+      "title": "Маринетт + Лука",
+      "character": "luka",
+      "emotion": "smile",
+      "kind": "romance",
+      "image_name": "relationship_marinette_luka"
+    },
+    {
+      "counter": "friendship_alya",
+      "title": "Дружба с Альей",
+      "character": "alya",
+      "emotion": "happy",
+      "kind": "friendship"
+    },
+    {
+      "counter": "friendship_nino",
+      "title": "Дружба с Нино",
+      "character": "nino",
+      "emotion": "normal",
+      "kind": "friendship"
+    },
+    {
+      "counter": "friendship_kagami",
+      "title": "Дружба с Кагами",
+      "character": "kagami",
+      "emotion": "surprised",
+      "kind": "friendship"
+    },
+    {
+      "counter": "friendship_chloe",
+      "title": "Дружба с Хлоей",
+      "character": "chloe",
+      "emotion": "smirk",
+      "kind": "friendship"
+    }
+  ],
+  "endings": [
+    {
+      "key": "МариАдриан",
+      "title": "Маринетт и Адриан",
+      "hint": "Развивай отношения Маринетт с Адрианом и сделай эту линию ведущей.",
+      "achievement": true
+    },
+    {
+      "key": "МариКот",
+      "title": "Маринетт и Супер-Кот",
+      "hint": "Поддерживай Супер-Кота от лица Маринетт и развивай их романтическую линию.",
+      "achievement": true
+    },
+    {
+      "key": "АдриБаг",
+      "title": "Леди Баг и Адриан",
+      "hint": "Развивай отношения Адриана с Леди Баг, отдельно от его линии с Маринетт.",
+      "achievement": true
+    },
+    {
+      "key": "СуперБаг",
+      "title": "Леди Баг и Супер-Кот",
+      "hint": "Укрепляй романтическую связь напарников Леди Баг и Супер-Кота.",
+      "achievement": true
+    },
+    {
+      "key": "Лука",
+      "title": "Маринетт и Лука",
+      "hint": "Доверяй Луке и развивай его линию сильнее остальных романтических отношений.",
+      "achievement": true
+    },
+    {
+      "key": "Выбираю себя",
+      "title": "Выбираю себя",
+      "hint": "Сохрани равновесие всех пяти романтических линий, не делая одну ведущей.",
+      "achievement": false
+    },
+    {
+      "key": "Команда вместе",
+      "title": "Команда вместе",
+      "hint": "Подружись с Альей, Нино, Кагами и Хлоей: каждой линии нужно хотя бы 2 балла.",
+      "achievement": false
+    }
+  ],
+  "hidden": [
+    {
+      "key": "scene:hidden_ep1_alya",
+      "episode": 1,
+      "title": "Настоящие подруги",
+      "flag": "seen_hidden_ep1_alya",
+      "hint": "Подружись с Альей: нужно 2 балла дружбы."
+    },
+    {
+      "key": "scene:hidden_ep1_tikki",
+      "episode": 1,
+      "title": "Тайна талисманов",
+      "flag": "seen_hidden_ep1_tikki",
+      "hint": "Помоги дедушке или набери 3 балла общей дружбы."
+    },
+    {
+      "key": "scene:hidden_ep2_luka",
+      "episode": 2,
+      "title": "Песня для Маринетт",
+      "flag": "seen_hidden_ep2_luka",
+      "hint": "Набери 3 балла отношений с Лукой."
+    },
+    {
+      "key": "scene:hidden_ep2_cat",
+      "episode": 2,
+      "title": "Супер-Кот ищет Маринетт",
+      "flag": "seen_hidden_ep2_cat",
+      "hint": "Набери хотя бы 1 балл отношений с Супер-Котом."
+    },
+    {
+      "key": "scene:hidden_ep2_adrian",
+      "episode": 2,
+      "title": "Адриан ждёт Леди Баг",
+      "flag": "seen_hidden_ep2_adrian",
+      "hint": "Поговори с Адрианом ночью и набери 2 балла его линии с Леди Баг."
+    },
+    {
+      "key": "scene:hidden_ep3_fu",
+      "episode": 3,
+      "title": "Фу рассказывает о Бражнике",
+      "flag": "seen_hidden_ep3_fu",
+      "hint": "Помоги дедушке и набери 3 балла общей дружбы."
+    },
+    {
+      "key": "scene:hidden_ep3_blog",
+      "episode": 3,
+      "title": "Алья начинает блог",
+      "flag": "seen_hidden_ep3_blog",
+      "hint": "Набери 2 балла дружбы с Альей."
+    },
+    {
+      "key": "scene:hidden_ep3_kagami",
+      "episode": 3,
+      "title": "Тренировка с Кагами",
+      "flag": "seen_hidden_ep3_kagami",
+      "hint": "Будь дружелюбна с Кагами и набери 2 балла дружбы с ней."
+    },
+    {
+      "key": "scene:hidden_ep3_chloe",
+      "episode": 3,
+      "title": "Признание Хлои",
+      "flag": "seen_hidden_ep3_chloe",
+      "hint": "Не отвечай Хлое резко и набери 2 балла общей дружбы."
+    },
+    {
+      "key": "scene:hidden_ep4_luka",
+      "episode": 4,
+      "title": "Лука доверяет свою тайну",
+      "flag": "seen_hidden_ep4_luka",
+      "hint": "Намекни Луке о секрете и набери 5 баллов его линии."
+    },
+    {
+      "key": "scene:hidden_ep4_mask",
+      "episode": 4,
+      "title": "Почти снятая маска",
+      "flag": "seen_hidden_ep4_mask",
+      "hint": "Набери 5 баллов линии Леди Баг и Супер-Кота."
+    },
+    {
+      "key": "scene:hidden_ep4_adrian",
+      "episode": 4,
+      "title": "Невысказанное признание Адриана",
+      "flag": "seen_hidden_ep4_adrian",
+      "hint": "Набери 5 баллов линии Леди Баг и Адриана."
+    }
+  ],
+  "final_episode_id": 5,
+  "legacy_rules": true
+}

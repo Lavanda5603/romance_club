@@ -24,7 +24,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     crate::apply_migrations(&db).await.map_err(|e| e.to_string())?;
     crate::request_auth::seed_test_admin(&db,"player:editor").await?;
     let api = EpisodeApiService::new(db.clone());
-    let original = Episode {
+    let original = Episode {novel_id:String::new(),
         id: 1, title: "Исходный эпизод".into(), version: 1,
         scenes: vec![
             Scene { scene_key: "draft:first".into(), title: "Первая".into(), texts: vec!["Исходный текст".into()],
@@ -87,7 +87,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     assert_eq!(after[2][0]["title"], "Новый выбор");
     assert_eq!(after[3][0]["counter_value"], 5);
     // Проверяю пакетную загрузку: порядок, пустые ветки и чужой эпизод
-    let tree = Episode {
+    let tree = Episode {novel_id:String::new(),
         id: 2, title: "Проверка загрузки".into(), version: 3,
         scenes: vec![
             Scene { scene_key: "draft:z".into(), title: "Сначала".into(),
@@ -103,7 +103,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
         ],
     };
     api.save_episode(admin(SaveEpisodeRequest { episode: Some(tree) })).await?;
-    api.save_episode(admin(SaveEpisodeRequest { episode: Some(Episode { id: 3, title: "Пустой".into(), version: 1, scenes: vec![] }) })).await?;
+    api.save_episode(admin(SaveEpisodeRequest { episode: Some(Episode {novel_id:String::new(), id: 3, title: "Пустой".into(), version: 1, scenes: vec![] }) })).await?;
     let loaded = api.get_episode(admin(GetEpisodeRequest { id: 2 })).await?.into_inner();
     assert_eq!(loaded.title, "Проверка загрузки");
     assert_eq!(loaded.version, 3);

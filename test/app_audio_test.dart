@@ -66,6 +66,46 @@ void main() {
     AppAudio.shared = AppAudio();
   });
 
+  test(
+    'Переключаю новеллу, сохраняю громкость и закрываю старые проигрыватели',
+    () async {
+      final next = _Backend();
+      final controller = AppAudio(
+        createBackend: () => backend,
+        novelBackend: (music, click, defaults) => next,
+        loadSettings: () async => Settings(musicVolume: 0.4, soundVolume: 0.2),
+      );
+      await controller.initialize();
+      await controller.configureNovel(
+        'music.mp3',
+        'click.mp3',
+        defaults: false,
+      );
+      expect(backend.closed, 1);
+      expect(next.playing, true);
+      expect(next.music, 0.4);
+      await controller.click();
+      expect(next.clicks, 1);
+      await controller.close();
+    },
+  );
+  test('При повреждённой музыке возвращаю прежний звук', () async {
+    final next = _Backend()..fail = true;
+    final controller = AppAudio(
+      createBackend: () => backend,
+      novelBackend: (music, click, defaults) => next,
+      loadSettings: () async => Settings(musicVolume: 0.4, soundVolume: 0.2),
+    );
+    await controller.initialize();
+    await expectLater(
+      controller.configureNovel('bad.mp3', null, defaults: false),
+      throwsStateError,
+    );
+    expect(backend.closed, 0);
+    expect(backend.playing, true);
+    expect(next.closed, 1);
+    await controller.close();
+  });
   test('Создаю одну музыку и применяю сохранённую громкость', () async {
     await Future.wait([audio.initialize(), audio.initialize()]);
     expect(backend.prepared, 1);
@@ -112,19 +152,22 @@ void main() {
     await Future.wait([opening, pausing]);
     expect(backend.playing, false);
   });
-  test('Возврат восстанавливает музыку даже при устаревшем состоянии играет', () async {
-    await audio.initialize();
-    final pauses = backend.paused;
-    await audio.setForeground(true);
-    expect(backend.paused, pauses + 1);
-    expect(backend.playing, true);
-    expect(backend.prepared, 1);
-    await audio.setVolumes(0.4, 0.5);
-    expect(backend.paused, pauses + 1);
-    await audio.setVolumes(0, 0.5);
-    await audio.setForeground(true);
-    expect(backend.playing, false);
-  });
+  test(
+    'Возврат восстанавливает музыку даже при устаревшем состоянии играет',
+    () async {
+      await audio.initialize();
+      final pauses = backend.paused;
+      await audio.setForeground(true);
+      expect(backend.paused, pauses + 1);
+      expect(backend.playing, true);
+      expect(backend.prepared, 1);
+      await audio.setVolumes(0.4, 0.5);
+      expect(backend.paused, pauses + 1);
+      await audio.setVolumes(0, 0.5);
+      await audio.setForeground(true);
+      expect(backend.playing, false);
+    },
+  );
   test('При закрытии во время подготовки не включаю музыку', () async {
     backend.prepareGate = Completer<void>();
     final opening = audio.initialize();

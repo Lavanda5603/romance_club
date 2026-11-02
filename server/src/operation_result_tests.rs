@@ -65,7 +65,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult {
     assert!(admin.delete_asset(own(AdminDeleteAssetRequest { asset_id:"asset:test".into() })).await?.into_inner().success);
     let episodes = crate::EpisodeApiService::new(db.clone());
     for id in [1, 2] {
-        episodes.save_episode(own(SaveEpisodeRequest { episode: Some(Episode {
+        episodes.save_episode(own(SaveEpisodeRequest { episode: Some(Episode {novel_id:String::new(),
             id, title:"Удаление".into(), version:1, scenes:vec![Scene {
                 scene_key:format!("draft:{id}"), choices:vec![Choice { text:"Выбор".into(),
                     actions:vec![Action { r#type:"setFlag".into(), flag_name:"secret_scene".into(), flag_value:true, ..Default::default() }], ..Default::default() }], ..Default::default()

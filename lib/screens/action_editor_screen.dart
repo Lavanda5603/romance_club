@@ -1,7 +1,11 @@
+import '../widgets/novel_background.dart'; // Импорт фона выбранной истории
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../generated/scene.pb.dart'; // Сцены эпизода
 import '../src/core/scene_links.dart'; // Ключи переходов
-import 'package:flutter/material.dart' hide Action; // Импорт Material UI (скрываю Action из Flutter)
+
+import 'package:flutter/material.dart'
+    hide Action; // Импорт Material UI (скрываю Action из Flutter)
+
 import '../generated/action.pb.dart'; // Импорт Protobuf-модели Action
 
 // Экран редактирования действия
@@ -32,9 +36,12 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   String _selectedSceneKey = ''; // Ключ выбранной сцены
   bool _flagValue = false; // Значение флага
   late TextEditingController _titleController; // Контроллер для поля названия
-  late TextEditingController _counterNameController; // Контроллер для поля имени счётчика
-  late TextEditingController _counterValueController; // Контроллер для поля значения счётчика
-  late TextEditingController _flagNameController; // Контроллер для поля имени флага
+  late TextEditingController
+  _counterNameController; // Контроллер для поля имени счётчика
+  late TextEditingController
+  _counterValueController; // Контроллер для поля значения счётчика
+  late TextEditingController
+  _flagNameController; // Контроллер для поля имени флага
 
   @override
   void initState() {
@@ -76,18 +83,40 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     final name = _counterNameController.text.trim();
     final value = _counterValueController.text.trim();
     final flag = _flagNameController.text.trim();
-    if (_selectedType == 'notification' && (_titleController.text.trim().isEmpty || _titleController.text.runes.length > 160)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Текст уведомления: от 1 до 160 символов')));
+    if (_selectedType == 'notification' &&
+        (_titleController.text.trim().isEmpty ||
+            _titleController.text.runes.length > 160)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Текст уведомления: от 1 до 160 символов'),
+        ),
+      );
       return;
     }
-    if (['nextScene', 'changeFlag'].contains(_selectedType) && flag.isNotEmpty &&
+    if (['nextScene', 'changeFlag'].contains(_selectedType) &&
+        flag.isNotEmpty &&
         !RegExp(r'^[A-Za-zА-Яа-яЁё_][A-Za-zА-Яа-яЁё_0-9]*$').hasMatch(flag)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Имя флага: русские или латинские буквы, цифры и подчёркивание')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Имя флага: русские или латинские буквы, цифры и подчёркивание',
+          ),
+        ),
+      );
       return;
     }
-    if (['nextScene', 'changeCounter'].contains(_selectedType) && name.isNotEmpty && (!RegExp(r'^[A-Za-z_][A-Za-z_0-9]*$').hasMatch(name) ||
-        (value.isNotEmpty && (int.tryParse(value) == null || int.parse(value) < -2147483648 || int.parse(value) > 2147483647)))) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Проверьте имя счётчика и целое количество баллов')));
+    if (['nextScene', 'changeCounter'].contains(_selectedType) &&
+        name.isNotEmpty &&
+        (!RegExp(r'^[A-Za-z_][A-Za-z_0-9]*$').hasMatch(name) ||
+            (value.isNotEmpty &&
+                (int.tryParse(value) == null ||
+                    int.parse(value) < -2147483648 ||
+                    int.parse(value) > 2147483647)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Проверьте имя счётчика и целое количество баллов'),
+        ),
+      );
       return;
     }
     // Копирую действие, чтобы не потерять остальные параметры
@@ -95,9 +124,12 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     newAction.type = _selectedType;
     newAction.title = _titleController.text;
     if (_selectedType == 'notification') {
-      newAction.clearFlagName(); newAction.clearFlagValue();
-      newAction.clearCounterName(); newAction.clearCounterValue();
-      newAction.clearSceneId(); newAction.clearSceneKey();
+      newAction.clearFlagName();
+      newAction.clearFlagValue();
+      newAction.clearCounterName();
+      newAction.clearCounterValue();
+      newAction.clearSceneId();
+      newAction.clearSceneKey();
     }
 
     // В зависимости от типа заполняю нужные поля
@@ -123,7 +155,9 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
 
   // Выбираю сцену по ключу, а не по номеру в списке
   Widget _buildSceneDropdown() {
-    final scenes = {for (final scene in widget.allScenes) scene.sceneKey: scene};
+    final scenes = {
+      for (final scene in widget.allScenes) scene.sceneKey: scene,
+    };
     final keys = <String>{'', ...scenes.keys, _selectedSceneKey};
     return DropdownButton<String>(
       key: const ValueKey('action-scene-target'),
@@ -131,10 +165,18 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
       isExpanded: true,
       dropdownColor: const Color(0xFF3F0404),
       style: const TextStyle(color: Colors.white),
-      items: keys.map((key) => DropdownMenuItem<String>(
-        value: key,
-        child: Text(key.isEmpty ? 'Конец эпизода' : scenes[key]?.title ?? 'Недоступная сцена'),
-      )).toList(),
+      items: keys
+          .map(
+            (key) => DropdownMenuItem<String>(
+              value: key,
+              child: Text(
+                key.isEmpty
+                    ? 'Конец эпизода'
+                    : scenes[key]?.title ?? 'Недоступная сцена',
+              ),
+            ),
+          )
+          .toList(),
       onChanged: (key) {
         if (key != null) setState(() => _selectedSceneKey = key);
       },
@@ -142,13 +184,19 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   }
 
   // Виджет поля ввода с рамкой (вспомогательный метод)
-  Widget _buildField(TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType}) {
-    return TextField( // Поле ввода
+  Widget _buildField(
+    TextEditingController controller, {
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
+    return TextField(
+      // Поле ввода
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
       style: const TextStyle(color: Colors.white, fontSize: 16), // Белый текст
-      decoration: InputDecoration( // Оформление поля
+      decoration: InputDecoration(
+        // Оформление поля
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12), // Круглые углы
         ),
@@ -158,7 +206,9 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD30010)), // Красная рамка при фокусе
+          borderSide: const BorderSide(
+            color: Color(0xFFD30010),
+          ), // Красная рамка при фокусе
         ),
       ),
     );
@@ -166,9 +216,9 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return Scaffold(
+      // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -177,10 +227,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
             child: Container(
               color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
               // Картинка фона
-              child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
-              ),
+              child: const NovelBackground(),
             ),
           ),
 
@@ -190,24 +237,31 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
               children: [
                 // Верхняя панель
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Кнопка назад
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFFD30010),
+                          size: 28,
+                        ),
                         onPressed: withButtonSound(() {
                           Navigator.pop(context);
                         }),
                       ),
-                      
+
                       // Заголовок
                       const Text(
                         'Клуб романтики',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      
+
                       // Пустой контейнер для симметрии
                       const SizedBox(width: 48),
                     ],
@@ -239,7 +293,10 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                         // Поле ввода названия действия (розовое)
                         TextField(
                           controller: _titleController,
-                          style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18),
+                          style: const TextStyle(
+                            color: Color(0xFFFFA0A0),
+                            fontSize: 18,
+                          ),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             isDense: true,
@@ -258,7 +315,10 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                         DropdownButtonFormField<String>(
                           initialValue: _selectedType,
                           dropdownColor: const Color(0xFF1A1A1A),
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                           decoration: InputDecoration(
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -269,18 +329,47 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFD30010)),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD30010),
+                              ),
                             ),
-                            suffixIcon: const Icon(Icons.radio_button_unchecked, color: Colors.white),
+                            suffixIcon: const Icon(
+                              Icons.radio_button_unchecked,
+                              color: Colors.white,
+                            ),
                           ),
                           items: [
-                            DropdownMenuItem(value: 'nextScene', child: Text('перейти к сцене')),
-                            DropdownMenuItem(value: 'changeCounter', child: Text('баллы')),
-                            DropdownMenuItem(value: 'changeFlag', child: Text('флаг')),
-                            const DropdownMenuItem(value: 'ending', child: Text('концовка')),
-                            const DropdownMenuItem(value: 'notification', child: Text('уведомление')),
-                            if (!['nextScene', 'changeCounter', 'changeFlag', 'ending', 'notification'].contains(_selectedType))
-                              DropdownMenuItem(value: _selectedType, child: Text(_selectedType)),
+                            DropdownMenuItem(
+                              value: 'nextScene',
+                              child: Text('перейти к сцене'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'changeCounter',
+                              child: Text('баллы'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'changeFlag',
+                              child: Text('флаг'),
+                            ),
+                            const DropdownMenuItem(
+                              value: 'ending',
+                              child: Text('концовка'),
+                            ),
+                            const DropdownMenuItem(
+                              value: 'notification',
+                              child: Text('уведомление'),
+                            ),
+                            if (![
+                              'nextScene',
+                              'changeCounter',
+                              'changeFlag',
+                              'ending',
+                              'notification',
+                            ].contains(_selectedType))
+                              DropdownMenuItem(
+                                value: _selectedType,
+                                child: Text(_selectedType),
+                              ),
                           ],
                           onChanged: (value) {
                             if (value != null) {
@@ -306,35 +395,56 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                               const Expanded(
                                 child: Text(
                                   'перейти к сцене',
-                                  style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                                  style: TextStyle(
+                                    color: Color(0xFF7E7E7E),
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                               Expanded(child: _buildSceneDropdown()),
                             ],
                           ),
                         ],
-                        if (_selectedType == 'nextScene' || _selectedType == 'changeCounter') ...[
+                        if (_selectedType == 'nextScene' ||
+                            _selectedType == 'changeCounter') ...[
                           Row(
                             children: [
                               const Expanded(
                                 child: Text(
                                   'баллы (кол-во, счётчик',
-                                  style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                                  style: TextStyle(
+                                    color: Color(0xFF7E7E7E),
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
-                              Expanded(child: _buildField(_counterNameController)),
+                              Expanded(
+                                child: _buildField(_counterNameController),
+                              ),
                               const SizedBox(width: 8),
-                              Expanded(child: _buildField(_counterValueController, keyboardType: const TextInputType.numberWithOptions(signed: true))),
+                              Expanded(
+                                child: _buildField(
+                                  _counterValueController,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        signed: true,
+                                      ),
+                                ),
+                              ),
                             ],
                           ),
                         ],
-                        if (_selectedType == 'nextScene' || _selectedType == 'changeFlag') ...[
+                        if (_selectedType == 'nextScene' ||
+                            _selectedType == 'changeFlag') ...[
                           Row(
                             children: [
                               const Expanded(
                                 child: Text(
                                   'флаг',
-                                  style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
+                                  style: TextStyle(
+                                    color: Color(0xFF7E7E7E),
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                               Expanded(child: _buildField(_flagNameController)),
@@ -342,10 +452,17 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                           ),
                           SwitchListTile(
                             key: const ValueKey('action-flag-value'),
-                            title: const Text('значение флага', style: TextStyle(color: Colors.white)),
-                            subtitle: Text(_flagValue ? 'true' : 'false', style: const TextStyle(color: Colors.white)),
+                            title: const Text(
+                              'значение флага',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              _flagValue ? 'true' : 'false',
+                              style: const TextStyle(color: Colors.white),
+                            ),
                             value: _flagValue,
-                            onChanged: (value) => setState(() => _flagValue = value),
+                            onChanged: (value) =>
+                                setState(() => _flagValue = value),
                           ),
                         ],
                         const SizedBox(height: 24),

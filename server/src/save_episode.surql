@@ -1,13 +1,15 @@
 BEGIN TRANSACTION;
+IF !record::exists(type::record($novel_id)) { THROW 'NOVEL_NOT_FOUND'; };
 
 LET $episode = type::record('episode', $episode_id);
+IF record::exists($episode) AND ((SELECT VALUE novel_id FROM ONLY $episode) ?? novel:ladybug) != type::record($novel_id) { THROW 'EPISODE_OTHER_NOVEL'; };
 
 -- Не оставляю сохранённый прогресс со ссылкой на удалённую сцену
 LET $removed_scenes = (SELECT VALUE id FROM scene WHERE episode_id = $episode AND <string>id NOT IN $scene_keys);
 IF array::len((SELECT VALUE id FROM progress WHERE scene_id IN $removed_scenes LIMIT 1)) > 0 {
     THROW "SCENE_HAS_PROGRESS";
 };
-UPSERT $episode MERGE { title: $title, version: $version, updated_at: time::now() };
+UPSERT $episode MERGE { title: $title, version: $version, novel_id:type::record($novel_id), updated_at: time::now() };
 
 LET $old_scenes = (SELECT VALUE id FROM scene WHERE episode_id = $episode);
 LET $old_choices = (SELECT VALUE id FROM choice WHERE scene_id IN $old_scenes);

@@ -1,5 +1,6 @@
 // Доменная модель эпизода
 class EpisodeModel {
+  final String novelId; // Новелла эпизода
   final int id; // ID эпизода
   final String title; // Название
   final int version; // Версия
@@ -7,6 +8,7 @@ class EpisodeModel {
 
   // Конструктор
   const EpisodeModel({
+    this.novelId = '',
     required this.id,
     required this.title,
     required this.version,
@@ -33,7 +35,10 @@ class SceneModel {
   final int orderIndex; // Порядок сцены
 
   String get nextSceneTarget => nextSceneKey.isNotEmpty
-      ? nextSceneKey : nextSceneId > 0 ? 'scene:$nextSceneId' : '';
+      ? nextSceneKey
+      : nextSceneId > 0
+      ? 'scene:$nextSceneId'
+      : '';
 
   // Конструктор
   const SceneModel({
@@ -80,7 +85,10 @@ class ActionModel {
   final String sceneKey; // Ключ сцены для перехода
 
   String get sceneTarget => sceneKey.isNotEmpty
-      ? sceneKey : sceneId > 0 ? 'scene:$sceneId' : '';
+      ? sceneKey
+      : sceneId > 0
+      ? 'scene:$sceneId'
+      : '';
   final String flagName; // Имя флага
   final bool flagValue; // Значение флага
   final String counterName; // Имя счётчика
@@ -103,6 +111,7 @@ class ActionModel {
     required this.title,
   });
 }
+
 // Первое выполненное правило определяет следующий переход
 class SceneRouteModel {
   final String condition;

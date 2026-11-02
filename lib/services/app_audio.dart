@@ -18,6 +18,10 @@ abstract class AudioBackend {
 
 // Одну музыку и один короткий эффект держу в разных проигрывателях.
 class AudioPlayersBackend implements AudioBackend {
+  final String? musicFile;
+  final String? clickFile;
+  final bool defaults;
+  AudioPlayersBackend({this.musicFile, this.clickFile, this.defaults = true});
   final music = AudioPlayer(); // Общая музыка приложения
   final sound = AudioPlayer(); // Щелчок кнопки
 
@@ -36,8 +40,16 @@ class AudioPlayersBackend implements AudioBackend {
     );
     await music.setReleaseMode(ReleaseMode.loop);
     await sound.setReleaseMode(ReleaseMode.stop);
-    await music.setSource(AssetSource('audio/background_music.mp3'));
-    await sound.setSource(AssetSource('audio/button_click.mp3'));
+    if (musicFile != null) {
+      await music.setSource(DeviceFileSource(musicFile!));
+    } else if (defaults) {
+      await music.setSource(AssetSource('audio/background_music.mp3'));
+    }
+    if (clickFile != null) {
+      await sound.setSource(DeviceFileSource(clickFile!));
+    } else if (defaults) {
+      await sound.setSource(AssetSource('audio/button_click.mp3'));
+    }
   }
 
   @override
@@ -48,6 +60,7 @@ class AudioPlayersBackend implements AudioBackend {
 
   @override
   Future<void> musicEnabled(bool enabled) async {
+    if (!defaults && musicFile == null) return;
     if (enabled && music.state != PlayerState.playing) {
       await music.resume(); // Продолжаю с прежнего места
     } else if (!enabled && music.state == PlayerState.playing) {
@@ -57,6 +70,7 @@ class AudioPlayersBackend implements AudioBackend {
 
   @override
   Future<void> click() async {
+    if (!defaults && clickFile == null) return;
     await sound.seek(Duration.zero);
     await sound.resume();
   }
@@ -81,6 +95,7 @@ class AudioPlayersBackend implements AudioBackend {
 class AppAudio {
   static AppAudio shared = AppAudio();
   final AudioBackend Function() _createBackend;
+  final AudioBackend Function(String?, String?, bool) _novelBackend;
   final Future<Settings> Function() _loadSettings;
   final _errors = StreamController<String>.broadcast();
   AudioBackend? _backend;
@@ -99,8 +114,16 @@ class AppAudio {
 
   AppAudio({
     AudioBackend Function()? createBackend,
+    AudioBackend Function(String?, String?, bool)? novelBackend,
     Future<Settings> Function()? loadSettings,
   }) : _createBackend = createBackend ?? AudioPlayersBackend.new,
+       _novelBackend =
+           novelBackend ??
+           ((music, click, defaults) => AudioPlayersBackend(
+             musicFile: music,
+             clickFile: click,
+             defaults: defaults,
+           )),
        _loadSettings = loadSettings ?? StorageService.loadSettings;
 
   // Повторное обращение не создаёт ещё одну музыку.
@@ -178,6 +201,36 @@ class AppAudio {
       if (!_foreground || soundVolume == 0 || request != _clickRequest) return;
       await backend.click();
     });
+  }
+
+  // При смене истории сначала готовлю новые звуки и сохраняю громкость.
+  Future<void> configureNovel(
+    String? music,
+    String? click, {
+    required bool defaults,
+  }) async {
+    await initialize();
+    if (!ready) throw StateError('Не удалось подготовить звук');
+    await _command((old) async {
+      final next = _novelBackend(music, click, defaults);
+      await old.pauseAll();
+      try {
+        await next.prepare();
+        await next.volumes(musicVolume, soundVolume);
+        if (_foreground) await next.musicEnabled(musicVolume > 0);
+      } catch (_) {
+        await next.close();
+        if (_foreground) await old.musicEnabled(musicVolume > 0);
+        rethrow;
+      }
+      _backend = next;
+      try {
+        await old.close();
+      } catch (problem) {
+        debugPrint('$problem');
+      }
+    });
+    if (error != null) throw StateError(error!);
   }
 
   Future<void> flush() => _queue;

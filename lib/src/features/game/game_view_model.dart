@@ -1,8 +1,13 @@
+import '../../../services/active_novel.dart'; // Импорт правил выбранной истории
 import '../../core/scene_condition.dart'; // Подключаю проверку условий
+
 import 'package:grpc/grpc.dart'; // Импорт ошибки авторизации
+
 import '../../../services/session_store.dart'; // Импорт проверки отсутствующей сессии
 import '../../data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+
 import 'package:flutter/foundation.dart'; // Импорт для ChangeNotifier и debugPrint
+
 import '../../core/async_state.dart'; // Импорт состояния
 import '../../domain/models/episode_model.dart'; // Импорт доменных моделей
 import '../../domain/models/progress_model.dart'; // Импорт прогресса
@@ -121,16 +126,22 @@ class GameViewModel extends ChangeNotifier {
   bool canOpenPaidChoice(ChoiceModel choice) {
     final targets = choice.actions.where((a) => a.type == 'nextScene').toList();
     if (targets.length != 1 || _state.data == null) return false;
-    final scenes = _state.data!.scenes.where((s) => s.sceneKey == targets.single.sceneTarget);
+    final scenes = _state.data!.scenes.where(
+      (s) => s.sceneKey == targets.single.sceneTarget,
+    );
     if (scenes.isEmpty) return false;
     final counters = {'points': _points, ..._counters};
     final flags = Map<String, bool>.of(_flags);
     for (final action in choice.actions) {
       if (action.type == 'notification') continue;
-      if (action.counterName.isNotEmpty) counters[action.counterName] = (counters[action.counterName] ?? 0) + action.counterValue;
+      if (action.counterName.isNotEmpty) {
+        counters[action.counterName] =
+            (counters[action.counterName] ?? 0) + action.counterValue;
+      }
       if (action.flagName.isNotEmpty) flags[action.flagName] = action.flagValue;
     }
-    return SceneCondition.parse(scenes.first.condition).evaluate(counters, flags);
+    return SceneCondition.parse(scenes.first.condition)
+        .evaluate(counters, flags);
   }
 
   // Геттер для счётчиков
@@ -167,7 +178,11 @@ class GameViewModel extends ChangeNotifier {
   }
 
   // Конструктор
-  GameViewModel(this._repository, [this._progressRepository, this._achievementRepository]);
+  GameViewModel(
+    this._repository, [
+    this._progressRepository,
+    this._achievementRepository,
+  ]);
 
   // Загрузить эпизод по ID
   Future<void> loadEpisode(int id, {bool startFromBeginning = false}) async {
@@ -202,13 +217,21 @@ class GameViewModel extends ChangeNotifier {
 
       // Проверяю все выражения до игры и записи прогресса
       for (final scene in episode.scenes) {
-        for (final condition in [scene.condition, ...scene.routes.map((r) => r.condition)]) {
+        for (final condition in [
+          scene.condition,
+          ...scene.routes.map((r) => r.condition),
+        ]) {
           final error = SceneCondition.error(condition);
-          if (error != null) throw FormatException('Сцена «${scene.title}»: $error');
+          if (error != null) {
+            throw FormatException('Сцена «${scene.title}»: $error');
+          }
         }
         for (final route in scene.routes) {
-          if (route.sceneKey.isEmpty || !episode.scenes.any((s) => s.sceneKey == route.sceneKey)) {
-            throw FormatException('Сцена «${scene.title}»: отсутствует цель условного перехода');
+          if (route.sceneKey.isEmpty ||
+              !episode.scenes.any((s) => s.sceneKey == route.sceneKey)) {
+            throw FormatException(
+              'Сцена «${scene.title}»: отсутствует цель условного перехода',
+            );
           }
         }
       }
@@ -226,14 +249,20 @@ class GameViewModel extends ChangeNotifier {
       }
       // Для нового прохождения беру итог ближайшего завершённого эпизода.
       // Не суммирую снимки: каждый уже содержит накопленные баллы.
-      if (_progressRepository != null && id > 1 &&
+      if (_progressRepository != null &&
+          id > 1 &&
           (startFromBeginning || loadedProgress!.sceneId.isEmpty)) {
-        final earlier = (await _repository.getAllEpisodes())
-            .where((e) => e.id < id).toList()
-          ..sort((a, b) => b.id.compareTo(a.id));
+        final earlier =
+            (await _repository.getAllEpisodes())
+                .where((e) => e.id < id)
+                .toList()
+              ..sort((a, b) => b.id.compareTo(a.id));
         if (_disposed || loadId != _loadId) return;
         for (final previous in earlier) {
-          final progress = await _progressRepository.getProgress(_playerId, previous.id);
+          final progress = await _progressRepository.getProgress(
+            _playerId,
+            previous.id,
+          );
           if (_disposed || loadId != _loadId) return;
           if (progress.completed && progress.generation == _generation) {
             _points = progress.counters['points'] ?? 0;
@@ -243,7 +272,9 @@ class GameViewModel extends ChangeNotifier {
           }
         }
       }
-      if (startFromBeginning || loadedProgress == null || loadedProgress.sceneId.isEmpty) {
+      if (startFromBeginning ||
+          loadedProgress == null ||
+          loadedProgress.sceneId.isEmpty) {
         _state = AsyncState.success(episode);
         _goToSceneKey(episode.scenes.first.sceneKey, <String>{});
         if (_state.error != null) throw StateError(_state.error!);
@@ -256,19 +287,24 @@ class GameViewModel extends ChangeNotifier {
           if (episode.scenes.isEmpty) {
             throw StateError('В эпизоде нет сцен');
           }
-          final saving = _progressRepository.saveProgress(ProgressModel(
-            playerId: _playerId,
-            episodeId: id,
-            sceneId: episode.scenes[_currentSceneIndex].sceneKey,
-            flags: Map.of(_flags),
-            counters: {'points': _points, ..._counters},
-            revision: _revision,
-            generation: _generation,
-            completed: false,
-            ending: '',
-          ));
+          final saving = _progressRepository.saveProgress(
+            ProgressModel(
+              playerId: _playerId,
+              episodeId: id,
+              sceneId: episode.scenes[_currentSceneIndex].sceneKey,
+              flags: Map.of(_flags),
+              counters: {'points': _points, ..._counters},
+              revision: _revision,
+              generation: _generation,
+              completed: false,
+              ending: '',
+            ),
+          );
           // Новая загрузка тоже должна дождаться сброса
-          _saveQueue = saving.then<void>((_) {}, onError: (Object error, StackTrace stack) {});
+          _saveQueue = saving.then<void>(
+            (_) {},
+            onError: (Object error, StackTrace stack) {},
+          );
           final revision = await saving;
           if (_disposed || loadId != _loadId) return;
           _revision = revision;
@@ -288,10 +324,14 @@ class GameViewModel extends ChangeNotifier {
 
           if (progress.sceneId.isNotEmpty) {
             // Восстанавливаю позицию по постоянному ключу, даже после перестановки
-            final index = episode.scenes.indexWhere((scene) => scene.sceneKey == progress.sceneId);
+            final index = episode.scenes.indexWhere(
+              (scene) => scene.sceneKey == progress.sceneId,
+            );
             if (index < 0) {
               _progressSceneMissing = true;
-              _state = AsyncState.failure('Сохранённая сцена больше не существует. Можно начать эпизод заново.');
+              _state = AsyncState.failure(
+                'Сохранённая сцена больше не существует. Можно начать эпизод заново.',
+              );
               notifyListeners();
               return;
             }
@@ -344,8 +384,9 @@ class GameViewModel extends ChangeNotifier {
   }
 
   // Неизвестный синтаксис не открывает закрытую ветку
-  bool _isConditionMet(String condition) => SceneCondition.parse(condition)
-      .evaluate({'points': _points, ..._counters}, _flags);
+  bool _isConditionMet(String condition) =>
+      SceneCondition.parse(condition)
+          .evaluate({'points': _points, ..._counters}, _flags);
 
   String _nextTarget(SceneModel scene) {
     for (final route in scene.routes) {
@@ -355,7 +396,8 @@ class GameViewModel extends ChangeNotifier {
   }
 
   // Читаю также переходы из старых данных с числовым ID
-  void goToScene(int sceneId) => goToSceneKey(sceneId > 0 ? 'scene:$sceneId' : '');
+  void goToScene(int sceneId) =>
+      goToSceneKey(sceneId > 0 ? 'scene:$sceneId' : '');
 
   // Перехожу по настоящему ключу сцены, порядок списка не влияет
   void goToSceneKey(String sceneKey) {
@@ -380,7 +422,9 @@ class GameViewModel extends ChangeNotifier {
 
         // Проверяю условие
         if (!_isConditionMet(scene.condition)) {
-          debugPrint('[GAME] Сцена ${scene.sceneKey} пропущена (условие: ${scene.condition})');
+          debugPrint(
+            '[GAME] Сцена ${scene.sceneKey} пропущена (условие: ${scene.condition})',
+          );
 
           // Условие не выполнено - иду дальше по nextSceneId этой сцены
           if (_nextTarget(scene).isNotEmpty) {
@@ -396,7 +440,9 @@ class GameViewModel extends ChangeNotifier {
             }
           }
           // Не открываю запрещённую сцену, если доступной ветки нет
-          _state = AsyncState.failure('Нет доступной сцены после «${scene.title}». Проверьте условия и переходы в редакторе.');
+          _state = AsyncState.failure(
+            'Нет доступной сцены после «${scene.title}». Проверьте условия и переходы в редакторе.',
+          );
           return;
         }
 
@@ -411,7 +457,9 @@ class GameViewModel extends ChangeNotifier {
 
   // Следую правилам сцены; при отсутствии совпадений использую обычный переход
   void nextScene() {
-    if (_state.data == null || currentScene == null || _saveError != null) return;
+    if (_state.data == null || currentScene == null || _saveError != null) {
+      return;
+    }
     // Если у сцены задан nextSceneId - иду на него
     final nextKey = _nextTarget(currentScene!);
     if (nextKey.isNotEmpty) {
@@ -441,7 +489,9 @@ class GameViewModel extends ChangeNotifier {
         // Конкретный счётчик (romance_adrian, friendship, ...)
         final current = _counters[action.counterName] ?? 0;
         _counters[action.counterName] = current + action.counterValue;
-        debugPrint('[GAME] Счётчик ${action.counterName}: $current → ${_counters[action.counterName]}');
+        debugPrint(
+          '[GAME] Счётчик ${action.counterName}: $current → ${_counters[action.counterName]}',
+        );
       } else if (action.counterName == 'points') {
         // Общие баллы
         _points += action.counterValue;
@@ -466,6 +516,7 @@ class GameViewModel extends ChangeNotifier {
 
   // Определить концовку по счётчикам (5 концовок)
   String determineEnding() {
+    if (!ActiveNovel.shared.legacyRules) return _ending;
     // Если концовка уже установлена вручную - возвращаю её
     if (_ending.isNotEmpty) return _ending;
 
@@ -473,14 +524,23 @@ class GameViewModel extends ChangeNotifier {
     if (_state.data?.id != 5) return '';
 
     // Дополнительные финалы проверяю только в последнем эпизоде сезона.
-    if (_state.data?.id == 5) {
-      if (['alya', 'nino', 'kagami', 'chloe']
-          .every((friend) => (_counters['friendship_$friend'] ?? 0) >= 2)) {
+    if ((ActiveNovel.shared.legacyRules &&
+        _state.data?.id == ActiveNovel.shared.finalEpisodeId)) {
+      if ([
+        'alya',
+        'nino',
+        'kagami',
+        'chloe',
+      ].every((friend) => (_counters['friendship_$friend'] ?? 0) >= 2)) {
         return 'Команда вместе';
       }
-      final values = ['romance_adrian', 'romance_cat', 'romance_luka',
-        'romance_ladybug_adrian', 'romance_ladybug_cat']
-          .map((name) => _counters[name] ?? 0).toSet();
+      final values = [
+        'romance_adrian',
+        'romance_cat',
+        'romance_luka',
+        'romance_ladybug_adrian',
+        'romance_ladybug_cat',
+      ].map((name) => _counters[name] ?? 0).toSet();
       if (values.length == 1) return 'Выбираю себя';
     }
 
@@ -496,10 +556,20 @@ class GameViewModel extends ChangeNotifier {
       return 'МариКот';
     }
 
-    final max = [adrian, cat, luka, lbAdrian, lbCat].reduce((a, b) => a > b ? a : b);
+    final max = [
+      adrian,
+      cat,
+      luka,
+      lbAdrian,
+      lbCat,
+    ].reduce((a, b) => a > b ? a : b);
 
     // Запасная ветка сезона совпадает с обычной целью его развилки.
-    if (_state.data?.id == 5 && max <= 0) return 'МариАдриан';
+    if ((ActiveNovel.shared.legacyRules &&
+            _state.data?.id == ActiveNovel.shared.finalEpisodeId) &&
+        max <= 0) {
+      return 'МариАдриан';
+    }
 
     // Порядок проверки - чтобы не было случайных совпадений
     if (adrian == max) return 'МариАдриан';
@@ -524,12 +594,18 @@ class GameViewModel extends ChangeNotifier {
 
       // Достижение: секретная сцена
       if (_flags['secret_scene'] == true) {
-        await _achievementRepository.unlockAchievement(_playerId, 'secret_scene');
+        await _achievementRepository.unlockAchievement(
+          _playerId,
+          'secret_scene',
+        );
       }
 
       // Достижение: все друзья
       if (_flags['all_friends'] == true) {
-        await _achievementRepository.unlockAchievement(_playerId, 'all_friends');
+        await _achievementRepository.unlockAchievement(
+          _playerId,
+          'all_friends',
+        );
       }
     } catch (e) {
       debugPrint('Ошибка открытия достижения: $e');
@@ -539,8 +615,12 @@ class GameViewModel extends ChangeNotifier {
   // Ставлю в очередь отдельный снимок, а не изменяемые карты состояния
   // Завершение сохраняю только после последней реплики и нажатия кнопки
   Future<bool> completeEpisode() async {
-    if (currentScene == null || !isLastScene || !isTextFinished ||
-        currentScene!.choices.isNotEmpty || _saveError != null || _progressRepository == null) {
+    if (currentScene == null ||
+        !isLastScene ||
+        !isTextFinished ||
+        currentScene!.choices.isNotEmpty ||
+        _saveError != null ||
+        _progressRepository == null) {
       return false;
     }
     if (_completed) {
@@ -549,7 +629,8 @@ class GameViewModel extends ChangeNotifier {
     }
     _completed = true;
     // Открываю особые достижения только после прочитанного финала сезона.
-    if (_state.data?.id == 5) {
+    if ((ActiveNovel.shared.legacyRules &&
+        _state.data?.id == ActiveNovel.shared.finalEpisodeId)) {
       final ending = determineEnding();
       if (ending == 'Выбираю себя') _flags['secret_scene'] = true;
       if (ending == 'Команда вместе') _flags['all_friends'] = true;
@@ -565,7 +646,9 @@ class GameViewModel extends ChangeNotifier {
   }
 
   Future<void> _saveProgress() {
-    if (_progressRepository == null || _state.data == null || _saveError != null) {
+    if (_progressRepository == null ||
+        _state.data == null ||
+        _saveError != null) {
       return _saveQueue;
     }
     final playerId = _playerId;
@@ -575,14 +658,26 @@ class GameViewModel extends ChangeNotifier {
     final generation = _generation;
     final ending = completed ? determineEnding() : '';
     final flags = Map<String, bool>.unmodifiable(_flags);
-    final counters = Map<String, int>.unmodifiable({'points': _points, ..._counters});
+    final counters = Map<String, int>.unmodifiable({
+      'points': _points,
+      ..._counters,
+    });
     _saveQueue = _saveQueue.then((_) async {
       if (_saveError != null) return;
       try {
-        _revision = await _progressRepository.saveProgress(ProgressModel(
-          playerId: playerId, episodeId: episodeId, sceneId: sceneId,
-          flags: flags, counters: counters, revision: _revision, generation: generation, completed: completed, ending: ending,
-        ));
+        _revision = await _progressRepository.saveProgress(
+          ProgressModel(
+            playerId: playerId,
+            episodeId: episodeId,
+            sceneId: sceneId,
+            flags: flags,
+            counters: counters,
+            revision: _revision,
+            generation: generation,
+            completed: completed,
+            ending: ending,
+          ),
+        );
       } catch (e) {
         // Не отправляю следующие старые снимки после неудачной записи
         _saveError = 'Не удалось сохранить прогресс: ${networkError(e)}';

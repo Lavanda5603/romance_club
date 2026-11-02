@@ -11,6 +11,7 @@ message GetEpisodeRequest {
 
 // Запрос на получение всех эпизодов
 message GetAllEpisodesRequest {
+  string novel_id = 1; // Пусто — исходная история для совместимости
   // Пустой запрос
 }
 
@@ -52,6 +53,7 @@ service EpisodeApi {
 }
 
 message RelationshipRules {
+  string novel_id = 3; // Отдельные уровни у каждой новеллы
   string json = 1; // Названия уровней и пороги дружбы и романтики
   int32 revision = 2; // Защита от перезаписи чужих изменений
 }

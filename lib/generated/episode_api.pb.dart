@@ -78,7 +78,13 @@ class GetEpisodeRequest extends $pb.GeneratedMessage {
 
 /// Запрос на получение всех эпизодов
 class GetAllEpisodesRequest extends $pb.GeneratedMessage {
-  factory GetAllEpisodesRequest() => GetAllEpisodesRequest._();
+  factory GetAllEpisodesRequest({
+    $core.String? novelId,
+  }) {
+    final result = GetAllEpisodesRequest._();
+    if (novelId != null) result.novelId = novelId;
+    return result;
+  }
 
   GetAllEpisodesRequest._();
 
@@ -93,6 +99,7 @@ class GetAllEpisodesRequest extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'GetAllEpisodesRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
       createEmptyInstance: GetAllEpisodesRequest.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'novelId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -118,6 +125,15 @@ class GetAllEpisodesRequest extends $pb.GeneratedMessage {
       $pb.GeneratedMessage.$_defaultFor<GetAllEpisodesRequest>(
           GetAllEpisodesRequest.$_createMessage);
   static GetAllEpisodesRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get novelId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set novelId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasNovelId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearNovelId() => $_clearField(1);
 }
 
 /// Ответ со всеми эпизодами
@@ -442,10 +458,12 @@ class RelationshipRules extends $pb.GeneratedMessage {
   factory RelationshipRules({
     $core.String? json,
     $core.int? revision,
+    $core.String? novelId,
   }) {
     final result = RelationshipRules._();
     if (json != null) result.json = json;
     if (revision != null) result.revision = revision;
+    if (novelId != null) result.novelId = novelId;
     return result;
   }
 
@@ -464,6 +482,7 @@ class RelationshipRules extends $pb.GeneratedMessage {
       createEmptyInstance: RelationshipRules.$_createMessage)
     ..aOS(1, _omitFieldNames ? '' : 'json')
     ..aI(2, _omitFieldNames ? '' : 'revision')
+    ..aOS(3, _omitFieldNames ? '' : 'novelId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -505,6 +524,15 @@ class RelationshipRules extends $pb.GeneratedMessage {
   $core.bool hasRevision() => $_has(1);
   @$pb.TagNumber(2)
   void clearRevision() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get novelId => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set novelId($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasNovelId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearNovelId() => $_clearField(3);
 }
 
 const $core.bool _omitFieldNames =

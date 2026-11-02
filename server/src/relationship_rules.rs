@@ -51,7 +51,7 @@ mod tests {
     async fn anonymous_editor_is_rejected() {
         use crate::romance_club::{RelationshipRules, episode_api_server::EpisodeApi};
         let api = crate::EpisodeApiService::new(surrealdb::Surreal::init());
-        let result = api.save_relationship_rules(tonic::Request::new(RelationshipRules {json:defaults(),revision:0})).await;
+        let result = api.save_relationship_rules(tonic::Request::new(RelationshipRules {novel_id:String::new(),json:defaults(),revision:0})).await;
         assert_eq!(result.unwrap_err().code(), tonic::Code::Unauthenticated);
     }
 
@@ -68,19 +68,19 @@ mod tests {
             crate::apply_migrations(&db).await.map_err(|e| e.to_string())?;
             crate::request_auth::seed_test_admin(&db,"player:editor").await?;
             let api = crate::EpisodeApiService::new(db.clone());
-            let initial = api.get_relationship_rules(tonic::Request::new(GetAllEpisodesRequest {})).await?.into_inner();
+            let initial = api.get_relationship_rules(tonic::Request::new(GetAllEpisodesRequest {novel_id:String::new()})).await?.into_inner();
             assert_eq!(initial.revision,0);
             let admin = |rules| {
                 let mut request = tonic::Request::new(rules);
                 request.extensions_mut().insert(crate::jwt::Claims {sub:"player:editor".into(),login:"editor".into(),is_admin:true,exp:usize::MAX});
                 request
             };
-            let edited = RelationshipRules {json:defaults().replace("Симпатия","Взаимный интерес"),revision:0};
+            let edited = RelationshipRules {novel_id:String::new(),json:defaults().replace("Симпатия","Взаимный интерес"),revision:0};
             let saved = api.save_relationship_rules(admin(edited.clone())).await?.into_inner();
             assert_eq!(saved.revision,1);
             assert!(saved.json.contains("Взаимный интерес"));
             assert_eq!(api.save_relationship_rules(admin(edited)).await.unwrap_err().code(),tonic::Code::Aborted);
-            let loaded = api.get_relationship_rules(tonic::Request::new(GetAllEpisodesRequest {})).await?.into_inner();
+            let loaded = api.get_relationship_rules(tonic::Request::new(GetAllEpisodesRequest {novel_id:String::new()})).await?.into_inner();
             assert_eq!(saved,loaded);
             db.query("UPDATE player:editor SET is_admin=false").await?.check()?;
             assert_eq!(api.save_relationship_rules(admin(saved)).await.unwrap_err().code(),tonic::Code::PermissionDenied);

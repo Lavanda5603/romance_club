@@ -1,14 +1,19 @@
+import '../widgets/novel_background.dart'; // Импорт фона выбранной истории
 import 'ending_gallery_screen.dart'; // Импорт настоящей коллекции финалов
 import 'relationships_screen.dart'; // Импорт карточек отношений
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../services/session_store.dart'; // Импорт единого хранилища сессии
+
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import '../generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
 import '../src/domain/repositories/auth_repository.dart'; // Импорт интерфейса репозитория авторизации
 import '../src/domain/repositories/progress_repository.dart'; // Импорт интерфейса репозитория прогресса
 import '../src/domain/repositories/achievement_repository.dart'; // Импорт интерфейса репозитория достижений
+
 import 'package:flutter/material.dart'; // Импорт Material UI
+
 import '../services/storage_service.dart'; // Импорт сервиса хранения
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория авторизации
 import '../src/data/repositories/progress_repository_remote.dart'; // Импорт репозитория прогресса
@@ -27,8 +32,14 @@ class ProfileScreen extends StatefulWidget {
   final AchievementRepository? achievementRepository;
   final EpisodeGrpcService? episodeService;
   final Future<String> Function()? loadPlayerId;
-  const ProfileScreen({super.key, this.authRepository, this.progressRepository,
-    this.achievementRepository, this.episodeService, this.loadPlayerId});
+  const ProfileScreen({
+    super.key,
+    this.authRepository,
+    this.progressRepository,
+    this.achievementRepository,
+    this.episodeService,
+    this.loadPlayerId,
+  });
 
   // Создаю состояние экрана
   @override
@@ -86,9 +97,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _progressService = ProgressGrpcService();
     _achievementService = AchievementGrpcService();
     // Создаю репозитории
-    _authRepository = widget.authRepository ?? AuthRepositoryRemote(_authService);
-    _progressRepository = widget.progressRepository ?? ProgressRepositoryRemote(_progressService);
-    _achievementRepository = widget.achievementRepository ?? AchievementRepositoryRemote(_achievementService);
+    _authRepository =
+        widget.authRepository ?? AuthRepositoryRemote(_authService);
+    _progressRepository =
+        widget.progressRepository ?? ProgressRepositoryRemote(_progressService);
+    _achievementRepository =
+        widget.achievementRepository ??
+        AchievementRepositoryRemote(_achievementService);
     // Загружаю данные
     _loadProfile();
   }
@@ -109,16 +124,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _playerId = await (widget.loadPlayerId ?? StorageService.loadPlayerId)();
       if (!mounted) return;
       if (_playerId.isEmpty) throw StateError('Нет данных игрока');
-      await Future.wait([_loadPlayer(), _loadStatistics(), _loadAchievements()]);
+      await Future.wait([
+        _loadPlayer(),
+        _loadStatistics(),
+        _loadAchievements(),
+      ]);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _statsLoading = false;
         _achievementsLoading = false;
-        _profileError = e is GrpcError ? networkError(e) : 'Не удалось загрузить профиль';
-        _statsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить прогресс';
-        _achievementsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить достижения';
+        _profileError = e is GrpcError
+            ? networkError(e)
+            : 'Не удалось загрузить профиль';
+        _statsError = e is GrpcError
+            ? networkError(e)
+            : 'Не удалось загрузить прогресс';
+        _achievementsError = e is GrpcError
+            ? networkError(e)
+            : 'Не удалось загрузить достижения';
       });
     }
   }
@@ -137,49 +162,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _isLoading = false; _profileError = e is GrpcError ? networkError(e) : 'Не удалось загрузить профиль'; });
+      setState(() {
+        _isLoading = false;
+        _profileError = e is GrpcError
+            ? networkError(e)
+            : 'Не удалось загрузить профиль';
+      });
     }
   }
 
   Future<void> _loadStatistics() async {
-    setState(() { _statsLoading = true; _statsError = null; });
+    setState(() {
+      _statsLoading = true;
+      _statsError = null;
+    });
     try {
       List<Episode>? episodes;
       Set<int>? ids;
       await Future.wait([
-        _episodeService.getAllEpisodes().then((value) { episodes = value; }),
-        _progressRepository.getProgressSummary(_playerId).then((value) { ids = value; }),
+        _episodeService.getAllEpisodes().then((value) {
+          episodes = value;
+        }),
+        _progressRepository.getProgressSummary(_playerId).then((value) {
+          ids = value;
+        }),
       ], eagerError: true);
       if (!mounted) return;
       setState(() {
-        _completedEpisodes = episodes!.where((ep) => ids!.contains(ep.id)).map((ep) => ep.id).toSet().length;
+        _completedEpisodes = episodes!
+            .where((ep) => ids!.contains(ep.id))
+            .map((ep) => ep.id)
+            .toSet()
+            .length;
         _totalEpisodes = episodes!.length;
         _statsLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _statsLoading = false; _statsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить прогресс'; });
+      setState(() {
+        _statsLoading = false;
+        _statsError = e is GrpcError
+            ? networkError(e)
+            : 'Не удалось загрузить прогресс';
+      });
     }
   }
 
   Future<void> _loadAchievements() async {
-    setState(() { _achievementsLoading = true; _achievementsError = null; });
+    setState(() {
+      _achievementsLoading = true;
+      _achievementsError = null;
+    });
     try {
-      final achievements = await _achievementRepository.getAchievements(_playerId);
+      final achievements = await _achievementRepository.getAchievements(
+        _playerId,
+      );
       if (!mounted) return;
       setState(() {
         _unlockedAchievements.clear();
-        _unlockedAchievements.addAll(achievements.where((a) => a.isUnlocked).map((a) => a.name));
+        _unlockedAchievements.addAll(
+          achievements.where((a) => a.isUnlocked).map((a) => a.name),
+        );
         _achievementsLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _achievementsLoading = false; _achievementsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить достижения'; });
+      setState(() {
+        _achievementsLoading = false;
+        _achievementsError = e is GrpcError
+            ? networkError(e)
+            : 'Не удалось загрузить достижения';
+      });
     }
   }
 
   // Прогресс в процентах
-  double get _progress => _totalEpisodes == 0 ? 0 : _completedEpisodes / _totalEpisodes;
+  double get _progress =>
+      _totalEpisodes == 0 ? 0 : _completedEpisodes / _totalEpisodes;
 
   // Форматирование даты
   String _formatDate(String dateStr) {
@@ -198,18 +257,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog( // Всплывающее окно
+        return AlertDialog(
+          // Всплывающее окно
           title: const Text('Выйти из аккаунта?'),
           content: const Text(
             'Вы точно уверены, что хотите выйти из аккаунта?',
           ),
           actions: [
-            TextButton( // Кнопка без фона
-              onPressed: withButtonSound(() => Navigator.pop(context, false)), // Отмена
+            TextButton(
+              // Кнопка без фона
+              onPressed: withButtonSound(
+                () => Navigator.pop(context, false),
+              ), // Отмена
               child: const Text('Отмена'),
             ),
-            TextButton( // Кнопка без фона
-              onPressed: withButtonSound(() => Navigator.pop(context, true)), // Подтверждение
+            TextButton(
+              // Кнопка без фона
+              onPressed: withButtonSound(
+                () => Navigator.pop(context, true),
+              ), // Подтверждение
               child: const Text('Выйти'),
             ),
           ],
@@ -225,7 +291,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (error) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось сохранить выход. Повторите попытку.')),
+          const SnackBar(
+            content: Text('Не удалось сохранить выход. Повторите попытку.'),
+          ),
         );
         return;
       }
@@ -235,9 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Перехожу на экран авторизации
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (context) => const LoginScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
         (route) => false,
       );
     }
@@ -245,9 +311,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return Scaffold(
+      // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -256,10 +322,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Container(
               color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
               // Картинка фона
-              child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
-              ),
+              child: const NovelBackground(),
             ),
           ),
 
@@ -269,13 +332,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 // Верхняя панель
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Кнопка назад
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFFD30010),
+                          size: 28,
+                        ),
                         onPressed: withButtonSound(() {
                           Navigator.pop(context);
                         }),
@@ -296,7 +366,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Основной блок
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: Color(0xFFD30010)))
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFD30010),
+                          ),
+                        )
                       : SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: Column(
@@ -332,13 +406,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const SizedBox(height: 16),
 
                               if (_profileError != null)
-                                Text(_profileError!, style: const TextStyle(color: Colors.red)),
+                                Text(
+                                  _profileError!,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
                               // Логин
                               Center(
                                 child: Text(
                                   _login.isNotEmpty ? _login : 'игрок',
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(color: Colors.white, fontSize: 24),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -347,7 +427,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Center(
                                 child: Text(
                                   _email,
-                                  style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 14),
+                                  style: const TextStyle(
+                                    color: Color(0xFFFFA0A0),
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -356,7 +439,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Center(
                                 child: Text(
                                   'дата регистрации: ${_formatDate(_createdAt)}',
-                                  style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+                                  style: const TextStyle(
+                                    color: Color(0xFFFFA0A0),
+                                    fontSize: 16,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 32),
@@ -364,74 +450,122 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               // Прогресс
                               const Text(
                                 'прогресс',
-                                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w300),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w300,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                _statsLoading ? 'Прогресс загружается...' : _statsError ?? 'пройдено эпизодов: $_completedEpisodes/$_totalEpisodes',
-                                style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+                                _statsLoading
+                                    ? 'Прогресс загружается...'
+                                    : _statsError ??
+                                          'пройдено эпизодов: $_completedEpisodes/$_totalEpisodes',
+                                style: const TextStyle(
+                                  color: Color(0xFFFFA0A0),
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               if (!_statsLoading && _statsError == null)
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: LinearProgressIndicator(
-                                  value: _progress,
-                                  backgroundColor: const Color(0xFF534F50),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                                  minHeight: 20,
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: LinearProgressIndicator(
+                                    value: _progress,
+                                    backgroundColor: const Color(0xFF534F50),
+                                    valueColor:
+                                        const AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
+                                    minHeight: 20,
+                                  ),
                                 ),
-                              ),
                               const SizedBox(height: 32),
 
-                              TextButton.icon(
-                                onPressed: withButtonSound(() => Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const RelationshipsScreen()))),
-                                icon: const Icon(Icons.favorite, color: Color(0xFFFFA0A0)),
-                                label: const Text('Мои отношения', style: TextStyle(color: Color(0xFFFFA0A0))),
+                              TextButton(
+                                onPressed: withButtonSound(
+                                  () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const RelationshipsScreen(),
+                                    ),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Мои отношения',
+                                  style: TextStyle(color: Color(0xFFFFA0A0)),
+                                ),
                               ),
                               // Достижения
                               const Text(
                                 'достижения',
-                                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w300),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w300,
+                                ),
                               ),
                               const SizedBox(height: 12),
-                              if (_achievementsLoading || _achievementsError != null)
-                                Text(_achievementsLoading ? 'Достижения загружаются...' : _achievementsError!,
-                                  style: const TextStyle(color: Colors.white)),
-                              if (!_achievementsLoading && _achievementsError == null)
-                              Wrap(
-                                alignment: WrapAlignment.spaceEvenly,
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: _allAchievements.map((item) {
-                                  final isUnlocked = _unlockedAchievements.contains(item['key']);
-                                  return Column(
-                                    children: [
-                                      Icon(
-                                        isUnlocked ? Icons.diamond : Icons.lock_outline,
-                                        color: isUnlocked ? const Color(0xFFFFA0A0) : const Color(0xFF534F50),
-                                        size: 32,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        item['title']!,
-                                        style: TextStyle(
-                                          color: isUnlocked ? const Color(0xFFFFA0A0) : const Color(0xFF534F50),
-                                          fontSize: 10,
+                              if (_achievementsLoading ||
+                                  _achievementsError != null)
+                                Text(
+                                  _achievementsLoading
+                                      ? 'Достижения загружаются...'
+                                      : _achievementsError!,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              if (!_achievementsLoading &&
+                                  _achievementsError == null)
+                                Wrap(
+                                  alignment: WrapAlignment.spaceEvenly,
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: _allAchievements.map((item) {
+                                    final isUnlocked = _unlockedAchievements
+                                        .contains(item['key']);
+                                    return Column(
+                                      children: [
+                                        Icon(
+                                          isUnlocked
+                                              ? Icons.diamond
+                                              : Icons.lock_outline,
+                                          color: isUnlocked
+                                              ? const Color(0xFFFFA0A0)
+                                              : const Color(0xFF534F50),
+                                          size: 32,
                                         ),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          item['title']!,
+                                          style: TextStyle(
+                                            color: isUnlocked
+                                                ? const Color(0xFFFFA0A0)
+                                                : const Color(0xFF534F50),
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
                               const SizedBox(height: 32),
 
-                              TextButton.icon(
-                                onPressed: withButtonSound(() => Navigator.push(context,
-                                  MaterialPageRoute(builder: (_) => const EndingGalleryScreen()))),
-                                icon: const Icon(Icons.collections_bookmark, color: Color(0xFFFFA0A0)),
-                                label: const Text('Галерея концовок', style: TextStyle(color: Color(0xFFFFA0A0))),
+                              TextButton(
+                                onPressed: withButtonSound(
+                                  () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const EndingGalleryScreen(),
+                                    ),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Галерея концовок',
+                                  style: TextStyle(color: Color(0xFFFFA0A0)),
+                                ),
                               ),
                               const SizedBox(height: 32),
 

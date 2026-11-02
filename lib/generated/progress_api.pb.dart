@@ -89,9 +89,11 @@ class GetProgressRequest extends $pb.GeneratedMessage {
 class GetProgressSummaryRequest extends $pb.GeneratedMessage {
   factory GetProgressSummaryRequest({
     $core.String? playerId,
+    $core.String? novelId,
   }) {
     final result = GetProgressSummaryRequest._();
     if (playerId != null) result.playerId = playerId;
+    if (novelId != null) result.novelId = novelId;
     return result;
   }
 
@@ -109,6 +111,7 @@ class GetProgressSummaryRequest extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
       createEmptyInstance: GetProgressSummaryRequest.$_createMessage)
     ..aOS(1, _omitFieldNames ? '' : 'playerId')
+    ..aOS(2, _omitFieldNames ? '' : 'novelId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -145,6 +148,15 @@ class GetProgressSummaryRequest extends $pb.GeneratedMessage {
   $core.bool hasPlayerId() => $_has(0);
   @$pb.TagNumber(1)
   void clearPlayerId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get novelId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set novelId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasNovelId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearNovelId() => $_clearField(2);
 }
 
 class GetProgressSummaryResponse extends $pb.GeneratedMessage {

@@ -10,4 +10,5 @@ message Episode {
   string title = 2; // Название
   repeated Scene scenes = 3; // Сцены
   int32 version = 4; // Версия
+  string novel_id = 5; // Новелла, которой принадлежит глава
 }

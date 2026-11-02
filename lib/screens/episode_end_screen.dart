@@ -1,6 +1,10 @@
+import '../services/active_novel.dart'; // Импорт финала выбранной истории
+import '../widgets/novel_background.dart'; // Импорт оформления истории
 import 'ending_gallery_screen.dart'; // Импорт коллекции найденных финалов
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
+
 import 'package:flutter/material.dart'; // Импорт Material UI
+
 import '../src/core/ending_art.dart'; // Импорт картинок пяти концовок
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../src/data/services/episode_grpc_service.dart'; // Импорт gRPC-сервиса эпизодов
@@ -80,11 +84,28 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
     }
   }
 
+  Widget _endingBackground() {
+    if (widget.currentEpisode.id != ActiveNovel.shared.finalEpisodeId) {
+      return const NovelBackground();
+    }
+    final cards = ActiveNovel.shared
+        .cards('endings')
+        .where((row) => row['key'] == widget.ending);
+    final image = cards.isEmpty ? '' : cards.first['image_id'] as String? ?? '';
+    if (image.isNotEmpty) return NovelImage(id: image);
+    final path = ActiveNovel.shared.id == ActiveNovel.legacyId
+        ? endingArtwork[widget.ending]
+        : null;
+    return path == null
+        ? const NovelBackground()
+        : Image.asset(path, fit: BoxFit.contain);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return Scaffold(
+      // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -93,14 +114,7 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
             child: Container(
               color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
               // Картинка фона
-              child: Image.asset(
-                // Показываю романтический финал только в конце пятого эпизода.
-                widget.currentEpisode.id == 5
-                    ? endingArtwork[widget.ending] ?? 'assets/images/main_background.png'
-                    : 'assets/images/main_background.png',
-                fit: widget.currentEpisode.id == 5 && endingArtwork.containsKey(widget.ending)
-                    ? BoxFit.contain : BoxFit.cover,
-              ),
+              child: _endingBackground(),
             ),
           ),
 
@@ -110,7 +124,10 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
               children: [
                 // Верхняя панель
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -160,7 +177,10 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                           // Название концовки (если есть)
                           if (widget.ending.isNotEmpty) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF3F0404),
                                 borderRadius: BorderRadius.circular(20),
@@ -181,7 +201,9 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
 
                           // Если загрузка - показываю крутилку
                           if (_isLoading)
-                            const CircularProgressIndicator(color: Color(0xFFD30010))
+                            const CircularProgressIndicator(
+                              color: Color(0xFFD30010),
+                            )
                           // Если есть следующий эпизод
                           else if (_nextEpisode != null) ...[
                             // Кнопка следующий эпизод
@@ -194,9 +216,8 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => GameScreen(
-                                        episode: _nextEpisode!,
-                                      ),
+                                      builder: (context) =>
+                                          GameScreen(episode: _nextEpisode!),
                                     ),
                                   );
                                 }),
@@ -230,12 +251,25 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                             ),
                           const SizedBox(height: 12),
 
-                          if (widget.currentEpisode.id == 5)
+                          if (widget.currentEpisode.id ==
+                              ActiveNovel.shared.finalEpisodeId)
                             TextButton.icon(
-                              onPressed: withButtonSound(() => Navigator.push(context,
-                                MaterialPageRoute(builder: (_) => const EndingGalleryScreen()))),
-                              icon: const Icon(Icons.collections_bookmark, color: Color(0xFFFFA0A0)),
-                              label: const Text('Галерея концовок', style: TextStyle(color: Color(0xFFFFA0A0))),
+                              onPressed: withButtonSound(
+                                () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const EndingGalleryScreen(),
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(
+                                Icons.collections_bookmark,
+                                color: Color(0xFFFFA0A0),
+                              ),
+                              label: const Text(
+                                'Галерея концовок',
+                                style: TextStyle(color: Color(0xFFFFA0A0)),
+                              ),
                             ),
                           // Кнопка в меню
                           SizedBox(
@@ -247,12 +281,15 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const EpisodeSelectScreen(),
+                                    builder: (context) =>
+                                        const EpisodeSelectScreen(),
                                   ),
                                 );
                               }),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF534F50), // Серый
+                                backgroundColor: const Color(
+                                  0xFF534F50,
+                                ), // Серый
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(30),
                                 ),

@@ -1,6 +1,9 @@
+import '../widgets/novel_background.dart'; // Импорт фона выбранной истории
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+
 import 'package:flutter/material.dart'; // Импорт Material UI
+
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../services/storage_service.dart'; // Импорт сервиса хранения
 import '../src/data/repositories/shop_repository_remote.dart'; // Импорт репозитория магазина
@@ -15,7 +18,12 @@ class ShopScreen extends StatefulWidget {
   final ShopRepository? repository;
   final EpisodeGrpcService? episodeService;
   final Future<String> Function()? loadPlayerId;
-  const ShopScreen({super.key, this.repository, this.episodeService, this.loadPlayerId});
+  const ShopScreen({
+    super.key,
+    this.repository,
+    this.episodeService,
+    this.loadPlayerId,
+  });
 
   // Создаю состояние экрана
   @override
@@ -67,7 +75,9 @@ class _ShopScreenState extends State<ShopScreen> {
   // Загрузка данных (баланс, подписка, эпизоды если подписка есть)
   Future<void> _loadData() async {
     if (!mounted) return;
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
     try {
       // Загружаю player_id из Storage
       _playerId = await (widget.loadPlayerId ?? StorageService.loadPlayerId)();
@@ -111,9 +121,18 @@ class _ShopScreenState extends State<ShopScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _isLoading = false; });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(e)),
-        action: SnackBarAction(label: 'Повторить', onPressed: withButtonSound(_loadData)!)));
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(networkError(e)),
+          action: SnackBarAction(
+            label: 'Повторить',
+            onPressed: withButtonSound(_loadData)!,
+          ),
+        ),
+      );
     }
   }
 
@@ -127,7 +146,9 @@ class _ShopScreenState extends State<ShopScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Купить подписку?'),
-          content: const Text('Вы уверены, что хотите купить подписку за 500 алмазов?'),
+          content: const Text(
+            'Вы уверены, что хотите купить подписку за 500 алмазов?',
+          ),
           actions: [
             TextButton(
               onPressed: withButtonSound(() => Navigator.pop(context, false)),
@@ -155,7 +176,11 @@ class _ShopScreenState extends State<ShopScreen> {
 
       if (newCurrency == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось купить (не хватает алмазов или уже куплено)')),
+          const SnackBar(
+            content: Text(
+              'Не удалось купить (не хватает алмазов или уже куплено)',
+            ),
+          ),
         );
         return;
       }
@@ -178,14 +203,12 @@ class _ShopScreenState extends State<ShopScreen> {
         _episodes.addAll(episodes);
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Подписка куплена!')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Подписка куплена!')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Ошибка: ${networkError(e)}')));
     }
   }
 
@@ -203,9 +226,8 @@ class _ShopScreenState extends State<ShopScreen> {
       if (!mounted) return;
 
       if (newCurrency == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Не удалось купить')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Не удалось купить')));
         return;
       }
 
@@ -213,14 +235,12 @@ class _ShopScreenState extends State<ShopScreen> {
         _currency = newCurrency.diamonds;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Начислено $amount алмазов!')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Начислено $amount алмазов!')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Ошибка: ${networkError(e)}')));
     }
   }
 
@@ -241,12 +261,18 @@ class _ShopScreenState extends State<ShopScreen> {
               children: [
                 const Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 22),
                 const SizedBox(width: 4),
-                Text('$amount', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                Text(
+                  '$amount',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
               ],
             ),
             const SizedBox(height: 8),
             // Цена
-            Text('$price р.', style: const TextStyle(color: Colors.white, fontSize: 14)),
+            Text(
+              '$price р.',
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
           ],
         ),
       ),
@@ -255,9 +281,9 @@ class _ShopScreenState extends State<ShopScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return Scaffold(
+      // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -266,10 +292,7 @@ class _ShopScreenState extends State<ShopScreen> {
             child: Container(
               color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
               // Картинка фона
-              child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
-              ),
+              child: const NovelBackground(),
             ),
           ),
 
@@ -279,13 +302,20 @@ class _ShopScreenState extends State<ShopScreen> {
               children: [
                 // Верхняя панель
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Кнопка назад
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFFD30010),
+                          size: 28,
+                        ),
                         onPressed: withButtonSound(() {
                           Navigator.pop(context);
                         }),
@@ -307,7 +337,11 @@ class _ShopScreenState extends State<ShopScreen> {
                 Expanded(
                   child: _isLoading
                       // Если идёт загрузка
-                      ? const Center(child: CircularProgressIndicator(color: Color(0xFFD30010)))
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFD30010),
+                          ),
+                        )
                       // Если загружено
                       : SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -334,13 +368,25 @@ class _ShopScreenState extends State<ShopScreen> {
                                 children: [
                                   const Text(
                                     'валюта: ',
-                                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w300)
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w300,
+                                    ),
                                   ),
-                                  const Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 24),
+                                  const Icon(
+                                    Icons.diamond,
+                                    color: Color(0xFFFFA0A0),
+                                    size: 24,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     '$_currency',
-                                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w300)
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w300,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -349,7 +395,11 @@ class _ShopScreenState extends State<ShopScreen> {
                               // Заголовок
                               const Text(
                                 'подписка',
-                                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w300)
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w300,
+                                ),
                               ),
                               const SizedBox(height: 16),
 
@@ -357,7 +407,9 @@ class _ShopScreenState extends State<ShopScreen> {
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: const Color(0xFFFFA0A0)),
+                                  border: Border.all(
+                                    color: const Color(0xFFFFA0A0),
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Column(
@@ -365,35 +417,80 @@ class _ShopScreenState extends State<ShopScreen> {
                                   children: [
                                     Row(
                                       children: [
-                                        Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.grey,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
                                         const SizedBox(width: 8),
-                                        const Text('все эпизоды разблокированы', style: TextStyle(color: Colors.white, fontSize: 16)),
+                                        const Text(
+                                          'все эпизоды разблокированы',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 8),
                                     Row(
                                       children: [
-                                        Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.grey,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
                                         const SizedBox(width: 8),
-                                        const Text('без рекламы', style: TextStyle(color: Colors.white, fontSize: 16)),
+                                        const Text(
+                                          'без рекламы',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 8),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Row(
                                           children: const [
-                                            Text('500 ', style: TextStyle(color: Colors.white, fontSize: 16)),
-                                            Icon(Icons.diamond, color: Color(0xFFFFA0A0), size: 16),
+                                            Text(
+                                              '500 ',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            Icon(
+                                              Icons.diamond,
+                                              color: Color(0xFFFFA0A0),
+                                              size: 16,
+                                            ),
                                           ],
                                         ),
                                         TextButton(
-                                          onPressed: withButtonSound(_hasSubscription ? null : _buySubscription),
+                                          onPressed: withButtonSound(
+                                            _hasSubscription
+                                                ? null
+                                                : _buySubscription,
+                                          ),
                                           child: Text(
-                                            _hasSubscription ? 'активна' : 'купить',
+                                            _hasSubscription
+                                                ? 'активна'
+                                                : 'купить',
                                             style: TextStyle(
-                                              color: _hasSubscription ? Colors.grey : const Color(0xFFD30010),
+                                              color: _hasSubscription
+                                                  ? Colors.grey
+                                                  : const Color(0xFFD30010),
                                               fontSize: 14,
                                             ),
                                           ),
@@ -409,7 +506,11 @@ class _ShopScreenState extends State<ShopScreen> {
                                 const SizedBox(height: 32),
                                 const Text(
                                   'все эпизоды',
-                                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w300)
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w300,
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
 
@@ -444,17 +545,20 @@ class _ShopScreenState extends State<ShopScreen> {
                                                 Navigator.push(
                                                   context,
                                                   MaterialPageRoute(
-                                                    builder: (context) => GameScreen(
-                                                      episode: episode,
-                                                      startFromBeginning: true,
-                                                    ),
+                                                    builder: (context) =>
+                                                        GameScreen(
+                                                          episode: episode,
+                                                          startFromBeginning:
+                                                              true,
+                                                        ),
                                                   ),
                                                 );
                                               }),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: Colors.white,
                                                 shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(20),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
                                                 ),
                                                 elevation: 0,
                                                 padding: EdgeInsets.zero,
@@ -480,7 +584,11 @@ class _ShopScreenState extends State<ShopScreen> {
                               // Заголовок
                               const Text(
                                 'пакеты валюты',
-                                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w300)
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w300,
+                                ),
                               ),
                               const SizedBox(height: 16),
 
@@ -488,11 +596,14 @@ class _ShopScreenState extends State<ShopScreen> {
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: const Color(0xFFFFA0A0)),
+                                  border: Border.all(
+                                    color: const Color(0xFFFFA0A0),
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
                                   children: [
                                     _buildCurrencyPackage(100, 99),
                                     _buildCurrencyPackage(250, 249),

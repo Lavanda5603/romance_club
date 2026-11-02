@@ -12,6 +12,7 @@ message GetProgressRequest {
 
 message GetProgressSummaryRequest {
   string player_id = 1;
+  string novel_id = 2; // Коллекция выбранной истории
 }
 
 message GetProgressSummaryResponse {

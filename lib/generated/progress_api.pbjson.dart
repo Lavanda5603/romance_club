@@ -34,6 +34,7 @@ const GetProgressSummaryRequest$json = {
   '1': 'GetProgressSummaryRequest',
   '2': [
     {'1': 'player_id', '3': 1, '4': 1, '5': 9, '10': 'playerId'},
+    {'1': 'novel_id', '3': 2, '4': 1, '5': 9, '10': 'novelId'},
   ],
 };
 
@@ -41,7 +42,7 @@ const GetProgressSummaryRequest$json = {
 final $typed_data.Uint8List getProgressSummaryRequestDescriptor =
     $convert.base64Decode(
         'ChlHZXRQcm9ncmVzc1N1bW1hcnlSZXF1ZXN0EhsKCXBsYXllcl9pZBgBIAEoCVIIcGxheWVySW'
-        'Q=');
+        'QSGQoIbm92ZWxfaWQYAiABKAlSB25vdmVsSWQ=');
 
 @$core.Deprecated('Use getProgressSummaryResponseDescriptor instead')
 const GetProgressSummaryResponse$json = {

@@ -12,7 +12,7 @@ fn own<T>(body: T) -> Request<T> {
 #[tokio::test]
 async fn rejects_other_players_collection() {
     let api = ProgressApiService::new(surrealdb::Surreal::init());
-    let error = api.get_progress_summary(own(GetProgressSummaryRequest {player_id:"player:other".into()})).await.unwrap_err();
+    let error = api.get_progress_summary(own(GetProgressSummaryRequest {novel_id:String::new(),player_id:"player:other".into()})).await.unwrap_err();
     assert_eq!(error.code(),Code::PermissionDenied);
 }
 
@@ -26,7 +26,7 @@ async fn gallery_preserves_history_and_filters_owner_and_final_episode() -> Resu
     let result = async {
         crate::apply_migrations(&db).await.map_err(|e| e.to_string())?;
         let api = ProgressApiService::new(db.clone());
-        let request = || own(GetProgressSummaryRequest {player_id:"player:gallery".into()});
+        let request = || own(GetProgressSummaryRequest {novel_id:String::new(),player_id:"player:gallery".into()});
         let empty = api.get_progress_summary(request()).await?.into_inner();
         assert!(empty.endings_available);
         assert!(empty.seen_endings.is_empty());

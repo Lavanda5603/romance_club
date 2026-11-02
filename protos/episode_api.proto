@@ -43,8 +43,15 @@ message DeleteEpisodeResponse {
 
 // gRPC-сервис для работы с эпизодами
 service EpisodeApi {
+  rpc GetRelationshipRules(GetAllEpisodesRequest) returns (RelationshipRules); // Получаю общие уровни отношений
+  rpc SaveRelationshipRules(RelationshipRules) returns (RelationshipRules); // Сохраняю настройки как администратор
   rpc GetEpisode(GetEpisodeRequest) returns (Episode); // Получить эпизод по ID
   rpc GetAllEpisodes(GetAllEpisodesRequest) returns (GetAllEpisodesResponse); // Получить все эпизоды
   rpc SaveEpisode(SaveEpisodeRequest) returns (SaveEpisodeResponse); // Сохранить эпизод
   rpc DeleteEpisode(DeleteEpisodeRequest) returns (DeleteEpisodeResponse); // Удалить эпизод
+}
+
+message RelationshipRules {
+  string json = 1; // Названия уровней и пороги дружбы и романтики
+  int32 revision = 2; // Защита от перезаписи чужих изменений
 }

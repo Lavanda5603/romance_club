@@ -116,3 +116,17 @@ const DeleteEpisodeResponse$json = {
 final $typed_data.Uint8List deleteEpisodeResponseDescriptor = $convert.base64Decode(
     'ChVEZWxldGVFcGlzb2RlUmVzcG9uc2USGAoHc3VjY2VzcxgBIAEoCFIHc3VjY2VzcxIYCgdtZX'
     'NzYWdlGAIgASgJUgdtZXNzYWdl');
+
+@$core.Deprecated('Use relationshipRulesDescriptor instead')
+const RelationshipRules$json = {
+  '1': 'RelationshipRules',
+  '2': [
+    {'1': 'json', '3': 1, '4': 1, '5': 9, '10': 'json'},
+    {'1': 'revision', '3': 2, '4': 1, '5': 5, '10': 'revision'},
+  ],
+};
+
+/// Descriptor for `RelationshipRules`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List relationshipRulesDescriptor = $convert.base64Decode(
+    'ChFSZWxhdGlvbnNoaXBSdWxlcxISCgRqc29uGAEgASgJUgRqc29uEhoKCHJldmlzaW9uGAIgAS'
+    'gFUghyZXZpc2lvbg==');

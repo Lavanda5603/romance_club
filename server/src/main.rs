@@ -1,3 +1,4 @@
+mod relationship_rules; // Подключаю настройки уровней отношений
 mod episode_delete; // Подключаю транзакционное удаление дерева эпизода
 mod migrations; // Подключаю одноразовый запуск миграций
 #[cfg(test)]
@@ -105,6 +106,27 @@ impl EpisodeApiService {
 
 #[tonic::async_trait]
 impl EpisodeApi for EpisodeApiService {
+    async fn get_relationship_rules(&self, _request: Request<GetAllEpisodesRequest>) -> Result<Response<romance_club::RelationshipRules>, Status> {
+        let mut result = self.db.query("SELECT json, revision FROM ONLY relationship_rules:main").await
+            .map_err(|e| Status::internal(e.to_string()))?.check().map_err(|e| Status::internal(e.to_string()))?;
+        let record: Option<Value> = result.take(0).map_err(|e| Status::internal(e.to_string()))?;
+        let rules = record.map(|v| romance_club::RelationshipRules {
+            json: v["json"].as_str().unwrap_or("").to_owned(), revision: v["revision"].as_i64().unwrap_or(0) as i32,
+        }).unwrap_or_else(|| romance_club::RelationshipRules { json: relationship_rules::defaults(), revision: 0 });
+        Ok(Response::new(rules))
+    }
+
+    async fn save_relationship_rules(&self, request: Request<romance_club::RelationshipRules>) -> Result<Response<romance_club::RelationshipRules>, Status> {
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
+        let rules = request.into_inner();
+        let json = relationship_rules::validate(&rules.json)?;
+        let revision = rules.revision.checked_add(1).filter(|_| rules.revision >= 0)
+            .ok_or_else(|| Status::invalid_argument("Неверная версия настроек"))?;
+        self.db.query("BEGIN TRANSACTION; LET $old = (SELECT * FROM ONLY relationship_rules:main); IF ($old != NONE AND $old.revision != $expected) OR ($old = NONE AND $expected != 0) { THROW 'RULES_CONFLICT'; }; UPSERT relationship_rules:main CONTENT {json:$json, revision:$revision}; COMMIT TRANSACTION;")
+            .bind(("expected", rules.revision)).bind(("revision", revision)).bind(("json", json.clone())).await
+            .map_err(|e| Status::internal(e.to_string()))?.check().map_err(|_| Status::aborted("Настройки изменились или не сохранены. Перезагрузите их и повторите"))?;
+        Ok(Response::new(romance_club::RelationshipRules { json, revision }))
+    }
     // Получить эпизод по ID (со сценами, выборами, действиями)
     async fn get_episode(
         &self,

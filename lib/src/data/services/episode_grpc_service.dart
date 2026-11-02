@@ -7,6 +7,12 @@ import '../../../generated/episode_api.pbgrpc.dart'; // Импорт gRPC-кли
 
 // Сервис для работы с gRPC (транспортный слой)
 class EpisodeGrpcService {
+  // Общие настройки читают игроки, изменять их разрешает только серверная роль админа.
+  Future<RelationshipRules> getRelationshipRules() async =>
+    _client.getRelationshipRules(GetAllEpisodesRequest(), options: await authOptions());
+
+  Future<RelationshipRules> saveRelationshipRules(RelationshipRules rules) async =>
+    _client.saveRelationshipRules(rules, options: await authOptions());
   late final ClientChannel _channel; // Канал связи
   late final EpisodeApiClient _client; // gRPC-клиент
 

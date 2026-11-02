@@ -1,3 +1,4 @@
+import 'relationships_screen.dart'; // Импорт карточек отношений
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../services/session_store.dart'; // Импорт единого хранилища сессии
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
@@ -382,6 +383,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(height: 32),
 
+                              TextButton.icon(
+                                onPressed: withButtonSound(() => Navigator.push(context,
+                                  MaterialPageRoute(builder: (_) => const RelationshipsScreen()))),
+                                icon: const Icon(Icons.favorite, color: Color(0xFFFFA0A0)),
+                                label: const Text('Мои отношения', style: TextStyle(color: Color(0xFFFFA0A0))),
+                              ),
                               // Достижения
                               const Text(
                                 'достижения',

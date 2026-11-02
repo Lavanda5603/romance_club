@@ -438,6 +438,75 @@ class DeleteEpisodeResponse extends $pb.GeneratedMessage {
   void clearMessage() => $_clearField(2);
 }
 
+class RelationshipRules extends $pb.GeneratedMessage {
+  factory RelationshipRules({
+    $core.String? json,
+    $core.int? revision,
+  }) {
+    final result = RelationshipRules._();
+    if (json != null) result.json = json;
+    if (revision != null) result.revision = revision;
+    return result;
+  }
+
+  RelationshipRules._();
+
+  factory RelationshipRules.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RelationshipRules()..mergeFromBuffer(data, registry);
+  factory RelationshipRules.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RelationshipRules()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RelationshipRules',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: RelationshipRules.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'json')
+    ..aI(2, _omitFieldNames ? '' : 'revision')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RelationshipRules clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RelationshipRules copyWith(void Function(RelationshipRules) updates) =>
+      super.copyWith((message) => updates(message as RelationshipRules))
+          as RelationshipRules;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RelationshipRules() / RelationshipRules.new instead')
+  static RelationshipRules create() => RelationshipRules._();
+  static $pb.GeneratedMessage $_createMessage() => RelationshipRules._();
+  @$core.override
+  RelationshipRules createEmptyInstance() => RelationshipRules._();
+  @$core.pragma('dart2js:noInline')
+  static RelationshipRules getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RelationshipRules>(
+          RelationshipRules.$_createMessage);
+  static RelationshipRules? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get json => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set json($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasJson() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearJson() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get revision => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set revision($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRevision() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRevision() => $_clearField(2);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

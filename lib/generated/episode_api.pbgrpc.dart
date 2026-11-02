@@ -34,6 +34,20 @@ class EpisodeApiClient extends $grpc.Client {
 
   EpisodeApiClient(super.channel, {super.options, super.interceptors});
 
+  $grpc.ResponseFuture<$0.RelationshipRules> getRelationshipRules(
+    $0.GetAllEpisodesRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getRelationshipRules, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.RelationshipRules> saveRelationshipRules(
+    $0.RelationshipRules request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$saveRelationshipRules, request, options: options);
+  }
+
   $grpc.ResponseFuture<$1.Episode> getEpisode(
     $0.GetEpisodeRequest request, {
     $grpc.CallOptions? options,
@@ -64,6 +78,16 @@ class EpisodeApiClient extends $grpc.Client {
 
   // method descriptors
 
+  static final _$getRelationshipRules =
+      $grpc.ClientMethod<$0.GetAllEpisodesRequest, $0.RelationshipRules>(
+          '/romance_club.EpisodeApi/GetRelationshipRules',
+          ($0.GetAllEpisodesRequest value) => value.writeToBuffer(),
+          $0.RelationshipRules.fromBuffer);
+  static final _$saveRelationshipRules =
+      $grpc.ClientMethod<$0.RelationshipRules, $0.RelationshipRules>(
+          '/romance_club.EpisodeApi/SaveRelationshipRules',
+          ($0.RelationshipRules value) => value.writeToBuffer(),
+          $0.RelationshipRules.fromBuffer);
   static final _$getEpisode =
       $grpc.ClientMethod<$0.GetEpisodeRequest, $1.Episode>(
           '/romance_club.EpisodeApi/GetEpisode',
@@ -91,6 +115,22 @@ abstract class EpisodeApiServiceBase extends $grpc.Service {
   $core.String get $name => 'romance_club.EpisodeApi';
 
   EpisodeApiServiceBase() {
+    $addMethod(
+        $grpc.ServiceMethod<$0.GetAllEpisodesRequest, $0.RelationshipRules>(
+            'GetRelationshipRules',
+            getRelationshipRules_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.GetAllEpisodesRequest.fromBuffer(value),
+            ($0.RelationshipRules value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.RelationshipRules, $0.RelationshipRules>(
+        'SaveRelationshipRules',
+        saveRelationshipRules_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.RelationshipRules.fromBuffer(value),
+        ($0.RelationshipRules value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetEpisodeRequest, $1.Episode>(
         'GetEpisode',
         getEpisode_Pre,
@@ -126,6 +166,24 @@ abstract class EpisodeApiServiceBase extends $grpc.Service {
                 $0.DeleteEpisodeRequest.fromBuffer(value),
             ($0.DeleteEpisodeResponse value) => value.writeToBuffer()));
   }
+
+  $async.Future<$0.RelationshipRules> getRelationshipRules_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.GetAllEpisodesRequest> $request) async {
+    return getRelationshipRules($call, await $request);
+  }
+
+  $async.Future<$0.RelationshipRules> getRelationshipRules(
+      $grpc.ServiceCall call, $0.GetAllEpisodesRequest request);
+
+  $async.Future<$0.RelationshipRules> saveRelationshipRules_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.RelationshipRules> $request) async {
+    return saveRelationshipRules($call, await $request);
+  }
+
+  $async.Future<$0.RelationshipRules> saveRelationshipRules(
+      $grpc.ServiceCall call, $0.RelationshipRules request);
 
   $async.Future<$1.Episode> getEpisode_Pre($grpc.ServiceCall $call,
       $async.Future<$0.GetEpisodeRequest> $request) async {

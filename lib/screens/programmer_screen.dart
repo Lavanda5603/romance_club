@@ -1,3 +1,4 @@
+import 'relationships_screen.dart'; // Импорт редактирования уровней отношений
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
@@ -257,6 +258,12 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                         ),
                         const SizedBox(height: 20),
 
+                        TextButton.icon(
+                          onPressed: withButtonSound(() => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const RelationshipsScreen(edit: true)))),
+                          icon: const Icon(Icons.favorite, color: Color(0xFFFFA0A0)),
+                          label: const Text('Настроить уровни отношений', style: TextStyle(color: Color(0xFFFFA0A0))),
+                        ),
                         // Подзаголовок
                         const Text(
                           'список эпизодов:',

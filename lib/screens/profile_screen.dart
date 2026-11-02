@@ -1,3 +1,4 @@
+import 'ending_gallery_screen.dart'; // Импорт настоящей коллекции финалов
 import 'relationships_screen.dart'; // Импорт карточек отношений
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../services/session_store.dart'; // Импорт единого хранилища сессии
@@ -426,21 +427,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(height: 32),
 
-                              // Концовки
-                              const Text(
-                                'концовки',
-                                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w300),
-                              ),
-                              const SizedBox(height: 12),
-                              const Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('МариКот', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
-                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('СуперБаг', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
-                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('АдриБаг', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
-                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('АдриНетт', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
-                                  Column(children: [Icon(Icons.favorite, color: Color(0xFFFFA0A0), size: 32), SizedBox(height: 4), Text('Лука', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 10))]),
-                                ],
+                              TextButton.icon(
+                                onPressed: withButtonSound(() => Navigator.push(context,
+                                  MaterialPageRoute(builder: (_) => const EndingGalleryScreen()))),
+                                icon: const Icon(Icons.collections_bookmark, color: Color(0xFFFFA0A0)),
+                                label: const Text('Галерея концовок', style: TextStyle(color: Color(0xFFFFA0A0))),
                               ),
                               const SizedBox(height: 32),
 

@@ -150,9 +150,13 @@ class GetProgressSummaryRequest extends $pb.GeneratedMessage {
 class GetProgressSummaryResponse extends $pb.GeneratedMessage {
   factory GetProgressSummaryResponse({
     $core.Iterable<$core.int>? episodeIds,
+    $core.Iterable<$core.String>? seenEndings,
+    $core.bool? endingsAvailable,
   }) {
     final result = GetProgressSummaryResponse._();
     if (episodeIds != null) result.episodeIds.addAll(episodeIds);
+    if (seenEndings != null) result.seenEndings.addAll(seenEndings);
+    if (endingsAvailable != null) result.endingsAvailable = endingsAvailable;
     return result;
   }
 
@@ -170,6 +174,8 @@ class GetProgressSummaryResponse extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
       createEmptyInstance: GetProgressSummaryResponse.$_createMessage)
     ..p<$core.int>(1, _omitFieldNames ? '' : 'episodeIds', $pb.PbFieldType.K3)
+    ..pPS(2, _omitFieldNames ? '' : 'seenEndings')
+    ..aOB(3, _omitFieldNames ? '' : 'endingsAvailable')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -201,6 +207,18 @@ class GetProgressSummaryResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $pb.PbList<$core.int> get episodeIds => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<$core.String> get seenEndings => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.bool get endingsAvailable => $_getBF(2);
+  @$pb.TagNumber(3)
+  set endingsAvailable($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasEndingsAvailable() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearEndingsAvailable() => $_clearField(3);
 }
 
 /// Запрос на сохранение прогресса

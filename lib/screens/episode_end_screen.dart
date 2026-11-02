@@ -1,3 +1,4 @@
+import 'ending_gallery_screen.dart'; // Импорт коллекции найденных финалов
 import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../src/core/ending_art.dart'; // Импорт картинок пяти концовок
@@ -229,6 +230,13 @@ class _EpisodeEndScreenState extends State<EpisodeEndScreen> {
                             ),
                           const SizedBox(height: 12),
 
+                          if (widget.currentEpisode.id == 5)
+                            TextButton.icon(
+                              onPressed: withButtonSound(() => Navigator.push(context,
+                                MaterialPageRoute(builder: (_) => const EndingGalleryScreen()))),
+                              icon: const Icon(Icons.collections_bookmark, color: Color(0xFFFFA0A0)),
+                              label: const Text('Галерея концовок', style: TextStyle(color: Color(0xFFFFA0A0))),
+                            ),
                           // Кнопка в меню
                           SizedBox(
                             width: 200,

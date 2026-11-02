@@ -29,7 +29,7 @@ impl ProgressApi for ProgressApiService {
     ) -> Result<Response<GetProgressSummaryResponse>, Status> {
         let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
         // Для списка нужны только ID, без флагов и счётчиков каждого эпизода
-        let mut response = self.db.query("SELECT VALUE episode_id FROM progress WHERE player_id = type::record($player_id) AND completed = true AND record::exists(episode_id)")
+        let mut response = self.db.query("SELECT VALUE episode_id FROM progress WHERE player_id = type::record($player_id) AND completed = true AND record::exists(episode_id); SELECT VALUE endings FROM episode_completion WHERE player_id = type::record($player_id) AND episode_id = episode:5;")
             .bind(("player_id", player_id)).await.map_err(|e| Status::internal(e.to_string()))?
             .check().map_err(|e| Status::internal(e.to_string()))?;
         let records: Vec<Value> = response.take(0).map_err(|e| Status::internal(e.to_string()))?;
@@ -38,7 +38,13 @@ impl ProgressApi for ProgressApiService {
             .filter(|id| *id > 0).collect();
         episode_ids.sort_unstable();
         episode_ids.dedup();
-        Ok(Response::new(GetProgressSummaryResponse { episode_ids }))
+        // История не стирается при перезапуске эпизода и не включает чужие финалы.
+        let histories: Vec<Vec<String>> = response.take(1).map_err(|e| Status::internal(e.to_string()))?;
+        let mut seen_endings: Vec<String> = histories.into_iter().flatten().filter(|name|
+            matches!(name.as_str(), "МариАдриан" | "МариКот" | "АдриБаг" | "СуперБаг" | "Лука" | "Выбираю себя" | "Команда вместе")).collect();
+        seen_endings.sort();
+        seen_endings.dedup();
+        Ok(Response::new(GetProgressSummaryResponse { episode_ids, seen_endings, endings_available: true }))
     }
 
     // Получить прогресс игрока по эпизоду

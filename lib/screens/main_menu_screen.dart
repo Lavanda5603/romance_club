@@ -328,16 +328,13 @@ class _MainMenuState extends State<MainMenu> {
                               TextButton(
                                 onPressed: withButtonSound(() {
                                   final navigator = Navigator.of(context);
-                                  if (navigator.canPop()) {
-                                    navigator.pop(); // Возвращаюсь к уже открытому каталогу
-                                  } else {
-                                    navigator.pushReplacement(
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const NovelCatalogScreen(),
-                                      ),
-                                    );
-                                  }
+                                  navigator.pushAndRemoveUntil(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const NovelCatalogScreen(),
+                                    ),
+                                    (route) => false,
+                                  );
                                 }),
                                 style: TextButton.styleFrom(
                                   foregroundColor: const Color(0xFFAAA0A0),

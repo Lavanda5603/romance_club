@@ -43,7 +43,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   String? _conditionError; // Показываю ошибку выражения
   late List<SceneRoute> _routes; // Редактирую копии условных переходов
   late TextEditingController _conditionController; // Контроллер условия
-  late TextEditingController _musicController; // Контроллер музыки
 
   late List<TextEditingController>
   _textControllers; // Контроллеры текстов сцены
@@ -109,7 +108,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     _titleController = TextEditingController(text: _scene.title);
     _conditionController = TextEditingController(text: _scene.condition);
     _routes = _scene.routes.map((r) => r.deepCopy()).toList();
-    _musicController = TextEditingController();
 
     // Создаю контроллеры для текстов сцены
     _textControllers = _scene.texts
@@ -160,7 +158,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     // Освобождаю контроллеры
     _titleController.dispose();
     _conditionController.dispose();
-    _musicController.dispose();
     for (final c in _textControllers) {
       c.dispose();
     }
@@ -287,7 +284,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         style: TextStyle(color: Colors.white, fontSize: 18),
       ),
       const Text(
-        'Первое подходящее правило. Иначе — «Следующая сцена».',
+        'Первое подходящее правило. Иначе — Следующая сцена.',
         style: TextStyle(color: Colors.grey),
       ),
       for (var i = 0; i < _routes.length; i++)
@@ -474,43 +471,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         _scene.choices.removeAt(index);
       });
     }
-  }
-
-  // Поле ввода с подписью
-  Widget _buildField(
-    String label,
-    TextEditingController controller, {
-    int maxLines = 1,
-    TextInputType? keyboardType,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
-        ),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          maxLines: maxLines,
-          keyboardType: keyboardType,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFD30010)),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
   }
 
   // Выпадающий список позиций
@@ -1176,7 +1136,6 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         const SizedBox(height: 8),
 
                         // Музыка
-                        _buildField('музыка', _musicController),
                         const SizedBox(height: 8),
 
                         // Кнопка сохранить

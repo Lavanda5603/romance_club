@@ -1,3 +1,5 @@
+import '../widgets/editor_save_button.dart'; // Импорт общей кнопки сохранения
+import '../widgets/story_header.dart'; // Импорт общей шапки и тонкого заголовка
 import '../src/data/services/rpc_policy.dart'; // Импорт понятных ошибок подключения
 import '../widgets/button_sound.dart'; // Импорт щелчка новых кнопок
 import '../services/active_novel.dart'; // Импорт применения сохранённого оформления
@@ -159,195 +161,233 @@ class _NovelEditorScreenState extends State<NovelEditorScreen> {
     final saved = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialog) => StatefulBuilder(
-        builder: (dialog, change) => AlertDialog(
-          backgroundColor: const Color(0xFF3F0404),
-          title: const Text('Карточка'),
-          content: SizedBox(
-            width: 420,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: title,
-                    maxLength: 100,
-                    decoration: const InputDecoration(labelText: 'Название'),
-                  ),
-                  TextField(
-                    controller: key,
-                    maxLength: 128,
-                    decoration: InputDecoration(
-                      labelText: group == 'relationships'
-                          ? 'Счётчик отношений'
-                          : group == 'hidden'
-                          ? 'Ключ сцены'
-                          : 'Название финала в действии',
+      builder: (dialog) => Theme(
+        // Задаю светлый текст и подписи прямо для окна карточки.
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFFFFA0A0),
+            surface: Color(0xFF3F0404),
+            onSurface: Colors.white,
+          ),
+          inputDecorationTheme: const InputDecorationTheme(
+            labelStyle: TextStyle(color: Colors.white),
+            floatingLabelStyle: TextStyle(color: Colors.white),
+            hintStyle: TextStyle(color: Colors.white70),
+            counterStyle: TextStyle(color: Colors.white),
+          ),
+        ),
+        child: StatefulBuilder(
+          builder: (dialog, change) => AlertDialog(
+            backgroundColor: const Color(0xFF3F0404),
+            title: const Text(
+              'Карточка',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w300,
+              ),
+            ),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      style: const TextStyle(color: Colors.white),
+                      cursorColor: Colors.white,
+                      controller: title,
+                      maxLength: 100,
+                      decoration: const InputDecoration(labelText: 'Название'),
                     ),
-                  ),
-                  if (group == 'relationships')
-                    DropdownButton<String>(
-                      value: kind,
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'romance',
-                          child: Text('Романтическая линия'),
+                    TextField(
+                      style: const TextStyle(color: Colors.white),
+                      cursorColor: Colors.white,
+                      controller: key,
+                      maxLength: 128,
+                      decoration: InputDecoration(
+                        labelText: group == 'relationships'
+                            ? 'Счётчик отношений'
+                            : group == 'hidden'
+                            ? 'Ключ сцены'
+                            : 'Название финала в действии',
+                      ),
+                    ),
+                    if (group == 'relationships')
+                      DropdownButton<String>(
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
                         ),
-                        DropdownMenuItem(
-                          value: 'friendship',
-                          child: Text('Дружба'),
+                        dropdownColor: const Color(0xFF3F0404),
+                        iconEnabledColor: Colors.white,
+                        value: kind,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'romance',
+                            child: Text('Романтическая линия'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'friendship',
+                            child: Text('Дружба'),
+                          ),
+                        ],
+                        onChanged: withSelectionSound(
+                          (value) => change(() {
+                            kind = value!;
+                          }),
                         ),
-                      ],
-                      onChanged: withSelectionSound(
-                        (value) => change(() {
-                          kind = value!;
-                        }),
                       ),
-                    ),
-                  if (group != 'relationships')
-                    TextField(
-                      controller: hint,
-                      maxLength: 300,
-                      decoration: const InputDecoration(
-                        labelText: 'Подсказка для закрытой карточки',
+                    if (group != 'relationships')
+                      TextField(
+                        style: const TextStyle(color: Colors.white),
+                        cursorColor: Colors.white,
+                        controller: hint,
+                        maxLength: 300,
+                        decoration: const InputDecoration(
+                          labelText: 'Подсказка для закрытой карточки',
+                        ),
                       ),
-                    ),
-                  if (group == 'hidden') ...[
-                    TextField(
-                      controller: episode,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Номер эпизода',
+                    if (group == 'hidden') ...[
+                      TextField(
+                        style: const TextStyle(color: Colors.white),
+                        cursorColor: Colors.white,
+                        controller: episode,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Номер эпизода',
+                        ),
                       ),
-                    ),
-                    TextField(
-                      controller: flag,
-                      decoration: const InputDecoration(
-                        labelText: 'Флаг прочитанной сцены',
+                      TextField(
+                        style: const TextStyle(color: Colors.white),
+                        cursorColor: Colors.white,
+                        controller: flag,
+                        decoration: const InputDecoration(
+                          labelText: 'Флаг прочитанной сцены',
+                        ),
                       ),
-                    ),
-                  ],
-                  if (group != 'hidden') ...[
-                    SizedBox(height: 120, child: NovelImage(id: imageId)),
-                    ElevatedButton(
-                      onPressed: withButtonSound(
-                        uploading
-                            ? null
-                            : () async {
-                                change(() {
-                                  uploading = true;
-                                  error = null;
-                                });
-                                try {
-                                  final files = await FilePicker.platform
-                                      .pickFiles(
-                                        type: FileType.custom,
-                                        allowedExtensions: [
-                                          'png',
-                                          'jpg',
-                                          'jpeg',
-                                          'webp',
-                                        ],
-                                        withData: true,
+                    ],
+                    if (group != 'hidden') ...[
+                      SizedBox(height: 120, child: NovelImage(id: imageId)),
+                      ElevatedButton(
+                        onPressed: withButtonSound(
+                          uploading
+                              ? null
+                              : () async {
+                                  change(() {
+                                    uploading = true;
+                                    error = null;
+                                  });
+                                  try {
+                                    final files = await FilePicker.platform
+                                        .pickFiles(
+                                          type: FileType.custom,
+                                          allowedExtensions: [
+                                            'png',
+                                            'jpg',
+                                            'jpeg',
+                                            'webp',
+                                          ],
+                                          withData: true,
+                                        );
+                                    if (files != null) {
+                                      final file = files.files.single;
+                                      final bytes = file.bytes;
+                                      if (bytes == null ||
+                                          bytes.length > 5 * 1024 * 1024) {
+                                        throw StateError(
+                                          'Картинка должна быть до 5 МБ',
+                                        );
+                                      }
+                                      final response = await _assets.uploadAsset(
+                                        type: 'background',
+                                        name:
+                                            'novel_card_${DateTime.now().microsecondsSinceEpoch}',
+                                        emotion: '',
+                                        displayName: title.text,
+                                        episodeId: '',
+                                        fileData: bytes,
+                                        fileName: file.name,
                                       );
-                                  if (files != null) {
-                                    final file = files.files.single;
-                                    final bytes = file.bytes;
-                                    if (bytes == null ||
-                                        bytes.length > 5 * 1024 * 1024) {
-                                      throw StateError(
-                                        'Картинка должна быть до 5 МБ',
-                                      );
+                                      if (!response.success) {
+                                        throw StateError(response.message);
+                                      }
+                                      if (dialog.mounted) {
+                                        change(() {
+                                          imageId = response.asset.id;
+                                        });
+                                      }
                                     }
-                                    final response = await _assets.uploadAsset(
-                                      type: 'background',
-                                      name:
-                                          'novel_card_${DateTime.now().microsecondsSinceEpoch}',
-                                      emotion: '',
-                                      displayName: title.text,
-                                      episodeId: '',
-                                      fileData: bytes,
-                                      fileName: file.name,
-                                    );
-                                    if (!response.success) {
-                                      throw StateError(response.message);
-                                    }
+                                  } catch (_) {
                                     if (dialog.mounted) {
                                       change(() {
-                                        imageId = response.asset.id;
+                                        error = 'Не удалось загрузить картинку';
+                                      });
+                                    }
+                                  } finally {
+                                    if (dialog.mounted) {
+                                      change(() {
+                                        uploading = false;
                                       });
                                     }
                                   }
-                                } catch (_) {
-                                  if (dialog.mounted) {
-                                    change(() {
-                                      error = 'Не удалось загрузить картинку';
-                                    });
-                                  }
-                                } finally {
-                                  if (dialog.mounted) {
-                                    change(() {
-                                      uploading = false;
-                                    });
-                                  }
-                                }
-                              },
+                                },
+                        ),
+                        child: Text(
+                          uploading ? 'Загрузка…' : 'Загрузить картинку',
+                        ),
                       ),
-                      child: Text(
-                        uploading ? 'Загрузка…' : 'Загрузить картинку',
-                      ),
-                    ),
+                    ],
+                    if (error != null)
+                      Text(error!, style: const TextStyle(color: Colors.white)),
                   ],
-                  if (error != null)
-                    Text(error!, style: const TextStyle(color: Colors.white)),
-                ],
+                ),
               ),
             ),
+            actions: [
+              ElevatedButton(
+                onPressed: withButtonSound(
+                  uploading ? null : () => Navigator.pop(dialog, false),
+                ),
+                child: const Text('Отмена'),
+              ),
+              ElevatedButton(
+                onPressed: withButtonSound(
+                  uploading
+                      ? null
+                      : () {
+                          if (title.text.trim().isEmpty ||
+                              key.text.trim().isEmpty ||
+                              (group == 'hidden' &&
+                                  ((int.tryParse(episode.text) ?? 0) <= 0 ||
+                                      flag.text.trim().isEmpty))) {
+                            change(() {
+                              error = 'Заполни название и поля карточки';
+                            });
+                            return;
+                          }
+                          row[keyName] = key.text.trim();
+                          row['title'] = title.text.trim();
+                          if (group == 'relationships') row['kind'] = kind;
+                          if (group != 'relationships') {
+                            row['hint'] = hint.text.trim();
+                          }
+                          if (group == 'hidden') {
+                            row['episode'] = int.parse(episode.text);
+                            row['flag'] = flag.text.trim();
+                          } else {
+                            row['image_id'] = imageId;
+                          }
+                          if (group == 'endings' &&
+                              !row.containsKey('achievement')) {
+                            row['achievement'] = true;
+                          }
+                          Navigator.pop(dialog, true);
+                        },
+                ),
+                child: const Text('Готово'),
+              ),
+            ],
           ),
-          actions: [
-            ElevatedButton(
-              onPressed: withButtonSound(
-                uploading ? null : () => Navigator.pop(dialog, false),
-              ),
-              child: const Text('Отмена'),
-            ),
-            ElevatedButton(
-              onPressed: withButtonSound(
-                uploading
-                    ? null
-                    : () {
-                        if (title.text.trim().isEmpty ||
-                            key.text.trim().isEmpty ||
-                            (group == 'hidden' &&
-                                ((int.tryParse(episode.text) ?? 0) <= 0 ||
-                                    flag.text.trim().isEmpty))) {
-                          change(() {
-                            error = 'Заполни название и поля карточки';
-                          });
-                          return;
-                        }
-                        row[keyName] = key.text.trim();
-                        row['title'] = title.text.trim();
-                        if (group == 'relationships') row['kind'] = kind;
-                        if (group != 'relationships') {
-                          row['hint'] = hint.text.trim();
-                        }
-                        if (group == 'hidden') {
-                          row['episode'] = int.parse(episode.text);
-                          row['flag'] = flag.text.trim();
-                        } else {
-                          row['image_id'] = imageId;
-                        }
-                        if (group == 'endings' &&
-                            !row.containsKey('achievement')) {
-                          row['achievement'] = true;
-                        }
-                        Navigator.pop(dialog, true);
-                      },
-              ),
-              child: const Text('Готово'),
-            ),
-          ],
         ),
       ),
     );
@@ -372,6 +412,21 @@ class _NovelEditorScreenState extends State<NovelEditorScreen> {
       children: [
         for (var i = 0; i < rows.length; i++)
           ListTile(
+            // Показываю загруженную картинку рядом с названием карточки.
+            leading: group == 'hidden'
+                ? null
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox(
+                      width: 72,
+                      height: 48,
+                      child: NovelImage(
+                        id: rows[i]['image_id']?.toString() ?? '',
+                        size: 160,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
             title: Text(
               rows[i]['title'] as String,
               style: const TextStyle(color: Colors.white),
@@ -386,9 +441,12 @@ class _NovelEditorScreenState extends State<NovelEditorScreen> {
               ),
             ),
           ),
-        ElevatedButton(
-          onPressed: withButtonSound(() => _editCard(group, null)),
-          child: const Text('Добавить карточку'),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: ElevatedButton(
+            onPressed: withButtonSound(() => _editCard(group, null)),
+            child: const Text('Добавить карточку'),
+          ),
         ),
       ],
     );
@@ -413,6 +471,14 @@ class _NovelEditorScreenState extends State<NovelEditorScreen> {
         surface: Color(0xFF1A1A1A),
         onSurface: Colors.white,
       ),
+      inputDecorationTheme: const InputDecorationTheme(
+        labelStyle: TextStyle(color: Colors.white),
+        counterStyle: TextStyle(color: Colors.white70),
+      ),
+      textTheme: ThemeData.dark().textTheme.apply(
+        bodyColor: Colors.white,
+        displayColor: Colors.white,
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFFA0A0),
@@ -430,10 +496,9 @@ class _NovelEditorScreenState extends State<NovelEditorScreen> {
     ),
     child: Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
-      appBar: AppBar(
-        title: const Text('Настройки новеллы'),
-        foregroundColor: Colors.white,
-        backgroundColor: const Color(0xFF3F0404),
+      appBar: const StoryHeader(
+        title: 'Настройки новеллы',
+        color: Color(0xFFD30010),
       ),
       body: AbsorbPointer(
         absorbing: _busy,
@@ -462,14 +527,17 @@ class _NovelEditorScreenState extends State<NovelEditorScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: withButtonSound(() => _picture('cover')),
               child: const Text('Загрузить обложку'),
             ),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: withButtonSound(() => _picture('background')),
               child: const Text('Загрузить общий фон новеллы'),
             ),
+            const SizedBox(height: 20),
             if (_draft.backgroundId.isNotEmpty)
               ElevatedButton(
                 onPressed: withButtonSound(
@@ -479,6 +547,7 @@ class _NovelEditorScreenState extends State<NovelEditorScreen> {
                 ),
                 child: const Text('Убрать фон'),
               ),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: withButtonSound(
                 _draft.id.isEmpty ? null : () => _audio('music'),
@@ -489,6 +558,7 @@ class _NovelEditorScreenState extends State<NovelEditorScreen> {
                     : 'Заменить музыку MP3',
               ),
             ),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: withButtonSound(
                 _draft.id.isEmpty ? null : () => _audio('click'),
@@ -504,14 +574,13 @@ class _NovelEditorScreenState extends State<NovelEditorScreen> {
                 'Сначала сохрани новеллу',
                 style: TextStyle(color: Color(0xFFFFA0A0)),
               ),
+            const SizedBox(height: 24),
             _cards('relationships', 'Карточки отношений'),
             _cards('endings', 'Галерея концовок'),
             _cards('hidden', 'Альбом скрытых сцен'),
             if (_busy) const Center(child: CircularProgressIndicator()),
-            ElevatedButton(
-              onPressed: withButtonSound(_save),
-              child: const Text('Сохранить'),
-            ),
+            const SizedBox(height: 20),
+            EditorSaveButton(onPressed: _save),
           ],
         ),
       ),

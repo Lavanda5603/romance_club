@@ -1,3 +1,5 @@
+import '../widgets/story_header.dart'; // Импорт общей шапки и тонкого заголовка
+
 import 'package:flutter/material.dart'; // Импорт оформления дневника
 
 import '../services/storage_service.dart'; // Импорт текущего игрока
@@ -90,11 +92,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.transparent,
-    appBar: AppBar(
-      title: const Text('Мой дневник'),
-      backgroundColor: const Color(0xFF3F0404),
-      foregroundColor: Colors.white,
-    ),
+    appBar: StoryHeader(title: 'Мой дневник'),
     body: _error != null
         ? Center(
             child: Column(

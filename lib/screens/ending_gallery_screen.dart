@@ -1,3 +1,4 @@
+import '../widgets/story_header.dart'; // Импорт общей шапки и тонкого заголовка
 import '../services/active_novel.dart'; // Импорт финалов выбранной истории
 import '../widgets/novel_background.dart'; // Импорт загруженной картинки финала
 
@@ -82,11 +83,7 @@ class _EndingGalleryScreenState extends State<EndingGalleryScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.transparent,
-    appBar: AppBar(
-      title: const Text('Галерея концовок'),
-      backgroundColor: const Color(0xFF3F0404),
-      foregroundColor: Colors.white,
-    ),
+    appBar: StoryHeader(title: 'Галерея концовок'),
     body: _error != null
         ? Center(
             child: Column(
@@ -191,11 +188,7 @@ class _EndingDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.transparent,
-    appBar: AppBar(
-      title: Text(card['title']!),
-      backgroundColor: const Color(0xFF3F0404),
-      foregroundColor: Colors.white,
-    ),
+    appBar: StoryHeader(title: card['title']!),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [

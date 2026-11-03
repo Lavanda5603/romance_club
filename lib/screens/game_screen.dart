@@ -387,6 +387,7 @@ class _GameScreenState extends State<GameScreen> {
         return 'Маринетт';
       case 'adrian':
         return 'Адриан';
+      case 'catnoir':
       case 'cat':
         return 'Супер-Кот';
       case 'ladybug':
@@ -397,6 +398,32 @@ class _GameScreenState extends State<GameScreen> {
         return 'Мама';
       case 'grandpa':
         return 'Дедушка';
+      case 'tikki':
+        return 'Тикки';
+      case 'fu':
+        return 'Мастер Фу';
+      case 'alya':
+        return 'Алья';
+      case 'chloe':
+        return 'Хлоя';
+      case 'nino':
+        return 'Нино';
+      case 'kagami':
+        return 'Кагами';
+      case 'stone_heart':
+        return 'Каменное Сердце';
+      case 'hawkmoth':
+        return 'Бражник';
+      case 'kalin':
+        return 'Калин';
+      case 'miraculer':
+        return 'Миракулер';
+      case 'renarouge':
+        return 'Рена Руж';
+      case 'audrey':
+        return 'Одри';
+      case 'gabriel':
+        return 'Габриэль';
       default:
         return character;
     }

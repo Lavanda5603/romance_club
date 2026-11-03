@@ -1,3 +1,5 @@
+import '../widgets/editor_save_button.dart'; // Импорт общей кнопки сохранения
+import '../widgets/story_header.dart'; // Импорт общей шапки и тонкого заголовка
 import '../services/active_novel.dart'; // Импорт карточек выбранной истории
 
 import 'dart:convert'; // Импорт формата уровней
@@ -273,10 +275,8 @@ class _RelationshipsScreenState extends State<RelationshipsScreen> {
     canPop: !_saving,
     child: Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF3F0404),
-        foregroundColor: Colors.white,
-        title: Text(widget.edit ? 'Уровни отношений' : 'Мои отношения'),
+      appBar: StoryHeader(
+        title: widget.edit ? 'Уровни отношений' : 'Мои отношения',
       ),
       body: _error != null
           ? Center(
@@ -350,13 +350,9 @@ class _RelationshipsScreenState extends State<RelationshipsScreen> {
                             ],
                           ),
                       ],
-                      ElevatedButton(
-                        onPressed: withButtonSound(_saving ? null : _save),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD30010),
-                          foregroundColor: Colors.white,
-                        ),
-                        child: Text(_saving ? 'Сохраняю…' : 'Сохранить'),
+                      EditorSaveButton(
+                        onPressed: _saving ? null : _save,
+                        label: _saving ? 'сохраняю…' : 'сохранить',
                       ),
                     ]
                   : [

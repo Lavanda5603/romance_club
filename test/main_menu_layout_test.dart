@@ -1,3 +1,4 @@
+import 'package:romance_club/screens/novel_catalog_screen.dart'; // Импорт каталога для проверки перехода
 import 'dart:io'; // Импорт отдельной папки теста
 import 'package:flutter/material.dart'; // Импорт размеров экрана
 import 'package:flutter/services.dart'; // Импорт подмены хранилища
@@ -33,7 +34,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(diary.hitTestable(),findsOneWidget);
   });
-  testWidgets('Возвращаюсь в исходный каталог, не создавая его копию', (tester) async {
+  testWidgets('Открываю каталог новелл, даже если под меню другой экран', (tester) async {
     final folder = (await tester.runAsync(() => Directory.systemTemp.createTemp('menu_back_')))!;
     const channel = MethodChannel('plugins.flutter.io/path_provider');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (_) async => folder.path);
@@ -51,9 +52,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Выбрать новеллу'));
     await tester.tap(find.text('Выбрать новеллу'));
-    await tester.pumpAndSettle();
-    expect(find.text('Исходный каталог'), findsOneWidget);
+    // Дожидаюсь перехода, не ожидая завершения сетевой загрузки каталога.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(NovelCatalogScreen), findsOneWidget);
+    expect(find.text('Исходный каталог'), findsNothing);
     expect(find.byType(MainMenu), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     expect(tester.takeException(), isNull);
   });
 }

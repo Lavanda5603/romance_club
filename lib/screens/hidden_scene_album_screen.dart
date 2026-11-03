@@ -1,3 +1,5 @@
+import '../widgets/story_header.dart'; // Импорт общей шапки и тонкого заголовка
+
 import 'package:flutter/material.dart'; // Импорт экрана альбома
 
 import '../services/storage_service.dart'; // Импорт текущего игрока
@@ -96,7 +98,7 @@ class _HiddenSceneAlbumScreenState extends State<HiddenSceneAlbumScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Скрытые сцены')),
+    appBar: const StoryHeader(title: 'Скрытые сцены'),
     body: _loading
         ? const Center(child: CircularProgressIndicator())
         : _error != null
@@ -104,7 +106,11 @@ class _HiddenSceneAlbumScreenState extends State<HiddenSceneAlbumScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(_error!, textAlign: TextAlign.center),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white),
+                ),
                 TextButton(
                   onPressed: withButtonSound(_load),
                   child: const Text('Повторить'),
@@ -117,7 +123,9 @@ class _HiddenSceneAlbumScreenState extends State<HiddenSceneAlbumScreen> {
             children: [
               Text(
                 'Открыто ${ActiveNovel.shared.cards('hidden').where((c) => _seen.contains(c['flag'])).length} из ${ActiveNovel.shared.cards('hidden').length}',
+                style: const TextStyle(color: Colors.white),
               ),
+              const SizedBox(height: 12),
               for (final card in ActiveNovel.shared.cards('hidden'))
                 Card(
                   child: ListTile(
@@ -184,12 +192,15 @@ class _HiddenReaderState extends State<_HiddenReader> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.card['title'] as String)),
+    appBar: StoryHeader(title: widget.card['title'] as String),
     body: _error != null
         ? Center(
             child: TextButton(
               onPressed: withButtonSound(_load),
-              child: Text('$_error. Повторить'),
+              child: Text(
+                '$_error. Повторить',
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           )
         : _texts == null
@@ -197,13 +208,21 @@ class _HiddenReaderState extends State<_HiddenReader> {
         : ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              const Text('Повторное чтение · прогресс и баллы не изменяются'),
               for (final text in _texts!)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   child: Text(
                     text,
-                    style: const TextStyle(fontSize: 18, height: 1.5),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      height: 1.5,
+                    ),
                   ),
                 ),
             ],

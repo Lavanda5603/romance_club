@@ -444,7 +444,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
 
                         const SizedBox(height: 12),
                         Center(
-                          child: ElevatedButton(
+                          child: TextButton(
                             onPressed: withButtonSound(
                               () => Navigator.push(
                                 context,
@@ -455,20 +455,9 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                                 ),
                               ),
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFD30010),
-                              foregroundColor: const Color(0xFF3F0404),
-                              minimumSize: const Size(260, 55),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
                             child: const Text(
                               'Настройки новеллы',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(color: Color(0xFFFFA0A0)),
                             ),
                           ),
                         ),

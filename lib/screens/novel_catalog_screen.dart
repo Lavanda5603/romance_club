@@ -1,3 +1,4 @@
+import '../widgets/story_header.dart'; // Импорт общей шапки и тонкого заголовка
 import '../widgets/button_sound.dart'; // Импорт щелчка новых кнопок
 
 import 'package:flutter/material.dart'; // Импорт карточек каталога
@@ -108,10 +109,8 @@ class _NovelCatalogScreenState extends State<NovelCatalogScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFF1A1A1A),
-    appBar: AppBar(
-      title: const Text('Новеллы'),
-      backgroundColor: const Color(0xFF3F0404),
-      foregroundColor: Colors.white,
+    appBar: StoryHeader(
+      title: 'Новеллы',
       actions: [
         if (_admin)
           IconButton(

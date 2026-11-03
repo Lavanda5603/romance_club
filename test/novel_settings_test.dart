@@ -28,9 +28,11 @@ void main() {
     (tester) async {
       await tester.pumpWidget(const MaterialApp(home: NovelEditorScreen()));
       await tester.pumpAndSettle();
-      expect(find.text('Сначала сохрани новеллу'), findsOneWidget);
       await tester.enterText(find.byType(TextField).first, 'Своя история');
       expect(find.text('Своя история'), findsOneWidget);
+      // Прокручиваю форму после добавления отступов между кнопками.
+      await tester.scrollUntilVisible(find.text('Сначала сохрани новеллу'), 150, scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first);
+      expect(find.text('Сначала сохрани новеллу'), findsOneWidget);
       expect(
         tester
             .widget<ElevatedButton>(

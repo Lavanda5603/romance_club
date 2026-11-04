@@ -64,21 +64,6 @@ impl AssetApiService {
         Ok(())
     }
 
-    // Для старых ассетов создаю варианты один раз, новый upload готовит их до записи
-    async fn prepare_variants(&self, id: &str) -> Result<(), Status> {
-        let mut response = self.db.query("SELECT id,type,name,emotion,url,display_name,episode_id,version,file_data FROM type::record($id)")
-            .bind(("id", id.to_owned())).await.map_err(internal)?.check().map_err(internal)?;
-        let row: Option<AssetRow> = response.take(0).map_err(internal)?;
-        let row = row.ok_or_else(|| Status::not_found("Ассет не найден"))?;
-        let source = row.file_data.ok_or_else(|| Status::not_found("Нет изображения"))?;
-        let prepared = asset_preview::make_variants(source.to_vec(), &row.r#type).await?;
-        self.db.query("UPDATE type::record($id) SET variants=$variants, preview_data=$preview, version=$version, preview_status='ready', preview_source_version=$version WHERE file_data=$source AND (variants=NONE OR array::len(variants)=0)")
-            .bind(("id", id.to_owned())).bind(("source", source)).bind(("variants", prepared.variants))
-            .bind(("preview", Bytes::from(prepared.preview))).bind(("version", prepared.version))
-            .await.map_err(internal)?.check().map_err(internal)?;
-        Ok(())
-    }
-
     pub fn into_server(self) -> asset_api_server::AssetApiServer<Self> {
         asset_api_server::AssetApiServer::new(self)
             .max_decoding_message_size(MAX_MESSAGE_BYTES)
@@ -183,13 +168,25 @@ impl AssetApi for AssetApiService {
         if screen {
             let id = row.id.to_sql();
             if row.variants.as_ref().is_none_or(|items| items.is_empty()) {
-                self.prepare_variants(&id).await?;
-                let mut result = self.db.query("SELECT VALUE array::map(variants ?? [], |$v| {name:$v.name,width:$v.width,height:$v.height,mime:$v.mime,byte_length:$v.byte_length,hash:$v.hash}) FROM ONLY type::record($id)")
-                    .bind(("id", id.clone())).await.map_err(internal)?.check().map_err(internal)?;
-                row.variants = Some(result.take(0).map_err(internal)?);
-                let mut result = self.db.query("SELECT VALUE version FROM ONLY type::record($id)").bind(("id", id.clone()))
+                // Старую картинку отдаю без перекодирования во время игры.
+                // Новые загрузки уже содержат готовые размеры; оригинал ограничен 5 MiB.
+                let mut result = self.db.query("SELECT id,type,name,emotion,url,display_name,episode_id,version,file_data FROM type::record($id) WHERE version=$version")
+                    .bind(("id", id)).bind(("version", row.version.clone()))
                     .await.map_err(internal)?.check().map_err(internal)?;
-                row.version = result.take(0).map_err(internal)?;
+                let original: Option<AssetRow> = result.take(0).map_err(internal)?;
+                let original = original.ok_or_else(|| Status::aborted("Картинка изменилась, повторите загрузку"))?;
+                let bytes = original.file_data.as_ref().ok_or_else(|| Status::not_found("Нет изображения"))?;
+                if bytes.is_empty() || bytes.len() > MAX_UPLOAD_BYTES {
+                    return Err(Status::resource_exhausted("Размер старой картинки недопустим. Загрузите её заново"));
+                }
+                let mut response = asset(&original, true)?;
+                response.byte_length = bytes.len() as i32;
+                response.mime = match image::guess_format(bytes) {
+                    Ok(image::ImageFormat::Png) => "image/png",
+                    Ok(image::ImageFormat::Jpeg) => "image/jpeg",
+                    _ => return Err(Status::invalid_argument("Повреждён оригинал картинки")),
+                }.into();
+                return Ok(Response::new(response));
             }
             let variants = row.variants.as_ref().unwrap();
             let target_width = req.target_width.max(1);

@@ -471,3 +471,32 @@ async fn grpc_upload_limits(db: Surreal<Client>) -> TestResult<()> {
     server.await??;
     result
 }
+
+// Старый ассет без вариантов должен открываться без обработки во время игры.
+#[tokio::test]
+#[ignore = "Нужна локальная SurrealDB; использую отдельную тестовую БД"]
+async fn legacy_screen_returns_original_without_generating_variants() -> TestResult<()> {
+    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
+    db.signin(Root {username:std::env::var("SURREAL_USER")?,password:std::env::var("SURREAL_PASS")?}).await?;
+    let name = format!("legacy_screen_{}",uuid::Uuid::new_v4().simple());
+    db.use_ns("romance_club").await?;
+    db.query(format!("DEFINE DATABASE {name};")).await?.check()?;
+    db.use_db(&name).await?;
+    let result: TestResult<()> = async {
+        let bytes = picture(7);
+        db.query("CREATE asset:legacy CONTENT {type:'character',name:'miraculer',emotion:'normal',url:'test',display_name:'Миракулёр',version:'test-version',file_data:$bytes};")
+            .bind(("bytes", Bytes::from(bytes.clone()))).await?.check()?;
+        let api = AssetApiService::new(db.clone());
+        let response = api.get_asset(Request::new(GetAssetRequest {id:"asset:legacy".into(),variant:"screen".into(),target_width:1080,target_height:1920,..Default::default()})).await?.into_inner();
+        assert_eq!(response.file_data,bytes);
+        assert_eq!(response.variant,"original");
+        assert_eq!(response.mime,"image/png");
+        assert_eq!(response.version,"test-version");
+        let mut row = db.query("SELECT array::len(variants ?? []) AS count FROM asset:legacy;").await?.check()?;
+        let rows: Vec<Value> = row.take(0)?;
+        assert_eq!(rows[0]["count"],0);
+        Ok(())
+    }.await;
+    db.query(format!("REMOVE DATABASE {name};")).await?.check()?;
+    result
+}

@@ -300,7 +300,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                     .firstOrNull
                     ?.title ??
                 _routes[i].sceneKey,
-            style: const TextStyle(color: Colors.pinkAccent),
+            style: const TextStyle(color: Color(0xFFD30010)),
           ),
           onTap: withButtonSound(() => _editRoute(i)),
           trailing: Row(

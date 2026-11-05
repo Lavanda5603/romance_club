@@ -420,6 +420,14 @@ class _GameScreenState extends State<GameScreen> {
         return 'Миракулер';
       case 'renarouge':
         return 'Рена Руж';
+      case 'carapace':
+        return 'Карапас';
+      case 'ryuko':
+        return 'Рюко';
+      case 'viperion':
+        return 'Виперион';
+      case 'queenbee':
+        return 'Квин Би';
       case 'audrey':
         return 'Одри';
       case 'gabriel':

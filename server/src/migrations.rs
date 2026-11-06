@@ -4,6 +4,9 @@ use surrealdb::{engine::remote::ws::Client, types::RecordId, Surreal}; // Под
 
 type MigrationResult = Result<(), Box<dyn Error + Send + Sync>>;
 
+#[path = "migration_compat.rs"]
+mod compatibility;
+
 // Повторять целиком можно только атомарную транзакцию: её записи откатились.
 async fn retry_transaction<F, Fut>(mut query: F) -> Result<surrealdb::IndexedResults, Box<dyn Error + Send + Sync>>
 where
@@ -51,7 +54,8 @@ pub async fn apply_dir(db: &Surreal<Client>, directory: &Path) -> MigrationResul
         let mut recorded = db.query("SELECT * FROM ONLY $key;").bind(("key", key.clone())).await?.check()?;
         let recorded: Option<serde_json::Value> = recorded.take(0)?;
         if let Some(recorded) = recorded {
-            if recorded["checksum"].as_str() != Some(&checksum) {
+            let previous = recorded["checksum"].as_str().unwrap_or_default();
+            if previous != checksum && !compatibility::accepts(&name, previous, &checksum) {
                 return Err(io::Error::other(format!("Изменена применённая миграция {name}. Добавьте новый файл миграции")).into());
             }
             continue;

@@ -3,6 +3,55 @@ use surrealdb::{engine::remote::ws::Ws, opt::auth::Root}; // Подключаю 
 
 type TestResult = Result<(), Box<dyn Error + Send + Sync>>;
 
+async fn restored_history_scenarios(db: Surreal<Client>, folder: std::path::PathBuf) -> TestResult {
+    let legacy: std::collections::BTreeMap<String, String> = serde_json::from_str(
+        include_str!("../tests/fixtures/v3-migration-checksums.json"))?;
+    db.query("DEFINE TABLE schema_migration SCHEMAFULL PERMISSIONS NONE;
+        DEFINE FIELD name ON schema_migration TYPE string;
+        DEFINE FIELD checksum ON schema_migration TYPE string;
+        DEFINE FIELD applied_at ON schema_migration TYPE datetime;
+        CREATE progress:retained SET marker='keep'; CREATE asset:retained SET marker='keep';").await?.check()?;
+    for (name, checksum) in legacy {
+        std::fs::copy(std::path::Path::new("migrations").join(&name), folder.join(&name))?;
+        db.query("CREATE $key CONTENT {name:$name,checksum:$checksum,applied_at:time::now()};")
+            .bind(("key", RecordId::new("schema_migration", name.clone())))
+            .bind(("name", name)).bind(("checksum", checksum)).await?.check()?;
+    }
+    let snapshot_sql = "RETURN {progress:(SELECT * FROM progress),assets:(SELECT * FROM asset),versions:(SELECT * FROM schema_migration ORDER BY id)};";
+    let before: Option<serde_json::Value> = db.query(snapshot_sql).await?.check()?.take(0)?;
+    for _ in 0..2 {
+        apply_dir(&db, &folder).await?;
+        let after: Option<serde_json::Value> = db.query(snapshot_sql).await?.check()?.take(0)?;
+        assert_eq!(after, before, "Старые миграции и их checksum не переписываю и не запускаю заново");
+    }
+    // Разрешён только точный переход: правка нынешнего файла по-прежнему запрещена.
+    let file = folder.join("011_scene_next.surql");
+    let original = std::fs::read_to_string(&file)?;
+    std::fs::write(&file, format!("{original}\n-- unexpected edit\n"))?;
+    assert!(apply_dir(&db, &folder).await.unwrap_err().to_string().contains("Изменена применённая миграция"));
+    std::fs::write(&file, original)?;
+    db.query("UPDATE $key SET checksum=$checksum;")
+        .bind(("key", RecordId::new("schema_migration", "011_scene_next.surql")))
+        .bind(("checksum", "0".repeat(64))).await?.check()?;
+    assert!(apply_dir(&db, &folder).await.unwrap_err().to_string().contains("Изменена применённая миграция"));
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "Нужна отдельная SurrealDB; проверяю историю восстановленной базы"]
+async fn restored_v3_history_is_preserved_but_unknown_checksums_fail() -> TestResult {
+    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
+    db.signin(Root {username:std::env::var("SURREAL_USER")?,password:std::env::var("SURREAL_PASS")?}).await?;
+    let name = format!("restore_history_test_{}", uuid::Uuid::new_v4().simple());
+    db.use_ns("romance_club").use_db(&name).await?;
+    let folder = std::env::temp_dir().join(&name);
+    std::fs::create_dir(&folder)?;
+    let result = tokio::spawn(restored_history_scenarios(db.clone(), folder.clone())).await;
+    db.query(format!("REMOVE DATABASE {name};")).await?.check()?;
+    std::fs::remove_dir_all(folder)?;
+    result?
+}
+
 async fn snapshot(db: &Surreal<Client>) -> Result<serde_json::Value, surrealdb::Error> {
     let mut rows = db.query("RETURN {scenes:(SELECT * FROM scene ORDER BY id),actions:(SELECT * FROM action ORDER BY id),versions:(SELECT * FROM schema_migration ORDER BY id)};").await?.check()?;
     Ok(rows.take::<Option<serde_json::Value>>(0)?.unwrap())

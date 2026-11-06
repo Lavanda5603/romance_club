@@ -86,6 +86,123 @@ class GetProgressRequest extends $pb.GeneratedMessage {
   void clearEpisodeId() => $_clearField(2);
 }
 
+class GetProgressSummaryRequest extends $pb.GeneratedMessage {
+  factory GetProgressSummaryRequest({
+    $core.String? playerId,
+  }) {
+    final result = GetProgressSummaryRequest._();
+    if (playerId != null) result.playerId = playerId;
+    return result;
+  }
+
+  GetProgressSummaryRequest._();
+
+  factory GetProgressSummaryRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetProgressSummaryRequest()..mergeFromBuffer(data, registry);
+  factory GetProgressSummaryRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetProgressSummaryRequest()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetProgressSummaryRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: GetProgressSummaryRequest.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'playerId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProgressSummaryRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProgressSummaryRequest copyWith(
+          void Function(GetProgressSummaryRequest) updates) =>
+      super.copyWith((message) => updates(message as GetProgressSummaryRequest))
+          as GetProgressSummaryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use GetProgressSummaryRequest() / GetProgressSummaryRequest.new instead')
+  static GetProgressSummaryRequest create() => GetProgressSummaryRequest._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      GetProgressSummaryRequest._();
+  @$core.override
+  GetProgressSummaryRequest createEmptyInstance() =>
+      GetProgressSummaryRequest._();
+  @$core.pragma('dart2js:noInline')
+  static GetProgressSummaryRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetProgressSummaryRequest>(
+          GetProgressSummaryRequest.$_createMessage);
+  static GetProgressSummaryRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get playerId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set playerId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPlayerId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPlayerId() => $_clearField(1);
+}
+
+class GetProgressSummaryResponse extends $pb.GeneratedMessage {
+  factory GetProgressSummaryResponse({
+    $core.Iterable<$core.int>? episodeIds,
+  }) {
+    final result = GetProgressSummaryResponse._();
+    if (episodeIds != null) result.episodeIds.addAll(episodeIds);
+    return result;
+  }
+
+  GetProgressSummaryResponse._();
+
+  factory GetProgressSummaryResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetProgressSummaryResponse()..mergeFromBuffer(data, registry);
+  factory GetProgressSummaryResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      GetProgressSummaryResponse()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'GetProgressSummaryResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
+      createEmptyInstance: GetProgressSummaryResponse.$_createMessage)
+    ..p<$core.int>(1, _omitFieldNames ? '' : 'episodeIds', $pb.PbFieldType.K3)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProgressSummaryResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetProgressSummaryResponse copyWith(
+          void Function(GetProgressSummaryResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetProgressSummaryResponse))
+          as GetProgressSummaryResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use GetProgressSummaryResponse() / GetProgressSummaryResponse.new instead')
+  static GetProgressSummaryResponse create() => GetProgressSummaryResponse._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      GetProgressSummaryResponse._();
+  @$core.override
+  GetProgressSummaryResponse createEmptyInstance() =>
+      GetProgressSummaryResponse._();
+  @$core.pragma('dart2js:noInline')
+  static GetProgressSummaryResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetProgressSummaryResponse>(
+          GetProgressSummaryResponse.$_createMessage);
+  static GetProgressSummaryResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$core.int> get episodeIds => $_getList(0);
+}
+
 /// Запрос на сохранение прогресса
 class SaveProgressRequest extends $pb.GeneratedMessage {
   factory SaveProgressRequest({
@@ -94,6 +211,10 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
     $core.String? sceneId,
     $core.Iterable<$core.MapEntry<$core.String, $core.bool>>? flags,
     $core.Iterable<$core.MapEntry<$core.String, $core.int>>? counters,
+    $core.int? expectedRevision,
+    $core.bool? completed,
+    $core.String? ending,
+    $core.int? expectedGeneration,
   }) {
     final result = SaveProgressRequest._();
     if (playerId != null) result.playerId = playerId;
@@ -101,6 +222,11 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
     if (sceneId != null) result.sceneId = sceneId;
     if (flags != null) result.flags.addEntries(flags);
     if (counters != null) result.counters.addEntries(counters);
+    if (expectedRevision != null) result.expectedRevision = expectedRevision;
+    if (completed != null) result.completed = completed;
+    if (ending != null) result.ending = ending;
+    if (expectedGeneration != null)
+      result.expectedGeneration = expectedGeneration;
     return result;
   }
 
@@ -130,6 +256,10 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
         keyFieldType: $pb.PbFieldType.OS,
         valueFieldType: $pb.PbFieldType.O3,
         packageName: const $pb.PackageName('romance_club'))
+    ..aI(6, _omitFieldNames ? '' : 'expectedRevision')
+    ..aOB(7, _omitFieldNames ? '' : 'completed')
+    ..aOS(8, _omitFieldNames ? '' : 'ending')
+    ..aI(9, _omitFieldNames ? '' : 'expectedGeneration')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -187,6 +317,42 @@ class SaveProgressRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(5)
   $pb.PbMap<$core.String, $core.int> get counters => $_getMap(4);
+
+  @$pb.TagNumber(6)
+  $core.int get expectedRevision => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set expectedRevision($core.int value) => $_setSignedInt32(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasExpectedRevision() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearExpectedRevision() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.bool get completed => $_getBF(6);
+  @$pb.TagNumber(7)
+  set completed($core.bool value) => $_setBool(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasCompleted() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearCompleted() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get ending => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set ending($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasEnding() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearEnding() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.int get expectedGeneration => $_getIZ(8);
+  @$pb.TagNumber(9)
+  set expectedGeneration($core.int value) => $_setSignedInt32(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasExpectedGeneration() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearExpectedGeneration() => $_clearField(9);
 }
 
 /// Ответ после сохранения
@@ -194,10 +360,12 @@ class SaveProgressResponse extends $pb.GeneratedMessage {
   factory SaveProgressResponse({
     $core.bool? success,
     $core.String? message,
+    $core.int? revision,
   }) {
     final result = SaveProgressResponse._();
     if (success != null) result.success = success;
     if (message != null) result.message = message;
+    if (revision != null) result.revision = revision;
     return result;
   }
 
@@ -216,6 +384,7 @@ class SaveProgressResponse extends $pb.GeneratedMessage {
       createEmptyInstance: SaveProgressResponse.$_createMessage)
     ..aOB(1, _omitFieldNames ? '' : 'success')
     ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..aI(3, _omitFieldNames ? '' : 'revision')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -258,6 +427,15 @@ class SaveProgressResponse extends $pb.GeneratedMessage {
   $core.bool hasMessage() => $_has(1);
   @$pb.TagNumber(2)
   void clearMessage() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get revision => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set revision($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasRevision() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearRevision() => $_clearField(3);
 }
 
 /// Запрос на сброс прогресса

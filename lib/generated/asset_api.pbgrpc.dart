@@ -40,11 +40,11 @@ class AssetApiClient extends $grpc.Client {
     return $createUnaryCall(_$getAssets, request, options: options);
   }
 
-  $grpc.ResponseFuture<$0.GetAssetFullResponse> getAssetFull(
-    $0.GetAssetFullRequest request, {
+  $grpc.ResponseFuture<$0.Asset> getAsset(
+    $0.GetAssetRequest request, {
     $grpc.CallOptions? options,
   }) {
-    return $createUnaryCall(_$getAssetFull, request, options: options);
+    return $createUnaryCall(_$getAsset, request, options: options);
   }
 
   $grpc.ResponseFuture<$0.UploadAssetResponse> uploadAsset(
@@ -68,11 +68,10 @@ class AssetApiClient extends $grpc.Client {
           '/romance_club.AssetApi/GetAssets',
           ($0.GetAssetsRequest value) => value.writeToBuffer(),
           $0.GetAssetsResponse.fromBuffer);
-  static final _$getAssetFull =
-      $grpc.ClientMethod<$0.GetAssetFullRequest, $0.GetAssetFullResponse>(
-          '/romance_club.AssetApi/GetAssetFull',
-          ($0.GetAssetFullRequest value) => value.writeToBuffer(),
-          $0.GetAssetFullResponse.fromBuffer);
+  static final _$getAsset = $grpc.ClientMethod<$0.GetAssetRequest, $0.Asset>(
+      '/romance_club.AssetApi/GetAsset',
+      ($0.GetAssetRequest value) => value.writeToBuffer(),
+      $0.Asset.fromBuffer);
   static final _$uploadAsset =
       $grpc.ClientMethod<$0.UploadAssetRequest, $0.UploadAssetResponse>(
           '/romance_club.AssetApi/UploadAsset',
@@ -97,15 +96,13 @@ abstract class AssetApiServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.GetAssetsRequest.fromBuffer(value),
         ($0.GetAssetsResponse value) => value.writeToBuffer()));
-    $addMethod(
-        $grpc.ServiceMethod<$0.GetAssetFullRequest, $0.GetAssetFullResponse>(
-            'GetAssetFull',
-            getAssetFull_Pre,
-            false,
-            false,
-            ($core.List<$core.int> value) =>
-                $0.GetAssetFullRequest.fromBuffer(value),
-            ($0.GetAssetFullResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetAssetRequest, $0.Asset>(
+        'GetAsset',
+        getAsset_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetAssetRequest.fromBuffer(value),
+        ($0.Asset value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.UploadAssetRequest, $0.UploadAssetResponse>(
             'UploadAsset',
@@ -134,14 +131,13 @@ abstract class AssetApiServiceBase extends $grpc.Service {
   $async.Future<$0.GetAssetsResponse> getAssets(
       $grpc.ServiceCall call, $0.GetAssetsRequest request);
 
-  $async.Future<$0.GetAssetFullResponse> getAssetFull_Pre(
-      $grpc.ServiceCall $call,
-      $async.Future<$0.GetAssetFullRequest> $request) async {
-    return getAssetFull($call, await $request);
+  $async.Future<$0.Asset> getAsset_Pre($grpc.ServiceCall $call,
+      $async.Future<$0.GetAssetRequest> $request) async {
+    return getAsset($call, await $request);
   }
 
-  $async.Future<$0.GetAssetFullResponse> getAssetFull(
-      $grpc.ServiceCall call, $0.GetAssetFullRequest request);
+  $async.Future<$0.Asset> getAsset(
+      $grpc.ServiceCall call, $0.GetAssetRequest request);
 
   $async.Future<$0.UploadAssetResponse> uploadAsset_Pre($grpc.ServiceCall $call,
       $async.Future<$0.UploadAssetRequest> $request) async {

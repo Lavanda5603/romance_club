@@ -6,7 +6,7 @@ import '../services/achievement_grpc_service.dart'; // Импорт gRPC-сер�
 class AchievementRepositoryRemote implements AchievementRepository {
   final AchievementGrpcService _service; // gRPC-сервис
 
-  // Конструктор класса AchievementRepositoryRemote
+  // Конструктор
   AchievementRepositoryRemote(this._service);
 
   // Получить достижения игрока

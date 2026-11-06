@@ -1,365 +1,252 @@
-use tonic::{Request, Response, Status}; // Импорт tonic
-use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
-use surrealdb::Surreal; // Импорт Surreal
-use serde_json::Value; // Импорт Value
-use base64::{Engine as _, engine::general_purpose}; // Для base64
-use std::io::Cursor; // Для чтения байтов в image
-use image::{ImageFormat, GenericImageView}; // Для работы с изображениями
-use crate::romance_club::asset_api_server::AssetApi; // Импорт трейта
-use crate::romance_club::{
-    Asset, GetAssetsRequest, GetAssetsResponse,
-    GetAssetFullRequest, GetAssetFullResponse,
-    UploadAssetRequest, UploadAssetResponse,
-    DeleteAssetRequest, DeleteAssetResponse,
-}; // Импорт структур
-use crate::admin_service::AdminApiService; // Для проверки админа
+use tonic::{Request, Response, Status}; // Подключаю запросы, ответы и ошибки gRPC
+use surrealdb::{engine::remote::ws::Client, Surreal}; // Подключаю работу с SurrealDB
+use serde_json::Value; // Подключаю работу с JSON
+use surrealdb::types::{Bytes, RecordId, SurrealValue, ToSql}; // Подключаю работу с SurrealDB
+use crate::{asset_preview, romance_club::{asset_api_server::AssetApi, *}}; // Подключаю модули сервера
 
-// Размер превью (по большей стороне)
-const PREVIEW_MAX_SIZE: u32 = 200;
+pub const MAX_UPLOAD_BYTES: usize = 5 * 1024 * 1024;
+// Оставляю место для полей Protobuf и превью в ответе
+const MAX_MESSAGE_BYTES: usize = MAX_UPLOAD_BYTES + 1024 * 1024;
 
-// Сервис для работы с ассетами
-pub struct AssetApiService {
-    db: Surreal<Client>, // Подключение к SurrealDB
+pub struct AssetApiService { db: Surreal<Client>, delete_db: Surreal<Client> }
+const CATALOG_FIELDS: &str = "id, type, name, emotion, url, display_name, episode_id, preview_data, version, preview_status, preview_source_version";
+fn text(row: &Value, field: &str) -> String { row[field].as_str().unwrap_or_default().to_owned() }
+fn internal(error: impl std::fmt::Display) -> Status { Status::internal(error.to_string()) }
+
+// Читаю байты напрямую, без преобразования через JSON или base64
+#[derive(Debug, SurrealValue)]
+struct AssetRow {
+    id: RecordId,
+    r#type: String,
+    name: String,
+    emotion: Option<String>,
+    url: String,
+    display_name: String,
+    episode_id: Option<RecordId>,
+    version: Option<String>,
+    file_data: Option<Bytes>,
+    preview_data: Option<Bytes>,
+    variants: Option<Vec<asset_preview::Variant>>,
+    preview_status: Option<String>,
+    preview_source_version: Option<String>,
+}
+
+fn asset(row: &AssetRow, original: bool) -> Result<Asset, Status> {
+    Ok(Asset {
+        id: row.id.to_sql(), r#type: row.r#type.clone(), name: row.name.clone(),
+        emotion: row.emotion.clone().unwrap_or_default(), url: row.url.clone(), display_name: row.display_name.clone(),
+        episode_id: row.episode_id.as_ref().map(ToSql::to_sql).unwrap_or_default(),
+        version: row.version.clone().unwrap_or_default(), preview_data: row.preview_data.as_ref().map(|b| b.to_vec()).unwrap_or_default(),
+        file_data: if original { row.file_data.as_ref().map(|b| b.to_vec()).unwrap_or_default() } else { Vec::new() },
+        variant: if original { "original".into() } else { String::new() },
+        width: 0, height: 0, mime: String::new(), byte_length: 0,
+    })
 }
 
 impl AssetApiService {
-    // Создать новый сервис
-    pub fn new(db: Surreal<Client>) -> Self {
-        Self { db }
+    pub fn new(db: Surreal<Client>) -> Self { Self { delete_db:db.clone(), db } }
+    // Передаю отдельное подключение для удаления
+    pub fn with_delete_db(mut self, db: Surreal<Client>) -> Self { self.delete_db=db; self }
+
+    // До запуска каталога обрабатываю старые записи порциями, оригиналы не меняю
+    pub async fn backfill_previews(&self) -> Result<(), Status> {
+        let mut cursor = String::new();
+        loop {
+            let mut response = self.db.query(format!("SELECT {CATALOG_FIELDS} FROM asset WHERE type IN ['background','character'] AND (preview_data=NONE OR bytes::len(preview_data)=0) AND (preview_status ?? '') NOT IN ['invalid','missing'] AND ($cursor='' OR id > type::record($cursor)) ORDER BY id LIMIT 24"))
+                .bind(("cursor",cursor.clone())).await.map_err(internal)?.check().map_err(internal)?;
+            let rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
+            if rows.is_empty() { break; }
+            for row in rows {
+                cursor = row.id.to_sql();
+                self.preview(row).await?;
+            }
+        }
+        Ok(())
     }
 
-    // Сгенерировать превью из байтов изображения
-    fn make_preview(data: &[u8]) -> Result<Vec<u8>, String> {
-        // Открываю изображение из байтов
-        let img = image::load_from_memory(data)
-            .map_err(|e| format!("Ошибка чтения картинки: {}", e))?;
+    // Для старых ассетов создаю варианты один раз, новый upload готовит их до записи
+    async fn prepare_variants(&self, id: &str) -> Result<(), Status> {
+        let mut response = self.db.query("SELECT id,type,name,emotion,url,display_name,episode_id,version,file_data FROM type::record($id)")
+            .bind(("id", id.to_owned())).await.map_err(internal)?.check().map_err(internal)?;
+        let row: Option<AssetRow> = response.take(0).map_err(internal)?;
+        let row = row.ok_or_else(|| Status::not_found("Ассет не найден"))?;
+        let source = row.file_data.ok_or_else(|| Status::not_found("Нет изображения"))?;
+        let prepared = asset_preview::make_variants(source.to_vec(), &row.r#type).await?;
+        self.db.query("UPDATE type::record($id) SET variants=$variants, preview_data=$preview, version=$version, preview_status='ready', preview_source_version=$version WHERE file_data=$source AND (variants=NONE OR array::len(variants)=0)")
+            .bind(("id", id.to_owned())).bind(("source", source)).bind(("variants", prepared.variants))
+            .bind(("preview", Bytes::from(prepared.preview))).bind(("version", prepared.version))
+            .await.map_err(internal)?.check().map_err(internal)?;
+        Ok(())
+    }
 
-        // Уменьшаю (по большей стороне до PREVIEW_MAX_SIZE)
-        let (w, h) = img.dimensions();
-        let scale = (PREVIEW_MAX_SIZE as f32 / w.max(h) as f32).min(1.0);
-        let nw = (w as f32 * scale) as u32;
-        let nh = (h as f32 * scale) as u32;
-        let small = img.resize_exact(nw, nh, image::imageops::FilterType::Lanczos3);
+    pub fn into_server(self) -> asset_api_server::AssetApiServer<Self> {
+        asset_api_server::AssetApiServer::new(self)
+            .max_decoding_message_size(MAX_MESSAGE_BYTES)
+            .max_encoding_message_size(MAX_MESSAGE_BYTES)
+    }
 
-        // Кодирую в JPEG (меньше размер, чем PNG)
-        let mut buf = Vec::new();
-        small.write_to(&mut Cursor::new(&mut buf), ImageFormat::Jpeg)
-            .map_err(|e| format!("Ошибка кодирования превью: {}", e))?;
-
-        Ok(buf)
+    // Старый оригинал читаю только тогда, когда записи нужно превью
+    async fn preview(&self, mut row: AssetRow) -> Result<AssetRow, Status> {
+        if row.preview_data.as_ref().is_some_and(|bytes| !bytes.is_empty()) { return Ok(row); }
+        if !matches!(row.r#type.as_str(), "background" | "character") { return Ok(row); }
+        if matches!(row.preview_status.as_deref(),Some("invalid" | "missing")) && row.preview_source_version == row.version { return Ok(row); }
+        let id = row.id.to_sql();
+        let mut response = self.db.query("SELECT * FROM type::record($id)")
+            .bind(("id", id.clone())).await.map_err(internal)?.check().map_err(internal)?;
+        let full: Option<AssetRow> = response.take(0).map_err(internal)?;
+        let Some(full) = full else { return Ok(row); };
+        let source = full.file_data;
+        let data = source.as_ref().map(|bytes|bytes.to_vec()).unwrap_or_default();
+        use sha2::{Digest, Sha256}; // Подключаю версию исходных байтов
+        let source_version = format!("{:x}",Sha256::digest(&data));
+        let prepared = if data.is_empty() { None } else { Some(asset_preview::make(data).await) };
+        let (preview, version, status) = match prepared {
+            Some(Ok((preview,version))) => (Some(Bytes::from(preview)),version,"ready"),
+            Some(Err(error)) if error.code() != tonic::Code::InvalidArgument => return Err(error),
+            Some(Err(_)) => (None,source_version,"invalid"),
+            None => (None,source_version,"missing"),
+        };
+        // Не затираю картинку, которую успели заменить во время обработки
+        self.db.query("UPDATE type::record($id) SET preview_data=$preview, version=$version, preview_status=$status, preview_source_version=$version WHERE file_data=$source AND (preview_data=NONE OR bytes::len(preview_data)=0)")
+            .bind(("id", id.clone())).bind(("preview", preview)).bind(("status",status))
+            .bind(("version", version)).bind(("source", source))
+            .await.map_err(internal)?.check().map_err(internal)?;
+        let mut response = self.db.query(format!("SELECT {CATALOG_FIELDS} FROM type::record($id)"))
+            .bind(("id", id)).await.map_err(internal)?.check().map_err(internal)?;
+        if let Some(current) = response.take::<Option<AssetRow>>(0).map_err(internal)? { row = current; }
+        Ok(row)
     }
 }
 
 #[tonic::async_trait]
 impl AssetApi for AssetApiService {
-    // Получить ассеты по типу (с превью, без оригиналов)
-    async fn get_assets(
-        &self,
-        request: Request<GetAssetsRequest>,
-    ) -> Result<Response<GetAssetsResponse>, Status> {
-        let req = request.into_inner(); // Достаю данные из запроса
-        let asset_type = req.r#type; // Тип (background, character)
-        let episode_id = req.episode_id; // ID эпизода
-
-        println!("[GET_ASSETS] Тип: {}, Эпизод: {}", asset_type, episode_id);
-
-        // Собираю SQL: с фильтром по эпизоду или без (episode_id в БД - строка)
-        let query = if episode_id.is_empty() {
-            "SELECT id, type, name, emotion, url, display_name, episode_id, preview_data FROM asset WHERE type = $type ORDER BY display_name".to_string()
-        } else {
-            "SELECT id, type, name, emotion, url, display_name, episode_id, preview_data FROM asset WHERE type = $type AND (episode_id = $ep_id OR episode_id = NONE) ORDER BY display_name".to_string()
+    async fn get_assets(&self, request: Request<GetAssetsRequest>) -> Result<Response<GetAssetsResponse>, Status> {
+        let req = request.into_inner();
+        if !matches!(req.r#type.as_str(), "background" | "character" | "sound") {
+            return Err(Status::invalid_argument("Неизвестный тип ассета"));
+        }
+        if req.limit < 0 || (!req.cursor.is_empty() && !req.cursor.starts_with("asset:")) {
+            return Err(Status::invalid_argument("Неверный размер страницы или курсор"));
+        }
+        let limit = if req.limit == 0 { 24 } else { req.limit.min(24) } as usize;
+        // В каталог не выбираю file_data. Курсор задаёт порядок по ID
+        let mut response = self.db.query(format!("SELECT {CATALOG_FIELDS} FROM asset WHERE type = $type AND ($ep = '' OR episode_id = type::record($ep) OR episode_id = NONE) AND ($cursor = '' OR id > type::record($cursor)) ORDER BY id LIMIT $limit"))
+            .bind(("type", req.r#type)).bind(("ep", req.episode_id))
+            .bind(("cursor", req.cursor)).bind(("limit", limit + 1))
+            .await.map_err(internal)?.check().map_err(internal)?;
+        let mut rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
+        let more = rows.len() > limit;
+        rows.truncate(limit);
+        let next_cursor = if more { rows.last().map(|row| row.id.to_sql()).unwrap_or_default() } else { String::new() };
+        // Обрабатываю не больше четырёх старых картинок одновременно
+        let mut pending = rows.into_iter().enumerate();
+        let mut jobs = tokio::task::JoinSet::new();
+        let launch = |jobs: &mut tokio::task::JoinSet<Result<(usize, AssetRow), Status>>, index, row| {
+            let service = Self::new(self.db.clone());
+            jobs.spawn(async move { Ok((index, service.preview(row).await?)) });
         };
-
-        // Выполняю запрос
-        let mut response = self
-            .db
-            .query(query)
-            .bind(("type", asset_type))
-            .bind(("ep_id", episode_id))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let records: Vec<Value> = response
-            .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        // Преобразую записи в Asset (только превью!)
-        let assets: Vec<Asset> = records
-            .into_iter()
-            .map(|v| {
-                let id = v.get("id").and_then(|s| s.as_str()).unwrap_or("").to_string();
-                let r#type = v.get("type").and_then(|s| s.as_str()).unwrap_or("").to_string();
-                let name = v.get("name").and_then(|s| s.as_str()).unwrap_or("").to_string();
-                let emotion = v.get("emotion").and_then(|s| s.as_str()).unwrap_or("").to_string();
-                let url = v.get("url").and_then(|s| s.as_str()).unwrap_or("").to_string();
-                let display_name = v.get("display_name").and_then(|s| s.as_str()).unwrap_or("").to_string();
-                let episode_id = v.get("episode_id").and_then(|s| s.as_str()).unwrap_or("").to_string();
-
-                // Декодирую превью (если есть)
-                let preview_data = v
-                    .get("preview_data")
-                    .and_then(|s| s.as_str())
-                    .map(|s| general_purpose::STANDARD.decode(s).unwrap_or_default())
-                    .unwrap_or_default();
-
-                Asset {
-                    id,
-                    r#type,
-                    name,
-                    emotion,
-                    url,
-                    display_name,
-                    episode_id,
-                    preview_data,
-                }
-            })
-            .collect();
-
-        println!("[GET_ASSETS] Найдено ассетов: {}", assets.len());
-
-        Ok(Response::new(GetAssetsResponse { assets }))
+        for (index, row) in pending.by_ref().take(4) { launch(&mut jobs, index, row); }
+        let mut ordered = Vec::new();
+        while let Some(result) = jobs.join_next().await {
+            let (index, row) = result.map_err(internal)??;
+            ordered.push((index, asset(&row, false)?));
+            if let Some((index, row)) = pending.next() { launch(&mut jobs, index, row); }
+        }
+        ordered.sort_by_key(|(index, _)| *index);
+        let assets = ordered.into_iter().map(|(_, asset)| asset).collect();
+        Ok(Response::new(GetAssetsResponse { assets, next_cursor }))
     }
 
-    // Получить оригинал ассета по ID
-    async fn get_asset_full(
-        &self,
-        request: Request<GetAssetFullRequest>,
-    ) -> Result<Response<GetAssetFullResponse>, Status> {
+    async fn get_asset(&self, request: Request<GetAssetRequest>) -> Result<Response<Asset>, Status> {
+        let req = request.into_inner();
+        if !matches!(req.variant.as_str(), "" | "original" | "screen") || req.target_width < 0 || req.target_height < 0 {
+            return Err(Status::invalid_argument("Неверный вариант или размер изображения"));
+        }
+        if req.id.is_empty() && (req.name.is_empty() || req.r#type.is_empty()) {
+            return Err(Status::invalid_argument("Нужен ID или имя ассета с типом"));
+        }
+        if !req.id.is_empty() && !req.id.starts_with("asset:") { return Err(Status::invalid_argument("Неверный ID ассета")); }
+        let screen = req.variant == "screen" && !req.metadata_only;
+        let metadata = "id,type,name,emotion,url,display_name,episode_id,version";
+        let fields = if req.metadata_only { metadata.to_owned() } else if screen {
+            format!("{metadata},array::map(variants ?? [], |$v| {{name:$v.name,width:$v.width,height:$v.height,mime:$v.mime,byte_length:$v.byte_length,hash:$v.hash}}) AS variants")
+        } else { format!("{metadata},file_data,preview_data") };
+        let mut response = self.db.query(format!("SELECT {fields} FROM asset WHERE ($id != '' AND id = type::record($id)) OR ($id = '' AND type = $type AND name = $name AND (emotion ?? '') = $emotion AND ($ep = '' OR episode_id = type::record($ep) OR episode_id = NONE)) ORDER BY episode_id DESC, id LIMIT 1"))
+            .bind(("id", req.id)).bind(("type", req.r#type)).bind(("name", req.name))
+            .bind(("emotion", req.emotion)).bind(("ep", req.episode_id))
+            .await.map_err(internal)?.check().map_err(internal)?;
+        let mut rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
+        let row = rows.first_mut().ok_or_else(|| Status::not_found("Ассет не найден"))?;
+        if screen {
+            let id = row.id.to_sql();
+            if row.variants.as_ref().is_none_or(|items| items.is_empty()) {
+                self.prepare_variants(&id).await?;
+                let mut result = self.db.query("SELECT VALUE array::map(variants ?? [], |$v| {name:$v.name,width:$v.width,height:$v.height,mime:$v.mime,byte_length:$v.byte_length,hash:$v.hash}) FROM ONLY type::record($id)")
+                    .bind(("id", id.clone())).await.map_err(internal)?.check().map_err(internal)?;
+                row.variants = Some(result.take(0).map_err(internal)?);
+                let mut result = self.db.query("SELECT VALUE version FROM ONLY type::record($id)").bind(("id", id.clone()))
+                    .await.map_err(internal)?.check().map_err(internal)?;
+                row.version = result.take(0).map_err(internal)?;
+            }
+            let variants = row.variants.as_ref().unwrap();
+            let target_width = req.target_width.max(1);
+            let target_height = req.target_height.max(1);
+            let enough = |v: &&asset_preview::Variant| if row.r#type == "background" {
+                v.width >= target_width && v.height >= target_height
+            } else { v.width.max(v.height) >= target_width.max(target_height) };
+            let selected = variants.iter().filter(enough).min_by_key(|v| i64::from(v.width)*i64::from(v.height))
+                .or_else(|| variants.iter().max_by_key(|v| i64::from(v.width)*i64::from(v.height)))
+                .ok_or_else(|| Status::not_found("Нет размера для экрана"))?;
+            let mut result = self.db.query("SELECT VALUE variants[WHERE name=$name][0] FROM ONLY type::record($id) WHERE version=$version")
+                .bind(("id", id)).bind(("name", selected.name.clone())).bind(("version", row.version.clone()))
+                .await.map_err(internal)?.check().map_err(internal)?;
+            let variant: Option<asset_preview::Variant> = result.take(0).map_err(internal)?;
+            let variant = variant.ok_or_else(|| Status::aborted("Картинка изменилась, повторите загрузку"))?;
+            let mut response = asset(row, false)?;
+            response.file_data = variant.data.ok_or_else(|| Status::internal("Нет данных варианта"))?.to_vec();
+            response.variant = variant.name;
+            response.width = variant.width; response.height = variant.height;
+            response.mime = variant.mime; response.byte_length = variant.byte_length;
+            return Ok(Response::new(response));
+        }
+        Ok(Response::new(asset(row, !req.metadata_only)?))
+    }
+
+    async fn upload_asset(&self, request: Request<UploadAssetRequest>) -> Result<Response<UploadAssetResponse>, Status> {
+        crate::request_auth::check_admin(&request)?;
+        let req = request.into_inner();
+        if !matches!(req.r#type.as_str(), "background" | "character") || req.name.is_empty() || req.file_data.is_empty() {
+            return Err(Status::invalid_argument("Нужны тип, имя и изображение"));
+        }
+        if req.file_data.len() > MAX_UPLOAD_BYTES { return Err(Status::invalid_argument("Файл больше 5 MiB (5 242 880 байт)")); }
+        let prepared = asset_preview::make_variants(req.file_data.clone(), &req.r#type).await?;
+        let mut response = self.db.query("SELECT id FROM asset WHERE type = $type AND name = $name AND (emotion ?? '') = $emotion AND episode_id = (IF $ep = '' { NONE } ELSE { type::record($ep) }) LIMIT 1")
+            .bind(("type", req.r#type.clone())).bind(("name", req.name.clone()))
+            .bind(("emotion", req.emotion.clone())).bind(("ep", req.episode_id.clone()))
+            .await.map_err(internal)?.check().map_err(internal)?;
+        let rows: Vec<Value> = response.take(0).map_err(internal)?;
+        let id = rows.first().map(|row| text(row, "id")).unwrap_or_else(|| format!("asset:{}", uuid::Uuid::new_v4().simple()));
+        let display = if req.display_name.is_empty() { req.name.clone() } else { req.display_name };
+        let url = format!("assets/{}/{}", req.r#type, req.name);
+        // Оригинал и превью заменяю одной записью
+        let mut response = self.db.query("UPSERT type::record($id) MERGE {type:$type, name:$name, emotion:(IF $emotion='' { NONE } ELSE { $emotion }), episode_id:(IF $ep='' { NONE } ELSE { type::record($ep) }), url:$url, display_name:$display, file_data:$file, preview_data:$preview, version:$version, variants:$variants, preview_status:'ready', preview_source_version:$version} RETURN AFTER")
+            .bind(("id", id)).bind(("type", req.r#type)).bind(("name", req.name)).bind(("emotion", req.emotion))
+            .bind(("ep", req.episode_id)).bind(("url", url)).bind(("display", display))
+            .bind(("file", Bytes::from(req.file_data))).bind(("preview", Bytes::from(prepared.preview))).bind(("version", prepared.version))
+            .bind(("variants", prepared.variants))
+            .await.map_err(internal)?.check().map_err(internal)?;
+        let rows: Vec<AssetRow> = response.take(0).map_err(internal)?;
+        let row = rows.first().ok_or_else(|| Status::internal("Ассет не сохранён"))?;
+        Ok(Response::new(UploadAssetResponse { success: true, message: "Ассет сохранён".into(), asset: Some(asset(row, false)?) }))
+    }
+
+    async fn delete_asset(&self, request: Request<DeleteAssetRequest>) -> Result<Response<DeleteAssetResponse>, Status> {
+        crate::request_auth::check_admin(&request)?;
         let id = request.into_inner().id;
-
-        println!("[GET_ASSET_FULL] Запрос на оригинал: {}", id);
-
-        if id.is_empty() {
-            return Err(Status::invalid_argument("ID обязателен"));
-        }
-
-        // Читаю file_data из БД
-        let mut response = self
-            .db
-            .query("SELECT file_data FROM type::record($id)")
-            .bind(("id", id.clone()))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let result: Option<Value> = response
-            .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let file_data = match result {
-            Some(v) => {
-                let file_base64 = v.get("file_data").and_then(|s| s.as_str()).unwrap_or("");
-                general_purpose::STANDARD.decode(file_base64).unwrap_or_default()
-            }
-            None => return Err(Status::not_found("Ассет не найден")),
-        };
-
-        println!("[GET_ASSET_FULL] Оригинал отдан: {} байт", file_data.len());
-
-        Ok(Response::new(GetAssetFullResponse { file_data }))
-    }
-
-    // Загрузить новый ассет (с генерацией превью)
-    async fn upload_asset(
-        &self,
-        request: Request<UploadAssetRequest>,
-    ) -> Result<Response<UploadAssetResponse>, Status> {
-        // Проверяю, что запрос от админа
-        AdminApiService::check_admin(&request)?;
-
-        let req = request.into_inner(); // Достаю данные из запроса
-
-        println!("[UPLOAD_ASSET] Загрузка: type={}, name={}, emotion={}, episode={}",
-            req.r#type, req.name, req.emotion, req.episode_id);
-
-        // Проверяю обязательные поля
-        if req.r#type.is_empty() || req.name.is_empty() {
-            return Err(Status::invalid_argument("Тип и имя обязательны"));
-        }
-        if req.file_data.is_empty() {
-            return Err(Status::invalid_argument("Файл пустой"));
-        }
-
-        // Проверяю размер (не больше 5 МБ)
-        if req.file_data.len() > 5 * 1024 * 1024 {
-            return Err(Status::invalid_argument("Файл больше 5 МБ"));
-        }
-
-        // Кодирую оригинал в base64
-        let file_base64 = general_purpose::STANDARD.encode(&req.file_data);
-
-        // Генерирую превью
-        let preview_bytes = match AssetApiService::make_preview(&req.file_data) {
-            Ok(p) => p,
-            Err(e) => {
-                println!("[UPLOAD_ASSET] Ошибка генерации превью: {}", e);
-                return Err(Status::invalid_argument(format!("Не удалось создать превью: {}", e)));
-            }
-        };
-        let preview_base64 = general_purpose::STANDARD.encode(&preview_bytes);
-
-        println!("[UPLOAD_ASSET] Оригинал: {} байт, превью: {} байт",
-            req.file_data.len(), preview_bytes.len());
-
-        // Собираю url
-        let url = if req.emotion.is_empty() {
-            format!("assets/{}/{}", req.r#type, req.name)
-        } else {
-            format!("assets/{}/{}_{}", req.r#type, req.name, req.emotion)
-        };
-
-        // Эмоция: пустая строка - NONE
-        let emotion_value: Option<String> = if req.emotion.is_empty() {
-            None
-        } else {
-            Some(req.emotion.clone())
-        };
-
-        // Эпизод: пустая строка - NONE
-        let episode_value: Option<String> = if req.episode_id.is_empty() {
-            None
-        } else {
-            Some(req.episode_id.clone())
-        };
-
-        let display_name_final = if req.display_name.is_empty() { req.name.clone() } else { req.display_name.clone() };
-
-        // Проверяю - есть ли уже запись (уникальность: type и name и emotion)
-        let mut check_response = self
-            .db
-            .query("SELECT id FROM asset WHERE type = $type AND name = $name AND emotion = $emotion")
-            .bind(("type", req.r#type.clone()))
-            .bind(("name", req.name.clone()))
-            .bind(("emotion", emotion_value.clone()))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let existing: Vec<Value> = check_response
-            .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        // Если запись уже есть - обновляю
-        if !existing.is_empty() {
-            let existing_id = existing[0]
-                .get("id")
-                .and_then(|s| s.as_str())
-                .unwrap_or("")
-                .to_string();
-
-            println!("[UPLOAD_ASSET] Найдена существующая запись: {}", existing_id);
-
-            // Обновляю (url, display_name, file_data, preview_data, episode_id)
-            self.db
-                .query("UPDATE type::record($id) SET url = $url, display_name = $display_name, file_data = $file_data, preview_data = $preview_data, episode_id = $episode_id")
-                .bind(("id", existing_id.clone()))
-                .bind(("url", url.clone()))
-                .bind(("display_name", display_name_final.clone()))
-                .bind(("file_data", file_base64.clone()))
-                .bind(("preview_data", preview_base64.clone()))
-                .bind(("episode_id", episode_value.clone()))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            // Собираю Asset
-            let asset = Asset {
-                id: existing_id.clone(),
-                r#type: req.r#type.clone(),
-                name: req.name.clone(),
-                emotion: req.emotion.clone(),
-                url,
-                display_name: display_name_final.clone(),
-                episode_id: req.episode_id.clone(),
-                preview_data: preview_bytes,
-            };
-
-            println!("[UPLOAD_ASSET] Ассет обновлён: {}", asset.id);
-
-            return Ok(Response::new(UploadAssetResponse {
-                success: true,
-                message: "Ассет обновлён".to_string(),
-                asset: Some(asset),
-            }));
-        }
-
-        // Если записи нет - создаю новую
-        println!("[UPLOAD_ASSET] Создаю новую запись");
-
-        let mut response = self
-            .db
-            .query("CREATE asset CONTENT { type: $type, name: $name, emotion: $emotion, url: $url, display_name: $display_name, file_data: $file_data, preview_data: $preview_data, episode_id: $episode_id, created_at: time::now() }")
-            .bind(("type", req.r#type.clone()))
-            .bind(("name", req.name.clone()))
-            .bind(("emotion", emotion_value))
-            .bind(("url", url.clone()))
-            .bind(("display_name", display_name_final.clone()))
-            .bind(("file_data", file_base64))
-            .bind(("preview_data", preview_base64))
-            .bind(("episode_id", episode_value))
-            .await
-            .map_err(|e| {
-                println!("[UPLOAD_ASSET] ОШИБКА БД: {}", e);
-                Status::internal(format!("Ошибка БД: {}", e))
-            })?;
-
-        let created: Option<Value> = response
-            .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let asset = match created {
-            Some(v) => {
-                let id = v.get("id").and_then(|s| s.as_str()).unwrap_or("").to_string();
-                Asset {
-                    id,
-                    r#type: req.r#type.clone(),
-                    name: req.name.clone(),
-                    emotion: req.emotion.clone(),
-                    url,
-                    display_name: display_name_final,
-                    episode_id: req.episode_id.clone(),
-                    preview_data: preview_bytes,
-                }
-            }
-            None => return Err(Status::internal("Не удалось создать ассет")),
-        };
-
-        println!("[UPLOAD_ASSET] Ассет создан: {}", asset.id);
-
-        Ok(Response::new(UploadAssetResponse {
-            success: true,
-            message: "Ассет загружен".to_string(),
-            asset: Some(asset),
-        }))
-    }
-
-    // Удалить ассет по ID
-    async fn delete_asset(
-        &self,
-        request: Request<DeleteAssetRequest>,
-    ) -> Result<Response<DeleteAssetResponse>, Status> {
-        // Проверяю, что запрос от админа
-        AdminApiService::check_admin(&request)?;
-
-        let id = request.into_inner().id;
-
-        println!("[DELETE_ASSET] Удаляю ассет: {}", id);
-
-        if id.is_empty() {
-            return Err(Status::invalid_argument("ID обязателен"));
-        }
-
-        self.db
-            .query("DELETE type::record($id)")
-            .bind(("id", id.clone()))
-            .await
-            .map_err(|e| {
-                println!("[DELETE_ASSET] ОШИБКА: {}", e);
-                Status::internal(format!("Ошибка удаления: {}", e))
-            })?;
-
-        println!("[DELETE_ASSET] Ассет удалён: {}", id);
-
-        Ok(Response::new(DeleteAssetResponse {
-            success: true,
-            message: "Ассет удалён".to_string(),
-        }))
+        crate::asset_delete::delete(&self.delete_db, &id).await?;
+        Ok(Response::new(DeleteAssetResponse { success: true, message: "Ассет удалён".into() }))
     }
 }
+#[cfg(test)]
+#[path = "asset_tests.rs"]
+mod tests;

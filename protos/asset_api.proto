@@ -11,28 +11,40 @@ message Asset {
   string url = 5; // Путь к файлу
   string display_name = 6; // Человеческое имя
   string episode_id = 7; // ID эпизода
-  bytes preview_data = 8; // Байты превью (маленькая картинка)
+  bytes file_data = 8; // Байты файла (сама картинка)
+  bytes preview_data = 9; // Маленькое превью для сетки
+  string version = 10; // Версия содержимого
+  string variant = 11; // original или размер для экрана
+  int32 width = 12;
+  int32 height = 13;
+  string mime = 14;
+  int32 byte_length = 15;
 }
 
 // Запрос на получение ассетов по типу
 message GetAssetsRequest {
   string type = 1; // Тип
   string episode_id = 2; // ID эпизода
+  int32 limit = 3; // Размер страницы
+  string cursor = 4; // Последний ID предыдущей страницы
 }
 
 // Ответ со списком ассетов
 message GetAssetsResponse {
   repeated Asset assets = 1; // Список ассетов
+  string next_cursor = 2; // Пусто, если больше страниц нет
 }
 
-// Запрос на получение оригинала ассета
-message GetAssetFullRequest {
-  string id = 1; // ID ассета
-}
-
-// Ответ с оригиналом
-message GetAssetFullResponse {
-  bytes file_data = 1; // Байты оригинала
+message GetAssetRequest {
+  string id = 1;
+  string type = 2;
+  string name = 3;
+  string emotion = 4;
+  string episode_id = 5;
+  bool metadata_only = 6; // Поиск без повторной передачи оригинала
+  string variant = 7; // Пусто: original, screen: размер для игры
+  int32 target_width = 8; // Физические пиксели экрана
+  int32 target_height = 9;
 }
 
 // Запрос на загрузку нового ассета
@@ -66,8 +78,8 @@ message DeleteAssetResponse {
 
 // gRPC-сервис для работы с ассетами
 service AssetApi {
-  rpc GetAssets(GetAssetsRequest) returns (GetAssetsResponse); // Получить метаданные + превью
-  rpc GetAssetFull(GetAssetFullRequest) returns (GetAssetFullResponse); // Получить оригинал
+  rpc GetAssets(GetAssetsRequest) returns (GetAssetsResponse); // Получить ассеты
+  rpc GetAsset(GetAssetRequest) returns (Asset); // Получить выбранный оригинал
   rpc UploadAsset(UploadAssetRequest) returns (UploadAssetResponse); // Загрузить
   rpc DeleteAsset(DeleteAssetRequest) returns (DeleteAssetResponse); // Удалить
 }

@@ -3,24 +3,19 @@ import '../models/asset_model.dart'; // Импорт доменной модел
 
 // Контракт репозитория ассетов
 abstract class AssetRepository {
-  // Получить ассеты по типу (background, character, sound) (forceRefresh: true - игнорировать кэш и загрузить заново)
-  Future<List<AssetModel>> getAssets(String type, {String episodeId = '', bool forceRefresh = false});
-
-  // Получить оригинал ассета по ID (для отображения в сцене)
-  Future<Uint8List> getAssetFull(String id);
-
-  // Получить ассет по имени и эмоции (для выбранного в редакторе)
-  Future<AssetModel?> getAssetByName(String type, String name, {String emotion = ''});
+  // Получить ассеты по типу (background, character, sound)
+  Future<AssetPage> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24});
+  Future<AssetModel> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', String version = '', String variant = '', int targetWidth = 0, int targetHeight = 0});
 
   // Загрузить новый ассет
   Future<AssetModel?> uploadAsset({
-    required String type,
-    required String name,
-    required String emotion,
-    required String displayName,
-    required String episodeId,
-    required Uint8List fileData,
-    required String fileName,
+    required String type, // Тип
+    required String name, // Имя
+    required String emotion, // Эмоция
+    required String displayName, // Человеческое имя
+    required String episodeId, // ID эпизода
+    required Uint8List fileData, // Байты файла
+    required String fileName, // Имя файла с расширением
   });
 
   // Удалить ассет по ID

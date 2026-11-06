@@ -29,6 +29,34 @@ final $typed_data.Uint8List getProgressRequestDescriptor = $convert.base64Decode
     'ChJHZXRQcm9ncmVzc1JlcXVlc3QSGwoJcGxheWVyX2lkGAEgASgJUghwbGF5ZXJJZBIdCgplcG'
     'lzb2RlX2lkGAIgASgFUgllcGlzb2RlSWQ=');
 
+@$core.Deprecated('Use getProgressSummaryRequestDescriptor instead')
+const GetProgressSummaryRequest$json = {
+  '1': 'GetProgressSummaryRequest',
+  '2': [
+    {'1': 'player_id', '3': 1, '4': 1, '5': 9, '10': 'playerId'},
+  ],
+};
+
+/// Descriptor for `GetProgressSummaryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getProgressSummaryRequestDescriptor =
+    $convert.base64Decode(
+        'ChlHZXRQcm9ncmVzc1N1bW1hcnlSZXF1ZXN0EhsKCXBsYXllcl9pZBgBIAEoCVIIcGxheWVySW'
+        'Q=');
+
+@$core.Deprecated('Use getProgressSummaryResponseDescriptor instead')
+const GetProgressSummaryResponse$json = {
+  '1': 'GetProgressSummaryResponse',
+  '2': [
+    {'1': 'episode_ids', '3': 1, '4': 3, '5': 5, '10': 'episodeIds'},
+  ],
+};
+
+/// Descriptor for `GetProgressSummaryResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getProgressSummaryResponseDescriptor =
+    $convert.base64Decode(
+        'ChpHZXRQcm9ncmVzc1N1bW1hcnlSZXNwb25zZRIfCgtlcGlzb2RlX2lkcxgBIAMoBVIKZXBpc2'
+        '9kZUlkcw==');
+
 @$core.Deprecated('Use saveProgressRequestDescriptor instead')
 const SaveProgressRequest$json = {
   '1': 'SaveProgressRequest',
@@ -51,6 +79,22 @@ const SaveProgressRequest$json = {
       '5': 11,
       '6': '.romance_club.SaveProgressRequest.CountersEntry',
       '10': 'counters'
+    },
+    {'1': 'ending', '3': 8, '4': 1, '5': 9, '10': 'ending'},
+    {'1': 'completed', '3': 7, '4': 1, '5': 8, '10': 'completed'},
+    {
+      '1': 'expected_revision',
+      '3': 6,
+      '4': 1,
+      '5': 5,
+      '10': 'expectedRevision'
+    },
+    {
+      '1': 'expected_generation',
+      '3': 9,
+      '4': 1,
+      '5': 5,
+      '10': 'expectedGeneration'
     },
   ],
   '3': [
@@ -85,9 +129,12 @@ final $typed_data.Uint8List saveProgressRequestDescriptor = $convert.base64Decod
     'Bpc29kZV9pZBgCIAEoBVIJZXBpc29kZUlkEhkKCHNjZW5lX2lkGAMgASgJUgdzY2VuZUlkEkIK'
     'BWZsYWdzGAQgAygLMiwucm9tYW5jZV9jbHViLlNhdmVQcm9ncmVzc1JlcXVlc3QuRmxhZ3NFbn'
     'RyeVIFZmxhZ3MSSwoIY291bnRlcnMYBSADKAsyLy5yb21hbmNlX2NsdWIuU2F2ZVByb2dyZXNz'
-    'UmVxdWVzdC5Db3VudGVyc0VudHJ5Ughjb3VudGVycxo4CgpGbGFnc0VudHJ5EhAKA2tleRgBIA'
-    'EoCVIDa2V5EhQKBXZhbHVlGAIgASgIUgV2YWx1ZToCOAEaOwoNQ291bnRlcnNFbnRyeRIQCgNr'
-    'ZXkYASABKAlSA2tleRIUCgV2YWx1ZRgCIAEoBVIFdmFsdWU6AjgB');
+    'UmVxdWVzdC5Db3VudGVyc0VudHJ5Ughjb3VudGVycxIWCgZlbmRpbmcYCCABKAlSBmVuZGluZx'
+    'IcCgljb21wbGV0ZWQYByABKAhSCWNvbXBsZXRlZBIrChFleHBlY3RlZF9yZXZpc2lvbhgGIAEo'
+    'BVIQZXhwZWN0ZWRSZXZpc2lvbhIvChNleHBlY3RlZF9nZW5lcmF0aW9uGAkgASgFUhJleHBlY3'
+    'RlZEdlbmVyYXRpb24aOAoKRmxhZ3NFbnRyeRIQCgNrZXkYASABKAlSA2tleRIUCgV2YWx1ZRgC'
+    'IAEoCFIFdmFsdWU6AjgBGjsKDUNvdW50ZXJzRW50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdm'
+    'FsdWUYAiABKAVSBXZhbHVlOgI4AQ==');
 
 @$core.Deprecated('Use saveProgressResponseDescriptor instead')
 const SaveProgressResponse$json = {
@@ -95,13 +142,14 @@ const SaveProgressResponse$json = {
   '2': [
     {'1': 'success', '3': 1, '4': 1, '5': 8, '10': 'success'},
     {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+    {'1': 'revision', '3': 3, '4': 1, '5': 5, '10': 'revision'},
   ],
 };
 
 /// Descriptor for `SaveProgressResponse`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List saveProgressResponseDescriptor = $convert.base64Decode(
     'ChRTYXZlUHJvZ3Jlc3NSZXNwb25zZRIYCgdzdWNjZXNzGAEgASgIUgdzdWNjZXNzEhgKB21lc3'
-    'NhZ2UYAiABKAlSB21lc3NhZ2U=');
+    'NhZ2UYAiABKAlSB21lc3NhZ2USGgoIcmV2aXNpb24YAyABKAVSCHJldmlzaW9u');
 
 @$core.Deprecated('Use resetProgressRequestDescriptor instead')
 const ResetProgressRequest$json = {

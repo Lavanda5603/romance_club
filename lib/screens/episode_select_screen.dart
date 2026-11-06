@@ -1,3 +1,6 @@
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+import '../src/domain/repositories/progress_repository.dart'; // Импорт интерфейса репозитория прогресса
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../src/data/repositories/progress_repository_remote.dart'; // Импорт репозитория прогресса
@@ -9,10 +12,13 @@ import 'main_menu_screen.dart'; // Импорт главного меню
 
 // Экран выбора эпизода
 class EpisodeSelectScreen extends StatefulWidget {
-  // Конструктор класса EpisodeSelectScreen
-  const EpisodeSelectScreen({super.key});
+  // Конструктор
+  final EpisodeGrpcService? episodeService;
+  final ProgressRepository? progressRepository;
+  final Future<String> Function()? loadPlayerId;
+  const EpisodeSelectScreen({super.key, this.episodeService, this.progressRepository, this.loadPlayerId});
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<EpisodeSelectScreen> createState() => _EpisodeSelectScreenState();
 }
@@ -21,11 +27,12 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
   // Список эпизодов (Protobuf-модели)
   final List<Episode> _episodes = [];
 
-  // Список пройденных эпизодов (по индексу)
+  // Эпизоды с сохранённым прогрессом (по ID)
   final Set<int> _passedEpisodes = {};
 
   // Выбранный эпизод
   int _selectedIndex = 0;
+  final ScrollController _episodeScroll = ScrollController(); // Прокрутка списка эпизодов
 
   // Флаг загрузки
   bool _isLoading = true;
@@ -40,145 +47,162 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
   late ProgressGrpcService _progressService;
 
   // Репозиторий прогресса
-  late ProgressRepositoryRemote _progressRepository;
+  late ProgressRepository _progressRepository;
 
   // ID игрока
   String _playerId = '';
+  late Future<String> _player;
+  bool _progressLoading = true;
+  String? _progressError;
+  bool _selectionTouched = false;
+  int _summaryGeneration = 0;
+  bool _isResetting = false;
+  bool _isStarting = false;
+  bool get _hasPlayer => _playerId.startsWith('player:') &&
+      _playerId == _playerId.trim() && _playerId.substring(7).trim().isNotEmpty;
+  bool get _actionsReady => !_isLoading && _error == null && _hasPlayer && !_isResetting && !_isStarting;
+
+  Future<void> _startGame() async {
+    if (!mounted || !_actionsReady || _episodes.isEmpty) return;
+    setState(() { _isStarting = true; _selectionTouched = true; });
+    try {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => GameScreen(episode: _episodes[_selectedIndex])));
+      if (!mounted) return;
+      // После игры заново выбираю первый непройденный эпизод по свежей сводке
+      _selectionTouched = false;
+      await _loadProgressSummary();
+    } finally {
+      if (mounted) setState(() => _isStarting = false);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     // Создаю gRPC-сервисы
-    _episodeService = EpisodeGrpcService();
+    _episodeService = widget.episodeService ?? EpisodeGrpcService();
     _progressService = ProgressGrpcService();
     // Создаю репозиторий прогресса
-    _progressRepository = ProgressRepositoryRemote(_progressService);
+    _progressRepository = widget.progressRepository ?? ProgressRepositoryRemote(_progressService);
+    _player = (widget.loadPlayerId ?? StorageService.loadPlayerId)();
+    _loadProgressSummary();
     // Загружаю эпизоды при открытии экрана
     _loadEpisodes();
   }
 
   @override
   void dispose() {
+    _episodeScroll.dispose(); // Освобождаю прокрутку
     // Закрываю соединения
-    _episodeService.close();
+    if (widget.episodeService == null) _episodeService.close();
     _progressService.close();
     super.dispose();
   }
 
-  // Загрузка эпизодов с сервера (параллельно)
+  // Список показываю сразу, сводка загружается независимо
   Future<void> _loadEpisodes() async {
     try {
-      // Загружаю player_id из Storage
-      _playerId = await StorageService.loadPlayerId();
-
-      // Запрашиваю эпизоды с сервера
       final episodes = await _episodeService.getAllEpisodes();
-
       if (!mounted) return;
-
-      // Сразу показываю список (без статусов)
       setState(() {
         _episodes.clear();
         _episodes.addAll(episodes);
-        _isLoading = false; // Список видно
-      });
-
-      // Проверяю прогресс параллельно
-      if (_playerId.isNotEmpty) {
-        final results = await Future.wait(
-          episodes.map((ep) async {
-            try {
-              final progress = await _progressRepository.getProgress(_playerId, ep.id);
-              return MapEntry(ep.id, progress.sceneId.isNotEmpty);
-            } catch (e) {
-              return MapEntry(ep.id, false);
-            }
-          }),
-        );
-
-        if (!mounted) return;
-
-        setState(() {
-          _passedEpisodes.clear();
-          for (final r in results) {
-            if (r.value) _passedEpisodes.add(r.key);
-          }
-
-          // Автовыбор первого непройденного
-          _selectedIndex = 0;
-          for (int i = 0; i < episodes.length; i++) {
-            if (!_passedEpisodes.contains(episodes[i].id)) {
-              _selectedIndex = i;
-              break;
-            }
-          }
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
+        _chooseDefaultEpisode();
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка загрузки эпизодов: $e')),
-      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _error = networkError(e); _isLoading = false; });
+    }
+  }
+
+  void _chooseDefaultEpisode() {
+    if (_selectionTouched) return;
+    _selectedIndex = 0;
+    for (var i = 0; i < _episodes.length; i++) {
+      if (!_passedEpisodes.contains(_episodes[i].id)) { _selectedIndex = i; break; }
+    }
+  }
+
+  Future<void> _loadProgressSummary() async {
+    final generation = ++_summaryGeneration;
+    setState(() { _progressLoading = true; _progressError = null; });
+    try {
+      final playerId = await _player;
+      if (!mounted || generation != _summaryGeneration) return;
+      setState(() => _playerId = playerId);
+      if (!_hasPlayer) {
+        setState(() { _progressLoading = false; _progressError = 'Войдите в аккаунт, чтобы продолжить'; });
+        return;
+      }
+      final ids = await _progressRepository.getProgressSummary(playerId);
+      if (!mounted || generation != _summaryGeneration) return;
+      setState(() {
+        _passedEpisodes.clear();
+        _passedEpisodes.addAll(ids);
+        _progressLoading = false;
+        _chooseDefaultEpisode();
+      });
+    } catch (e) {
+      if (!mounted || generation != _summaryGeneration) return;
+      setState(() { _progressLoading = false; _progressError = e is GrpcError ? networkError(e) : 'Не удалось загрузить статус эпизодов'; });
     }
   }
 
   // Сброс прогресса
   Future<void> _resetProgress() async {
-    // Показываю диалог подтверждения
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog( // Всплывающее окно
+    if (!mounted || !_actionsReady) return;
+    // Блокирую повторные нажатия ещё до открытия подтверждения
+    setState(() => _isResetting = true);
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
           title: const Text('Сбросить прогресс?'),
-          content: const Text(
-            'Вы точно уверены, что хотите сбросить весь прогресс? Это действие нельзя отменить.',
-          ),
+          content: const Text('Вы точно уверены, что хотите сбросить весь прогресс? Это действие нельзя отменить.'),
           actions: [
-            TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, false), // Отмена
-              child: const Text('Отмена'),
-            ),
-            TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, true), // Подтверждение
-              child: const Text('Сбросить'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Сбросить')),
           ],
-        );
-      },
-    );
-
-     // Если пользователь подтвердил - сбрасываю прогресс
-    if (confirmed == true) {
-      try {
-        // Сбрасываю прогресс на сервере
-        await _progressRepository.resetProgress(_playerId);
-
-        if (!mounted) return;
-
-        // Очищаю локальный список пройденных
-        setState(() {
-          _passedEpisodes.clear();
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Прогресс сброшен')),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
-        );
+        ),
+      );
+      if (!mounted || confirmed != true || !_hasPlayer) return;
+      // Не применяю старую сводку после сброса
+      ++_summaryGeneration;
+      if (!await _progressRepository.resetProgress(_playerId)) {
+        throw StateError('Не удалось сбросить прогресс');
       }
+      if (!mounted) return;
+      setState(() {
+        _passedEpisodes.clear();
+        // После полного сброса выбираю первый эпизод
+        _selectedIndex = 0;
+        _selectionTouched = true;
+      });
+      // Показываю начало списка вместе с первым эпизодом
+      if (_episodeScroll.hasClients) _episodeScroll.jumpTo(0);
+      // После успешного сброса перечитываю состояние сервера
+      await _loadProgressSummary();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Прогресс сброшен')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _progressLoading = false; _progressError = 'Не удалось обновить статус эпизодов'; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
+      );
+    } finally {
+      if (mounted) setState(() => _isResetting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return PopScope(
+      canPop: !_isResetting,
+      child: Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
       
       // Использую Stack, чтобы наложить контент на фон
@@ -209,7 +233,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                       // Кнопка назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
+                        onPressed: _isResetting ? null : () {
                           // Переход в главное меню
                           Navigator.pushReplacement(
                             context,
@@ -252,6 +276,10 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                         ),
                         const SizedBox(height: 20),
 
+                        if (_progressLoading)
+                          const Text('Статус эпизодов загружается...', style: TextStyle(color: Colors.white)),
+                        if (_progressError != null)
+                          TextButton(onPressed: _isResetting || _isStarting ? null : _loadProgressSummary, child: Text('$_progressError. Повторить')),
                         // Список эпизодов
                         Expanded(
                           child: _isLoading
@@ -275,6 +303,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                         )
                                       // Список эпизодов
                                       : ListView.builder(
+                                          controller: _episodeScroll,
                                           itemCount: _episodes.length,
                                           itemBuilder: (context, index) {
                                             final episode = _episodes[index];
@@ -288,12 +317,17 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                                   width: 220,
                                                   height: 55,
                                                   child: ElevatedButton(
-                                                    onPressed: () {
+                                                    onPressed: _isResetting || _isStarting ? null : () {
                                                       setState(() {
+                                                        _selectionTouched = true;
                                                         _selectedIndex = index; // Выбираю эпизод
                                                       });
                                                     },
                                                     style: ElevatedButton.styleFrom(
+                                                      // Обвожу выбранный эпизод белым
+                                                      side: _selectedIndex == index
+                                                          ? const BorderSide(color: Colors.white, width: 2)
+                                                          : BorderSide.none,
                                                       // Красный, если пройден, серый, если нет
                                                       backgroundColor: isPassed 
                                                           ? const Color(0xFFD30010) 
@@ -328,19 +362,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                             width: 200,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: () {
-                                // Если эпизодов нет - не перехожу
-                                if (_episodes.isEmpty) return;
-
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => GameScreen(
-                                      episode: _episodes[_selectedIndex], // Передаю выбранный эпизод
-                                    ),
-                                  )
-                                );
-                              },
+                              onPressed: _actionsReady && _episodes.isNotEmpty ? _startGame : null,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(
@@ -368,7 +390,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                             width: 200,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: _resetProgress, // Сброс прогресса
+                              onPressed: _actionsReady ? _resetProgress : null, // Сброс прогресса
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF534F50), // Серый
                                 shape: RoundedRectangleBorder(
@@ -398,6 +420,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

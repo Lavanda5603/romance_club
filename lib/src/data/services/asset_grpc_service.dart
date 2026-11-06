@@ -1,52 +1,53 @@
+import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+import 'auth_options.dart'; // Метаданные с токеном
+import '../../../services/storage_service.dart'; // Импорт сервиса хранения
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import 'dart:typed_data'; // Импорт Uint8List
 import '../../../generated/asset_api.pbgrpc.dart'; // Импорт gRPC-клиента
 
-// Таймауты для разных операций
-const _timeoutFast = Duration(seconds: 10);   // Быстрые
-const _timeoutMedium = Duration(seconds: 30); // Средние (upload)
-const _timeoutLong = Duration(seconds: 60);   // Длинные (оригинал)
-
 // Сервис для работы с gRPC (транспортный слой)
 class AssetGrpcService {
+  static const maxUploadBytes = 5 * 1024 * 1024;
+  final String host;
+  final int port;
+  Future<String> cacheScope() async => '$host:$port:${await StorageService.loadToken()}';
   late final ClientChannel _channel; // Канал связи
   late final AssetApiClient _client; // gRPC-клиент
 
-  // Конструктор класса AssetGrpcService
-  AssetGrpcService({String host = '10.0.2.2', int port = 50051}) {
+  // Конструктор
+  AssetGrpcService({this.host = '10.0.2.2', this.port = 50051, RpcDeadline? deadlines}) {
+    // Создаю канал связи с сервером
     _channel = ClientChannel(
       host,
       port: port,
       options: const ChannelOptions(
-        credentials: ChannelCredentials.insecure(),
+        credentials: ChannelCredentials.insecure(), // Без шифрования
       ),
     );
 
-    _client = AssetApiClient(_channel);
+    // Создаю gRPC-клиент
+    _client = AssetApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 
-  // Получить ассеты по типу (с превью, без оригиналов)
-  Future<List<Asset>> getAssets(String type, {String episodeId = ''}) async {
+  // Получить ассеты по типу
+  Future<GetAssetsResponse> getAssetPage(String type, {String episodeId = '', String cursor = '', int limit = 24}) async {
+    // Создаю запрос
     final request = GetAssetsRequest(
       type: type,
       episodeId: episodeId,
+      cursor: cursor,
+      limit: limit,
     );
 
-    final response = await _client.getAssets(
-      request,
-      options: CallOptions(timeout: _timeoutFast), // таймаут 10 сек
-    );
-    return response.assets;
+    // Вызываю метод сервера
+    final response = await _client.getAssets(request, options: await authOptions());
+
+    // Возвращаю список ассетов
+    return response;
   }
 
-  // Получить оригинал ассета по ID
-  Future<Uint8List> getAssetFull(String id) async {
-    final request = GetAssetFullRequest(id: id);
-    final response = await _client.getAssetFull(
-      request,
-      options: CallOptions(timeout: _timeoutLong), // таймаут 60 сек
-    );
-    return Uint8List.fromList(response.fileData);
+  Future<Asset> getAsset({String id = '', String type = '', String name = '', String emotion = '', String episodeId = '', bool metadataOnly = false, String variant = '', int targetWidth = 0, int targetHeight = 0}) async {
+    return _client.getAsset(GetAssetRequest(id: id, type: type, name: name, emotion: emotion, episodeId: episodeId, metadataOnly: metadataOnly, variant: variant, targetWidth: targetWidth, targetHeight: targetHeight), options: await authOptions());
   }
 
   // Загрузить новый ассет
@@ -59,6 +60,10 @@ class AssetGrpcService {
     required Uint8List fileData,
     required String fileName,
   }) async {
+    if (fileData.length > maxUploadBytes) {
+      throw const GrpcError.invalidArgument('Файл больше 5 MiB (5 242 880 байт)');
+    }
+    // Создаю запрос
     final request = UploadAssetRequest(
       type: type,
       name: name,
@@ -69,23 +74,21 @@ class AssetGrpcService {
       fileName: fileName,
     );
 
-    return await _client.uploadAsset(
-      request,
-      options: CallOptions(timeout: _timeoutMedium), // таймаут 30 сек
-    );
+    // Вызываю метод сервера
+    return await _client.uploadAsset(request, options: await authOptions());
   }
 
   // Удалить ассет по ID
   Future<DeleteAssetResponse> deleteAsset(String id) async {
+    // Создаю запрос
     final request = DeleteAssetRequest(id: id);
-    return await _client.deleteAsset(
-      request,
-      options: CallOptions(timeout: _timeoutFast), // таймаут 10 сек
-    );
+
+    // Вызываю метод сервера
+    return await _client.deleteAsset(request, options: await authOptions());
   }
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown();
+    await _channel.terminate(); // Закрываю канал
   }
 }

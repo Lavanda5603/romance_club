@@ -1,21 +1,25 @@
+import '../generated/scene.pb.dart'; // Сцены эпизода
+import '../src/core/scene_links.dart'; // Ключи переходов
 import 'package:flutter/material.dart' hide Action; // Импорт Material UI (скрываю Action из Flutter)
 import '../generated/action.pb.dart'; // Импорт Protobuf-модели Action
 
 // Экран редактирования действия
 class ActionEditorScreen extends StatefulWidget {
+  final List<Scene> allScenes; // Сцены для переходов
   final Action? action; // Действие (null, если новое)
   final String defaultTitle; // Название по умолчанию
   final Function(Action) onSave; // Функция, вызывается при сохранении
 
-  // Конструктор класса ActionEditorScreen
+  // Конструктор
   const ActionEditorScreen({
     super.key,
     this.action,
+    this.allScenes = const [],
     this.defaultTitle = '',
     required this.onSave,
   });
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<ActionEditorScreen> createState() => _ActionEditorScreenState();
 }
@@ -24,7 +28,8 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   // Выбранный тип действия (по умолчанию nextScene)
   String _selectedType = 'nextScene';
 
-  late TextEditingController _sceneIdController; // Контроллер для поля сцены
+  String _selectedSceneKey = ''; // Ключ выбранной сцены
+  bool _flagValue = false; // Значение флага
   late TextEditingController _titleController; // Контроллер для поля названия
   late TextEditingController _counterNameController; // Контроллер для поля имени счётчика
   late TextEditingController _counterValueController; // Контроллер для поля значения счётчика
@@ -42,9 +47,8 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
     _titleController = TextEditingController(
       text: widget.action?.title ?? widget.defaultTitle,
     );
-    _sceneIdController = TextEditingController(
-      text: widget.action?.sceneId ?? '',
-    );
+    _selectedSceneKey = widget.action?.sceneTarget ?? '';
+    _flagValue = widget.action?.flagValue ?? false;
     _counterNameController = TextEditingController(
       text: widget.action?.counterName ?? '',
     );
@@ -59,7 +63,6 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   @override
   void dispose() {
     // Освобождение ресурсов всех контроллеров при закрытии экрана
-    _sceneIdController.dispose();
     _titleController.dispose();
     _counterNameController.dispose();
     _counterValueController.dispose();
@@ -69,20 +72,23 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
 
   // Сохранение действия
   void _saveAction() {
-    // Создаю Protobuf-модель Action
-    final newAction = Action(
-      type: _selectedType,
-      title: _titleController.text,
-    );
+    // Копирую действие, чтобы не потерять остальные параметры
+    final newAction = widget.action?.deepCopy() ?? Action();
+    newAction.type = _selectedType;
+    newAction.title = _titleController.text;
 
     // В зависимости от типа заполняю нужные поля
     if (_selectedType == 'nextScene') {
-      newAction.sceneId = _sceneIdController.text.trim();
-    } else if (_selectedType == 'changeCounter') {
+      newAction.sceneKey = _selectedSceneKey;
+      newAction.clearSceneId();
+    }
+    if (_selectedType == 'nextScene' || _selectedType == 'changeCounter') {
       newAction.counterName = _counterNameController.text;
       newAction.counterValue = int.tryParse(_counterValueController.text) ?? 0;
-    } else if (_selectedType == 'changeFlag') {
+    }
+    if (_selectedType == 'nextScene' || _selectedType == 'changeFlag') {
       newAction.flagName = _flagNameController.text;
+      newAction.flagValue = _flagValue;
     }
 
     // Вызываю функцию onSave
@@ -90,6 +96,26 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
 
     // Закрываю экран
     Navigator.pop(context);
+  }
+
+  // Выбираю сцену по ключу, а не по номеру в списке
+  Widget _buildSceneDropdown() {
+    final scenes = {for (final scene in widget.allScenes) scene.sceneKey: scene};
+    final keys = <String>{'', ...scenes.keys, _selectedSceneKey};
+    return DropdownButton<String>(
+      key: const ValueKey('action-scene-target'),
+      value: _selectedSceneKey,
+      isExpanded: true,
+      dropdownColor: const Color(0xFF3F0404),
+      style: const TextStyle(color: Colors.white),
+      items: keys.map((key) => DropdownMenuItem<String>(
+        value: key,
+        child: Text(key.isEmpty ? 'Конец эпизода' : scenes[key]?.title ?? 'Недоступная сцена'),
+      )).toList(),
+      onChanged: (key) {
+        if (key != null) setState(() => _selectedSceneKey = key);
+      },
+    );
   }
 
   // Виджет поля ввода с рамкой (вспомогательный метод)
@@ -224,10 +250,13 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                             ),
                             suffixIcon: const Icon(Icons.radio_button_unchecked, color: Colors.white),
                           ),
-                          items: const [
+                          items: [
                             DropdownMenuItem(value: 'nextScene', child: Text('перейти к сцене')),
                             DropdownMenuItem(value: 'changeCounter', child: Text('баллы')),
                             DropdownMenuItem(value: 'changeFlag', child: Text('флаг')),
+                            const DropdownMenuItem(value: 'ending', child: Text('концовка')),
+                            if (!['nextScene', 'changeCounter', 'changeFlag', 'ending'].contains(_selectedType))
+                              DropdownMenuItem(value: _selectedType, child: Text(_selectedType)),
                           ],
                           onChanged: (value) {
                             if (value != null) {
@@ -256,10 +285,11 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                                   style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 14),
                                 ),
                               ),
-                              Expanded(child: _buildField(_sceneIdController)),
+                              Expanded(child: _buildSceneDropdown()),
                             ],
                           ),
-                        ] else if (_selectedType == 'changeCounter') ...[
+                        ],
+                        if (_selectedType == 'nextScene' || _selectedType == 'changeCounter') ...[
                           Row(
                             children: [
                               const Expanded(
@@ -273,7 +303,8 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                               Expanded(child: _buildField(_counterValueController, keyboardType: TextInputType.number)),
                             ],
                           ),
-                        ] else if (_selectedType == 'changeFlag') ...[
+                        ],
+                        if (_selectedType == 'nextScene' || _selectedType == 'changeFlag') ...[
                           Row(
                             children: [
                               const Expanded(
@@ -284,6 +315,13 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                               ),
                               Expanded(child: _buildField(_flagNameController)),
                             ],
+                          ),
+                          SwitchListTile(
+                            key: const ValueKey('action-flag-value'),
+                            title: const Text('значение флага', style: TextStyle(color: Colors.white)),
+                            subtitle: Text(_flagValue ? 'true' : 'false', style: const TextStyle(color: Colors.white)),
+                            value: _flagValue,
+                            onChanged: (value) => setState(() => _flagValue = value),
                           ),
                         ],
                         const SizedBox(height: 24),

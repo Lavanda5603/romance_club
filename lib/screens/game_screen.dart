@@ -1,3 +1,5 @@
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'dart:typed_data'; // Импорт Uint8List
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
@@ -10,17 +12,22 @@ import '../src/data/services/progress_grpc_service.dart'; // Импорт gRPC-�
 import '../src/data/services/achievement_grpc_service.dart'; // Импорт gRPC-сервиса достижений
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
 import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
-import 'episode_end_screen.dart'; // Иморт экрана конца эпизода
+import '../src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
+import 'episode_end_screen.dart'; // Импорт экрана конца эпизода
 
 // Игровой экран
 class GameScreen extends StatefulWidget {
+  final AssetRepository? assetRepository;
+  final GameViewModel? viewModel;
   final Episode episode; // Эпизод (Protobuf)
   final bool startFromBeginning;
 
-  // Конструктор класса GameScreen
+  // Конструктор
   const GameScreen({
     super.key,
     required this.episode,
+    this.assetRepository,
+    this.viewModel,
     this.startFromBeginning = false,
   });
 
@@ -37,13 +44,32 @@ class _GameScreenState extends State<GameScreen> {
   late EpisodeRepositoryRemote _episodeRepository; // Репозиторий эпизодов
   late ProgressRepositoryRemote _progressRepository; // Репозиторий прогресса
   late AchievementRepositoryRemote _achievementRepository; // Репозиторий достижений
-  late AssetRepositoryRemote _assetRepository; // Репозиторий ассетов
+  late AssetRepository _assetRepository; // Репозиторий ассетов
 
-  // Кэш картинок (только оригиналы)
+  // Кэш картинок
   final Map<String, Uint8List> _backgroundsCache = {};
   final Map<String, Uint8List> _charactersCache = {};
 
   bool _assetsLoaded = false;
+  String _assetScene = '';
+  String? _assetError;
+  bool _leaving = false;
+  bool _finishingEpisode = false;
+  bool _allowPop = false;
+
+  // Перед выходом дожидаюсь последнего сохранения
+  Future<void> _leaveGame() async {
+    if (_leaving) return;
+    _leaving = true;
+    await _viewModel.flushProgress();
+    if (!mounted) return;
+    if (_viewModel.saveError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.saveError!)));
+    }
+    setState(() => _allowPop = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.pop(context);
+  }
 
   @override
   void initState() {
@@ -55,78 +81,63 @@ class _GameScreenState extends State<GameScreen> {
     _episodeRepository = EpisodeRepositoryRemote(_episodeService);
     _progressRepository = ProgressRepositoryRemote(_progressService);
     _achievementRepository = AchievementRepositoryRemote(_achievementService);
-    _assetRepository = AssetRepositoryRemote(_assetService);
-    _viewModel = GameViewModel(_episodeRepository, _progressRepository, _achievementRepository);
+    _assetRepository = widget.assetRepository ?? AssetRepositoryRemote(_assetService);
+    _viewModel = widget.viewModel ?? GameViewModel(_episodeRepository, _progressRepository, _achievementRepository);
+    _viewModel.addListener(_loadAssets);
     _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
     _loadAssets();
   }
 
   @override
   void dispose() {
+    _viewModel.removeListener(_loadAssets);
     _episodeService.close();
-    _progressService.close();
+    _viewModel.flushProgress().then((_) => _progressService.close());
     _achievementService.close();
     _assetService.close();
-    _viewModel.dispose();
+    if (widget.viewModel == null) _viewModel.dispose();
     super.dispose();
   }
 
-  // Загрузка только тех ассетов, что используются в эпизоде
+  // Для сцены загружаю два оригинала вместо всего каталога
   Future<void> _loadAssets() async {
-    try {
-      // Собираю имена фонов и персонажей из сцен эпизода
-      final usedBackgrounds = <String>{};
-      final usedCharacters = <String>{};
-
-      for (final scene in widget.episode.scenes) {
-        if (scene.background.isNotEmpty) {
-          usedBackgrounds.add(scene.background);
-        }
-        if (scene.character.isNotEmpty) {
-          final key = scene.characterEmotion.isEmpty
-              ? scene.character
-              : '${scene.character}_${scene.characterEmotion}';
-          usedCharacters.add(key);
-        }
-      }
-
-      // Загружаю только нужные фоны
-      final backgrounds = await _assetRepository.getAssets('background');
-      for (final a in backgrounds) {
-        if (usedBackgrounds.contains(a.name) && a.id.isNotEmpty) {
-          final fullData = await _assetRepository.getAssetFull(a.id);
-          if (fullData.isNotEmpty) {
-            _backgroundsCache[a.name] = fullData;
-          }
-        }
-      }
-
-      // Загружаю только нужных персонажей
-      final characters = await _assetRepository.getAssets('character');
-      for (final a in characters) {
-        final key = a.emotion.isEmpty ? a.name : '${a.name}_${a.emotion}';
-        if (usedCharacters.contains(key) && a.id.isNotEmpty) {
-          final fullData = await _assetRepository.getAssetFull(a.id);
-          if (fullData.isNotEmpty) {
-            _charactersCache[key] = fullData;
-          }
-        }
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _assetsLoaded = true;
-      });
-    } catch (e) {
-      debugPrint('Ошибка загрузки ассетов: $e');
-      if (!mounted) return;
-      setState(() {
-        _assetsLoaded = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка загрузки ассетов: $e')),
-      );
+    final scene = _viewModel.currentScene;
+    if (scene == null) {
+      if (!_viewModel.state.isLoading) _assetsLoaded = true;
+      return;
     }
+    final key = '${scene.sceneKey}|${scene.background}|${scene.character}|${scene.characterEmotion}';
+    if (_assetScene == key) return;
+    _assetScene = key;
+    _assetsLoaded = false;
+    String? error;
+    Future<Uint8List?> load(String type, String name, String emotion) async {
+      if (name.isEmpty) return null;
+      try {
+        return (await _assetRepository.getAsset(type: type, name: name, emotion: emotion,
+          episodeId: 'episode:${widget.episode.id}', variant: 'screen',
+          targetWidth: View.of(context).physicalSize.width.ceil(),
+          targetHeight: View.of(context).physicalSize.height.ceil())).fileData;
+      } catch (e) {
+        if (e is GrpcError && (e.code == StatusCode.deadlineExceeded || e.code == StatusCode.unavailable)) error = networkError(e);
+        debugPrint('Ошибка загрузки картинки сцены: $e');
+        return null;
+      }
+    }
+    final images = await Future.wait([
+      load('background', scene.background, ''),
+      load('character', scene.character, scene.characterEmotion),
+    ]);
+    if (!mounted || _assetScene != key) return;
+    setState(() {
+      _assetError = error;
+      _backgroundsCache.clear();
+      _charactersCache.clear();
+      if (images[0] != null) _backgroundsCache[scene.background] = images[0]!;
+      final charKey = scene.characterEmotion.isEmpty ? scene.character : '${scene.character}_${scene.characterEmotion}';
+      if (images[1] != null) _charactersCache[charKey] = images[1]!;
+      _assetsLoaded = true;
+    });
   }
 
   // Получаю Alignment для позиции
@@ -189,22 +200,60 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leaveGame();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       body: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, _) {
           final state = _viewModel.state;
+          if (_viewModel.saveError != null) {
+            return Center(child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(_viewModel.saveError!, style: const TextStyle(color: Colors.red)),
+                ElevatedButton(
+                  onPressed: () => _viewModel.loadEpisode(widget.episode.id),
+                  child: const Text('Загрузить сохранённый прогресс'),
+                ),
+              ]),
+            ));
+          }
 
           if (state.isLoading || !_assetsLoaded) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (state.error != null) {
+          if (state.error != null || _assetError != null) {
             return Center(
-              child: Text(
-                'Ошибка: ${state.error}',
-                style: const TextStyle(color: Colors.red),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Ошибка: ${state.error ?? _assetError}', style: const TextStyle(color: Colors.red)),
+                    if (!_viewModel.progressSceneMissing)
+                      TextButton(onPressed: () {
+                        if (state.error != null) {
+                          _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
+                        } else {
+                          setState(() { _assetScene = ''; _assetError = null; });
+                          _loadAssets();
+                        }
+                      }, child: const Text('Повторить')),
+                    if (_viewModel.progressSceneMissing) ...[
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => _viewModel.loadEpisode(widget.episode.id, startFromBeginning: true),
+                        child: const Text('Начать эпизод заново'),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             );
           }
@@ -297,7 +346,7 @@ class _GameScreenState extends State<GameScreen> {
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                    onTap: _leaveGame,
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -479,8 +528,17 @@ class _GameScreenState extends State<GameScreen> {
                         width: 200,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: _finishingEpisode ? null : () async {
                             if (_viewModel.isLastScene) {
+                              setState(() => _finishingEpisode = true);
+                              final saved = await _viewModel.completeEpisode();
+                              if (!mounted || !context.mounted) return;
+                              setState(() => _finishingEpisode = false);
+                              if (!saved) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+                                  _viewModel.saveError ?? 'Не удалось сохранить завершение эпизода')));
+                                return;
+                              }
                               final ending = _viewModel.determineEnding();
 
                               Navigator.pushReplacement(
@@ -519,6 +577,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
           );
         },
+      ),
       ),
     );
   }

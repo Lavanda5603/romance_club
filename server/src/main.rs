@@ -1,10 +1,23 @@
+mod episode_delete; // Подключаю транзакционное удаление дерева эпизода
+mod migrations; // Подключаю одноразовый запуск миграций
+#[cfg(test)]
+mod shop_transaction_tests; // Проверки покупок в транзакции
+#[cfg(test)]
+mod operation_result_tests; // Проверки ошибок операций с базой
 mod progress_service; // Модуль прогресса
 mod auth_service; // Модуль авторизации
+mod auth_limits; // Ограничение попыток входа и регистрации
+mod password_work; // Ограниченный пул вычисления паролей
 mod achievement_service; // Модуль достижений
 mod shop_service; // Модуль магазина
+mod shop_catalog; // Серверный каталог товаров и цен
 mod asset_service; // Модуль ассетов
+mod asset_preview; // Подготовка размеров и превью картинок
+mod asset_delete; // Проверка ID и удаление только ассетов
 mod admin_service; // Модуль админа
 mod jwt; // Модуль JWT
+mod episode_store; // Загрузка и сохранение дерева эпизода
+mod request_auth; // Проверка токена и прав игрока
 
 use tonic::{transport::Server, Request, Response, Status}; // Импорт tonic
 use tonic::service::Interceptor; // Импорт интерцептора
@@ -12,6 +25,8 @@ use surrealdb::engine::remote::ws::{Client, Ws}; // Импорт клиента 
 use surrealdb::opt::auth::Root; // Импорт Root-авторизации
 use surrealdb::Surreal; // Импорт Surreal
 use surrealdb::types::SurrealValue; // Импорт SurrealValue
+use surrealdb::types::ToSql; // Подключаю работу с SurrealDB
+use std::collections::HashMap; // Подключаю стандартные классы Rust
 use serde_json::Value; // Импорт Value
 use progress_service::ProgressApiService; // Импорт сервиса прогресса
 use romance_club::progress_api_server::ProgressApiServer; // Импорт gRPC-сервера прогресса
@@ -22,7 +37,6 @@ use romance_club::achievement_api_server::AchievementApiServer; // Импорт 
 use shop_service::ShopApiService; // Импорт сервиса магазина
 use romance_club::shop_api_server::ShopApiServer; // Импорт gRPC-сервера магазина
 use asset_service::AssetApiService; // Импорт сервиса ассетов
-use romance_club::asset_api_server::AssetApiServer; // Импорт gRPC-сервера ассетов
 use admin_service::AdminApiService; // Импорт сервиса админа
 use romance_club::admin_api_server::AdminApiServer; // Импорт gRPC-сервера админа
 
@@ -41,33 +55,16 @@ use romance_club::{
 
 // Интерцептор для проверки JWT
 #[derive(Clone)]
-pub struct AuthInterceptor;
+pub struct AuthInterceptor {
+    jwt: jwt::JwtKeys,
+}
 
 impl Interceptor for AuthInterceptor {
-    fn call(&mut self, request: Request<()>) -> Result<Request<()>, Status> {
-        // Достаю токен из метаданных
-        let token = request
-            .metadata()
-            .get("authorization")
-            .and_then(|v| v.to_str().ok())
-            .map(|s| s.trim_start_matches("Bearer ").to_string());
-
-        match token {
-            Some(t) => match jwt::verify_token(&t) {
-                Ok(claims) => {
-                    // Кладу claims в extensions, чтобы обработчики могли их достать
-                    let mut request = request;
-                    request.extensions_mut().insert(claims);
-                    Ok(request)
-                }
-                Err(e) => {
-                    println!("[INTERCEPTOR] Неверный токен: {}", e);
-                    Err(Status::unauthenticated("Неверный токен"))
-                }
-            },
-            // Нет токена - отказ (кроме Register/Login, они на AuthApi без интерцептора)
-            None => Err(Status::unauthenticated("Требуется токен")),
-        }
+    fn call(&mut self, mut request: Request<()>) -> Result<Request<()>, Status> {
+        // Сохраняю владельца токена для обработчиков
+        let claims = request_auth::authenticate(&request, &self.jwt)?;
+        request.extensions_mut().insert(claims);
+        Ok(request)
     }
 }
 
@@ -81,9 +78,10 @@ struct EpisodeRecord {
 // Структура действия (то, что хранится в SurrealDB)
 #[derive(Debug, SurrealValue)]
 struct ActionRecord {
+    choice_id: surrealdb::types::RecordId,
     r#type: String, // Тип действия
-    choice_id: Option<String>, // ID выбора (SurrealDB-id)
-    scene_id: Option<String>, // ID сцены (SurrealDB-id)
+    scene_id: Option<i64>, // ID сцены
+    scene_key: Option<String>, // Ключ сцены
     flag_name: Option<String>, // Имя флага
     flag_value: Option<bool>, // Значение флага
     counter_name: Option<String>, // Имя счётчика
@@ -107,7 +105,7 @@ impl EpisodeApiService {
 
 #[tonic::async_trait]
 impl EpisodeApi for EpisodeApiService {
-     // Получить эпизод по ID (со сценами, выборами, действиями) - пакетными запросами
+    // Получить эпизод по ID (со сценами, выборами, действиями)
     async fn get_episode(
         &self,
         request: Request<GetEpisodeRequest>,
@@ -115,101 +113,41 @@ impl EpisodeApi for EpisodeApiService {
         let id = request.into_inner().id;
         println!("[GET_EPISODE] Запрос на эпизод ID: {}", id);
 
-        // 1. Загружаю эпизод
-        let episode_record: Option<EpisodeRecord> = self
-            .db
-            .select(("episode", i64::from(id)))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        // Загружаю дерево одним запросом в общей транзакции
+        let mut response = self.db.query(
+            "BEGIN TRANSACTION;
+             SELECT * FROM type::record('episode', $id);
+             LET $scenes = SELECT * FROM scene WHERE episode_id = type::record('episode', $id) ORDER BY order_index;
+             SELECT * FROM $scenes;
+             LET $choices = SELECT * FROM choice WHERE scene_id IN $scenes.id ORDER BY order_index;
+             SELECT * FROM $choices;
+             SELECT * FROM action WHERE choice_id IN $choices.id;
+             COMMIT TRANSACTION;"
+        ).bind(("id", i64::from(id))).await
+            .map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
+        let records: Vec<EpisodeRecord> = response.take(1).map_err(|e| Status::internal(e.to_string()))?;
+        let episode_record = records.into_iter().next().ok_or_else(|| Status::not_found("Эпизод не найден"))?;
+        let scene_values: Vec<Value> = response.take(3).map_err(|e| Status::internal(e.to_string()))?;
+        let choice_values: Vec<Value> = response.take(5).map_err(|e| Status::internal(e.to_string()))?;
+        let action_records: Vec<ActionRecord> = response.take(6).map_err(|e| Status::internal(e.to_string()))?;
 
-        let episode_record = match episode_record {
-            Some(r) => r,
-            None => return Err(Status::not_found("Эпизод не найден")),
-        };
-
-        // 2. Загружаю ВСЕ сцены эпизода (1 запрос)
-        let mut sc_response = self
-            .db
-            .query("SELECT * FROM scene WHERE episode_id = type::record('episode', $id) ORDER BY order_index")
-            .bind(("id", i64::from(id)))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let scene_values: Vec<Value> = sc_response
-            .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
+        // Группирую выборы и действия, сохраняя их порядок
+        let mut choices_by_scene: HashMap<String, Vec<Value>> = HashMap::new();
+        for choice in choice_values {
+            let key = choice.get("scene_id").and_then(Value::as_str).unwrap_or_default().to_string();
+            choices_by_scene.entry(key).or_default().push(choice);
+        }
+        let mut actions_by_choice: HashMap<String, Vec<ActionRecord>> = HashMap::new();
+        for action in action_records {
+            actions_by_choice.entry(action.choice_id.to_sql()).or_default().push(action);
+        }
 
         println!("[GET_EPISODE] Найдено сцен: {}", scene_values.len());
 
-        // Собираю id всех сцен
-        let scene_ids: Vec<String> = scene_values
-            .iter()
-            .filter_map(|v| v.get("id").and_then(|s| s.as_str()).map(|s| s.to_string()))
-            .collect();
-
-        // 3. Загружаю ВСЕ выборы этих сцен (1 запрос)
-        let mut choices_by_scene: std::collections::HashMap<String, Vec<Value>> =
-            std::collections::HashMap::new();
-
-        if !scene_ids.is_empty() {
-            let mut ch_response = self
-                .db
-                .query("SELECT * FROM choice WHERE scene_id IN $scene_ids ORDER BY order_index")
-                .bind(("scene_ids", scene_ids.clone()))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let all_choices: Vec<Value> = ch_response
-                .take(0)
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            // Группирую выборы по scene_id
-            for c in all_choices {
-                let scene_id = c
-                    .get("scene_id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                choices_by_scene.entry(scene_id).or_insert_with(Vec::new).push(c);
-            }
-        }
-
-        // Собираю id всех выборов
-        let choice_ids: Vec<String> = choices_by_scene
-            .values()
-            .flat_map(|v| v.iter())
-            .filter_map(|c| c.get("id").and_then(|s| s.as_str()).map(|s| s.to_string()))
-            .collect();
-
-        // 4. Загружаю все действия этих выборов (1 запрос)
-        let mut actions_by_choice: std::collections::HashMap<String, Vec<ActionRecord>> =
-            std::collections::HashMap::new();
-
-        if !choice_ids.is_empty() {
-            let mut ac_response = self
-                .db
-                .query("SELECT * FROM action WHERE choice_id IN $choice_ids")
-                .bind(("choice_ids", choice_ids.clone()))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let all_actions: Vec<ActionRecord> = ac_response
-                .take(0)
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            // Группирую действия по choice_id
-            for a in all_actions {
-                let choice_id = a
-                    .choice_id
-                    .clone()
-                    .unwrap_or_default();
-                actions_by_choice.entry(choice_id).or_insert_with(Vec::new).push(a);
-            }
-        }
-
-        // 5. Собираю сцены с выборами и действиями
         let mut scenes: Vec<Scene> = Vec::new();
 
+        // 3. Собираю сцены с выборами и действиями
         for scene_value in scene_values.iter() {
             // Извлекаю поля сцены
             let scene_id_str = scene_value.get("id").and_then(|v| v.as_str()).unwrap_or("scene:0").to_string();
@@ -226,43 +164,44 @@ impl EpisodeApi for EpisodeApiService {
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
                 .unwrap_or_default();
-            let next_scene_id = scene_value.get("next_scene_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
 
-            // Собираю выборы этой сцены (из уже загруженных)
+            let choice_values = choices_by_scene.remove(&scene_id_str).unwrap_or_default();
+
             let mut choices: Vec<Choice> = Vec::new();
-            if let Some(scene_choices) = choices_by_scene.get(&scene_id_str) {
-                for choice_value in scene_choices.iter() {
-                    let choice_id_str = choice_value.get("id").and_then(|v| v.as_str()).unwrap_or("choice:0").to_string();
-                    let text = choice_value.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                    let choice_title = choice_value.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
-                    // Собираю действия этого выбора (из уже загруженных)
-                    let empty = Vec::new();
-                    let action_records = actions_by_choice.get(&choice_id_str).unwrap_or(&empty);
-                    let actions = action_records
-                        .iter()
-                        .map(|a| Action {
-                            r#type: a.r#type.clone(),
-                            scene_id: a.scene_id.clone().unwrap_or_default(),
-                            flag_name: a.flag_name.clone().unwrap_or_default(),
-                            flag_value: a.flag_value.unwrap_or(false),
-                            counter_name: a.counter_name.clone().unwrap_or_default(),
-                            counter_value: a.counter_value.unwrap_or(0) as i32,
-                            sound_path: a.sound_path.clone().unwrap_or_default(),
-                            image_path: a.image_path.clone().unwrap_or_default(),
-                            title: a.title.clone(),
-                        })
-                        .collect();
+            for choice_value in choice_values.iter() {
+                let choice_id_str = choice_value.get("id").and_then(|v| v.as_str()).unwrap_or("choice:0").to_string();
+                let text = choice_value.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let choice_title = choice_value.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
-                    choices.push(Choice { text, title: choice_title, actions });
-                }
+                let action_records = actions_by_choice.remove(&choice_id_str).unwrap_or_default();
+
+                // Собираю действия
+                let actions = action_records
+                    .into_iter()
+                    .map(|a| Action {
+                        r#type: a.r#type,
+                        scene_id: a.scene_id.unwrap_or(0) as i32,
+                        scene_key: episode_store::target_key(a.scene_key.as_deref(), a.scene_id.unwrap_or(0) as i32),
+                        flag_name: a.flag_name.unwrap_or_default(),
+                        flag_value: a.flag_value.unwrap_or(false),
+                        counter_name: a.counter_name.unwrap_or_default(),
+                        counter_value: a.counter_value.unwrap_or(0) as i32,
+                        sound_path: a.sound_path.unwrap_or_default(),
+                        image_path: a.image_path.unwrap_or_default(),
+                        title: a.title,
+                    })
+                    .collect();
+
+                choices.push(Choice { text, title: choice_title, actions });
             }
 
+            // Читаю next_scene_id (0 = конец)
+            let next_scene_id = scene_value.get("next_scene_id").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+
             scenes.push(Scene {
-                id: order_index + 1,
+                id: scene_id_str.strip_prefix("scene:")
+                    .and_then(|id| id.parse::<i32>().ok()).unwrap_or(0),
                 scene_key: scene_id_str.clone(),
                 title,
                 background,
@@ -274,10 +213,12 @@ impl EpisodeApi for EpisodeApiService {
                 text_position,
                 character_position,
                 next_scene_id,
+                next_scene_key: episode_store::target_key(scene_value.get("next_scene_key").and_then(Value::as_str), next_scene_id),
+                order_index,
             });
         }
 
-        // 6. Собираю финальный эпизод
+        // 4. Собираю финальный эпизод
         let episode = Episode {
             id,
             title: episode_record.title,
@@ -298,7 +239,8 @@ impl EpisodeApi for EpisodeApiService {
             .db
             .query("SELECT * FROM episode ORDER BY created_at ASC")
             .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+            .map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
 
         let records: Vec<Value> = response
             .take(0)
@@ -320,182 +262,29 @@ impl EpisodeApi for EpisodeApiService {
         Ok(Response::new(GetAllEpisodesResponse { episodes }))
     }
 
-    // Сохранить эпизод (с сценами, выборами, действиями) - в транзакции
+    // Сохранить эпизод (с сценами, выборами, действиями)
     async fn save_episode(
         &self,
         request: Request<SaveEpisodeRequest>,
     ) -> Result<Response<SaveEpisodeResponse>, Status> {
-        // Проверяю, что запрос от админа
-        AdminApiService::check_admin(&request)?;
+        // Проверяю админа
+        crate::request_auth::check_admin(&request)?;
 
         let episode = request.into_inner().episode
             .ok_or_else(|| Status::invalid_argument("Эпизод не передан"))?;
 
+        // Сохраняю эпизод
         println!("[SAVE_EPISODE] Сохраняю эпизод ID: {}", episode.id);
         println!("[SAVE_EPISODE] Название: {}", episode.title);
         println!("[SAVE_EPISODE] Сцен: {}", episode.scenes.len());
 
-        let id = episode.id;
-        let id_i64 = i64::from(id);
+        episode_store::save(&self.db, &episode).await?;
+        println!("[SAVE_EPISODE] Эпизод сохранён: {} (сцен: {})", episode.id, episode.scenes.len());
 
-        // Шаг 1: собираю SQL в транзакции
-
-        // Начало транзакции
-        let mut sql = String::from("BEGIN TRANSACTION;\n");
-
-        // UPSERT эпизода
-        sql.push_str("UPSERT type::record('episode', $ep_id) CONTENT { title: $ep_title, version: $ep_version, created_at: time::now() };\n");
-
-        // Собираю ключи присланных сцен (непустые)
-        let incoming_keys: Vec<String> = episode.scenes.iter()
-            .filter(|s| !s.scene_key.is_empty())
-            .map(|s| s.scene_key.clone())
-            .collect();
-
-        // Шаг 2: удаляю сцены, которых нет в присланных (нахожу их через SELECT и удаляю по списку в рамках транзакции)
-        sql.push_str("LET $existing = SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $ep_id);\n");
-        sql.push_str("LET $to_delete = array::filter($existing, |$k| !array::any($incoming_keys, |$i| $i = <string>$k));\n");
-        sql.push_str("FOR $k IN $to_delete {\n");
-        sql.push_str("  LET $acts = SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id = $k);\n");
-        sql.push_str("  DELETE $acts;\n");
-        sql.push_str("  LET $chs = SELECT VALUE id FROM choice WHERE scene_id = $k;\n");
-        sql.push_str("  DELETE $chs;\n");
-        sql.push_str("  DELETE $k;\n");
-        sql.push_str("};\n");
-
-        // Шаг 3: сохраняю каждую сцену
-        for (scene_index, scene) in episode.scenes.iter().enumerate() {
-            let s_idx = scene_index;
-
-            // Удаляю старые choice и action этой сцены
-            sql.push_str(&format!(
-                "IF $scene_key_{} != '' {{\n", s_idx
-            ));
-            sql.push_str(&format!(
-                "  LET $acts_{} = SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id = type::record($scene_key_{}));\n",
-                s_idx, s_idx
-            ));
-            sql.push_str(&format!("  DELETE $acts_{};\n", s_idx));
-            sql.push_str(&format!(
-                "  LET $chs_{} = SELECT VALUE id FROM choice WHERE scene_id = type::record($scene_key_{});\n",
-                s_idx, s_idx
-            ));
-            sql.push_str(&format!("  DELETE $chs_{};\n", s_idx));
-            sql.push_str("};\n");
-
-            // CREATE (если scene_key пустой) или UPDATE (если есть) (оба варианта сохраняют id в $scene_id_N)
-            sql.push_str(&format!(
-                "LET $scene_id_{} = IF $scene_key_{} = '' THEN \
-                    (CREATE scene CONTENT {{ episode_id: type::record('episode', $ep_id), title: $title_{}, background: $background_{}, character: $character_{}, character_emotion: $char_emotion_{}, texts: $texts_{}, condition: $condition_{}, text_position: $text_pos_{}, character_position: $char_pos_{}, order_index: $order_{}, next_scene_id: $next_scene_{} }} RETURN id)[0].id \
-                ELSE \
-                    (UPDATE type::record($scene_key_{}) CONTENT {{ episode_id: type::record('episode', $ep_id), title: $title_{}, background: $background_{}, character: $character_{}, character_emotion: $char_emotion_{}, texts: $texts_{}, condition: $condition_{}, text_position: $text_pos_{}, character_position: $char_pos_{}, order_index: $order_{}, next_scene_id: $next_scene_{} }} RETURN id)[0].id \
-                END;\n",
-                // $scene_id_N
-                s_idx,
-                // $scene_key_N (левый)
-                s_idx,
-                // CREATE: 11 аргументов
-                s_idx, s_idx, s_idx, s_idx, s_idx, s_idx, s_idx, s_idx, s_idx, s_idx,
-                // $scene_key_N (правый)
-                s_idx,
-                // UPDATE: 11 аргументов
-                s_idx, s_idx, s_idx, s_idx, s_idx, s_idx, s_idx, s_idx, s_idx, s_idx,
-            ));
-
-            // Создаю choices для этой сцены
-            for (choice_index, choice) in scene.choices.iter().enumerate() {
-                let c_idx = choice_index;
-
-                sql.push_str(&format!(
-                    "LET $choice_id_{}_{} = (CREATE choice CONTENT {{ scene_id: $scene_id_{}, text: $choice_text_{}_{}, title: $choice_title_{}_{}, order_index: $choice_order_{}_{} }} RETURN id)[0].id;\n",
-                    s_idx, c_idx,
-                    s_idx,
-                    s_idx, c_idx,
-                    s_idx, c_idx,
-                    s_idx, c_idx
-                ));
-
-                for (action_index, _action) in choice.actions.iter().enumerate() { 
-                    let a_idx = action_index;
-
-                    sql.push_str(&format!(
-                        "CREATE action CONTENT {{ choice_id: $choice_id_{}_{}, type: $action_type_{}_{}_{}, scene_id: $action_scene_{}_{}_{}, flag_name: $action_flag_name_{}_{}_{}, flag_value: $action_flag_value_{}_{}_{}, counter_name: $action_counter_name_{}_{}_{}, counter_value: $action_counter_value_{}_{}_{}, sound_path: $action_sound_{}_{}_{}, image_path: $action_image_{}_{}_{}, title: $action_title_{}_{}_{} }};\n",
-                        // choice_id_N_M
-                        s_idx, c_idx,
-                        // 9 биндов × 3 индекса
-                        s_idx, c_idx, a_idx, s_idx, c_idx, a_idx, s_idx, c_idx, a_idx,
-                        s_idx, c_idx, a_idx, s_idx, c_idx, a_idx, s_idx, c_idx, a_idx,
-                        s_idx, c_idx, a_idx, s_idx, c_idx, a_idx, s_idx, c_idx, a_idx,
-                    ));
-                }
-            }
-        }
-
-        // Конец транзакции
-        sql.push_str("COMMIT TRANSACTION;\n");
-
-        // Шаг 4: выполняю запрос с bind'ами
-
-        let mut q = self.db.query(&sql);
-
-        // Бинды для эпизода
-        q = q.bind(("ep_id", id_i64));
-        q = q.bind(("ep_title", episode.title.clone()));
-        q = q.bind(("ep_version", episode.version));
-        q = q.bind(("incoming_keys", incoming_keys));
-
-        // Бинды для каждой сцены
-        for (scene_index, scene) in episode.scenes.iter().enumerate() {
-            let s = scene_index;
-            q = q.bind((format!("scene_key_{}", s), scene.scene_key.clone()));
-            q = q.bind((format!("title_{}", s), scene.title.clone()));
-            q = q.bind((format!("background_{}", s), scene.background.clone()));
-            q = q.bind((format!("character_{}", s), scene.character.clone()));
-            q = q.bind((format!("char_emotion_{}", s), scene.character_emotion.clone()));
-            q = q.bind((format!("texts_{}", s), scene.texts.clone()));
-            q = q.bind((format!("condition_{}", s), scene.condition.clone()));
-            q = q.bind((format!("text_pos_{}", s), scene.text_position.clone()));
-            q = q.bind((format!("char_pos_{}", s), scene.character_position.clone()));
-            q = q.bind((format!("order_{}", s), s as i32));
-            q = q.bind((format!("next_scene_{}", s), scene.next_scene_id.clone()));
-
-            for (choice_index, choice) in scene.choices.iter().enumerate() {
-                let c = choice_index;
-                q = q.bind((format!("choice_text_{}_{}", s, c), choice.text.clone()));
-                q = q.bind((format!("choice_title_{}_{}", s, c), choice.title.clone()));
-                q = q.bind((format!("choice_order_{}_{}", s, c), c as i32));
-
-                for (action_index, action) in choice.actions.iter().enumerate() {
-                    let a = action_index;
-                    q = q.bind((format!("action_type_{}_{}_{}", s, c, a), action.r#type.clone()));
-                    q = q.bind((format!("action_scene_{}_{}_{}", s, c, a), action.scene_id.clone()));
-                    q = q.bind((format!("action_flag_name_{}_{}_{}", s, c, a), action.flag_name.clone()));
-                    q = q.bind((format!("action_flag_value_{}_{}_{}", s, c, a), action.flag_value));
-                    q = q.bind((format!("action_counter_name_{}_{}_{}", s, c, a), action.counter_name.clone()));
-                    q = q.bind((format!("action_counter_value_{}_{}_{}", s, c, a), action.counter_value));
-                    q = q.bind((format!("action_sound_{}_{}_{}", s, c, a), action.sound_path.clone()));
-                    q = q.bind((format!("action_image_{}_{}_{}", s, c, a), action.image_path.clone()));
-                    q = q.bind((format!("action_title_{}_{}_{}", s, c, a), action.title.clone()));
-                }
-            }
-        }
-
-        // Выполняю
-        let result = q.await;
-
-        match result {
-            Ok(_) => {
-                println!("[SAVE_EPISODE] Эпизод сохранён: {} (сцен: {})", id, episode.scenes.len());
-                Ok(Response::new(SaveEpisodeResponse {
-                    success: true,
-                    message: "Эпизод сохранён".to_string(),
-                }))
-            }
-            Err(e) => {
-                println!("[SAVE_EPISODE] ОШИБКА ТРАНЗАКЦИИ: {}", e);
-                Err(Status::internal(format!("Ошибка транзакции: {}", e)))
-            }
-        }
+        Ok(Response::new(SaveEpisodeResponse {
+            success: true,
+            message: "Эпизод сохранён".to_string(),
+        }))
     }
 
     // Удалить эпизод (со сценами, выборами, действиями)
@@ -503,80 +292,15 @@ impl EpisodeApi for EpisodeApiService {
         &self,
         request: Request<DeleteEpisodeRequest>,
     ) -> Result<Response<DeleteEpisodeResponse>, Status> {
-        // Проверяю, что запрос от админа
-        AdminApiService::check_admin(&request)?;
+        // Проверяю админа
+        crate::request_auth::check_admin(&request)?;
 
         let id = request.into_inner().id;
-        let id_i64 = i64::from(id);
-
         println!("[DELETE_EPISODE] Удаляю эпизод ID: {}", id);
 
-        // 1. Удаляю действия (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM action WHERE choice_id IN (SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)))")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
 
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
-
-        // 2. Удаляю выборы (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM choice WHERE scene_id IN (SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id))")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
-
-        // 3. Удаляю сцены (в два шага)
-        {
-            let mut ids_response = self
-                .db
-                .query("SELECT VALUE id FROM scene WHERE episode_id = type::record('episode', $id)")
-                .bind(("id", id_i64))
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?;
-
-            let ids: Vec<Value> = ids_response.take(0).map_err(|e| Status::internal(e.to_string()))?;
-
-            if !ids.is_empty() {
-                self.db
-                    .query("DELETE $ids")
-                    .bind(("ids", ids))
-                    .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
-            }
-        }
-
-        // 4. Удаляю эпизод
-        self.db
-            .query("DELETE type::record('episode', $id)")
-            .bind(("id", id_i64))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
+        // Удаляю дерево целиком и откатываю все изменения при ошибке
+        crate::episode_delete::delete(&self.db, id).await?;
 
         println!("[DELETE_EPISODE] Эпизод удалён");
 
@@ -587,37 +311,15 @@ impl EpisodeApi for EpisodeApiService {
     }
 }
 
-// Применение миграций из папки migrations/
-async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error::Error>> {
-    let migrations_dir = std::path::Path::new("migrations");
-
-    if !migrations_dir.exists() {
-        println!("Папка migrations/ не найдена, пропускаю");
-        return Ok(());
-    }
-
-    let mut entries: Vec<_> = std::fs::read_dir(migrations_dir)?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map(|ext| ext == "surql").unwrap_or(false))
-        .collect();
-
-    entries.sort_by_key(|e| e.path());
-
-    for entry in entries {
-        let path = entry.path();
-        let sql = std::fs::read_to_string(&path)?;
-        println!("Применяю миграцию: {:?}", path);
-        db.query(&sql).await?;
-    }
-
-    println!("Все миграции применены");
-    Ok(())
+// Применённые версии повторно не запускаю
+async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    migrations::apply_dir(db, std::path::Path::new("migrations")).await
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Загружаю переменные окружения из .env
-    dotenvy::dotenv().ok();
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // Проверяю ключ до подключения к БД и запуска API
+    let jwt = jwt::JwtKeys::from_env()?;
 
     // Подключаюсь к SurrealDB
     let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
@@ -630,34 +332,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
 
     // Использую namespace и database
-    db.use_ns("romance_club").use_db("main").await?;
+    let namespace = std::env::var("SURREAL_NAMESPACE")
+        .unwrap_or_else(|_| "romance_club".into());
+    let database = std::env::var("SURREAL_DATABASE").unwrap_or_else(|_| "main".into());
+    db.use_ns(&namespace).use_db(&database).await?;
 
-    println!("Подключение к SurrealDB установлено");
+    println!("Подключение к SurrealDB установлено: namespace={}, database={}", namespace, database);
 
     // Применяю миграции
     apply_migrations(&db).await?;
+    // Удаление ассетов выполняю без прав на остальные таблицы
+    let asset_delete_db = asset_delete::connection(&db, &namespace, &database).await
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     let episode_service = EpisodeApiService::new(db.clone()); // Сервис эпизодов
     let progress_service = ProgressApiService::new(db.clone()); // Сервис прогресса
-    let auth_service = AuthApiService::new(db.clone()); // Сервис авторизации
+    let auth_service = AuthApiService::new(db.clone(), jwt.clone()); // Сервис авторизации
     let achievement_service = AchievementApiService::new(db.clone()); // Сервис достижений
     let shop_service = ShopApiService::new(db.clone()); // Сервис магазина
-    let asset_service = AssetApiService::new(db.clone()); // Сервис ассетов
-    let admin_service = AdminApiService::new(db); // Сервис админа
-    let addr = "0.0.0.0:50051".parse()?;
+    let asset_service = AssetApiService::new(db.clone()).with_delete_db(asset_delete_db.clone()); // Сервис ассетов
+    asset_service.backfill_previews().await?; // Готовлю превью старых картинок перед открытием каталога
+    let admin_service = AdminApiService::new(db).with_delete_db(asset_delete_db); // Сервис админа
+    let addr = std::env::var("GRPC_BIND")
+        .unwrap_or_else(|_| "0.0.0.0:50051".into())
+        .parse()?;
 
     println!("Сервер запущен на {}", addr);
 
     // Интерцептор JWT
-    let interceptor = AuthInterceptor;
+    let interceptor = AuthInterceptor { jwt };
 
     Server::builder()
         .add_service(EpisodeApiServer::with_interceptor(episode_service, interceptor.clone())) // Сервис эпизодов
         .add_service(ProgressApiServer::with_interceptor(progress_service, interceptor.clone())) // Сервис прогресса
-        .add_service(AuthApiServer::new(auth_service)) // Сервис авторизации (без интерцептора)
+        .add_service(AuthApiServer::new(auth_service).max_decoding_message_size(auth_limits::MAX_AUTH_MESSAGE_BYTES)) // Сервис авторизации с ограничением размера запроса
         .add_service(AchievementApiServer::with_interceptor(achievement_service, interceptor.clone())) // Сервис достижений
         .add_service(ShopApiServer::with_interceptor(shop_service, interceptor.clone())) // Сервис магазина
-        .add_service(AssetApiServer::with_interceptor(asset_service, interceptor.clone())) // Сервис ассетов
+        .add_service(tonic::service::interceptor::InterceptedService::new(asset_service.into_server(), interceptor.clone())) // Сервис ассетов
         .add_service(AdminApiServer::with_interceptor(admin_service, interceptor)) // Сервис админа
         .serve(addr)
         .await?;

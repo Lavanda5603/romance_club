@@ -1,16 +1,17 @@
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'register_screen.dart'; // Импорт экрана регистрации
 import 'main_menu_screen.dart'; // Импорт главного меню
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория
 import '../src/data/services/auth_grpc_service.dart'; // Импорт gRPC-сервиса
-import '../services/storage_service.dart'; // Импорт сервиса хранения
+import '../services/session_store.dart'; // Импорт единого хранилища сессии
 
 // Экран авторизации
 class LoginScreen extends StatefulWidget {
-  // Конструктор класса LoginScreen
+  // Конструктор
   const LoginScreen({super.key});
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -72,9 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (result.success) {
-        // Сохраняю player_id и JWT-токен локально
-        await StorageService.savePlayerId(result.playerId);
-        await StorageService.saveToken(result.token);
+        // Сохраняю ID и токен одной записью
+        await SessionStore.shared.save(Session(result.playerId, result.token));
 
         if (!mounted) return;
 
@@ -95,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
+        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
       );
     }
 

@@ -1,3 +1,10 @@
+import '../services/session_store.dart'; // Импорт единого хранилища сессии
+import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+import '../generated/episode.pb.dart'; // Импорт Protobuf-моделей эпизодов
+import '../src/domain/repositories/auth_repository.dart'; // Импорт интерфейса репозитория авторизации
+import '../src/domain/repositories/progress_repository.dart'; // Импорт интерфейса репозитория прогресса
+import '../src/domain/repositories/achievement_repository.dart'; // Импорт интерфейса репозитория достижений
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../services/storage_service.dart'; // Импорт сервиса хранения
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория авторизации
@@ -11,10 +18,16 @@ import 'login_screen.dart'; // Импорт экрана авторизации
 
 // Экран профиля игрока
 class ProfileScreen extends StatefulWidget {
-  // Конструктор класса ProfileScreen
-  const ProfileScreen({super.key});
+  // Конструктор
+  final AuthRepository? authRepository;
+  final ProgressRepository? progressRepository;
+  final AchievementRepository? achievementRepository;
+  final EpisodeGrpcService? episodeService;
+  final Future<String> Function()? loadPlayerId;
+  const ProfileScreen({super.key, this.authRepository, this.progressRepository,
+    this.achievementRepository, this.episodeService, this.loadPlayerId});
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -41,6 +54,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Флаг загрузки
   bool _isLoading = true;
+  bool _statsLoading = true;
+  bool _achievementsLoading = true;
+  String? _profileError;
+  String? _statsError;
+  String? _achievementsError;
 
   // gRPC-сервисы
   late AuthGrpcService _authService;
@@ -49,9 +67,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late AchievementGrpcService _achievementService;
 
   // Репозитории
-  late AuthRepositoryRemote _authRepository;
-  late ProgressRepositoryRemote _progressRepository;
-  late AchievementRepositoryRemote _achievementRepository;
+  late AuthRepository _authRepository;
+  late ProgressRepository _progressRepository;
+  late AchievementRepository _achievementRepository;
 
   // ID игрока
   String _playerId = '';
@@ -61,13 +79,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     // Создаю gRPC-сервисы
     _authService = AuthGrpcService();
-    _episodeService = EpisodeGrpcService();
+    _episodeService = widget.episodeService ?? EpisodeGrpcService();
     _progressService = ProgressGrpcService();
     _achievementService = AchievementGrpcService();
     // Создаю репозитории
-    _authRepository = AuthRepositoryRemote(_authService);
-    _progressRepository = ProgressRepositoryRemote(_progressService);
-    _achievementRepository = AchievementRepositoryRemote(_achievementService);
+    _authRepository = widget.authRepository ?? AuthRepositoryRemote(_authService);
+    _progressRepository = widget.progressRepository ?? ProgressRepositoryRemote(_progressService);
+    _achievementRepository = widget.achievementRepository ?? AchievementRepositoryRemote(_achievementService);
     // Загружаю данные
     _loadProfile();
   }
@@ -76,70 +94,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     // Закрываю соединения
     _authService.close();
-    _episodeService.close();
+    if (widget.episodeService == null) _episodeService.close();
     _progressService.close();
     _achievementService.close();
     super.dispose();
   }
 
-    // Загрузка профиля (параллельно)
+  // Независимые части профиля загружаю одновременно
   Future<void> _loadProfile() async {
     try {
-      _playerId = await StorageService.loadPlayerId();
-
-      if (_playerId.isEmpty) {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Загружаю игрока, эпизоды и достижения параллельно
-      final authFuture = _authRepository.getPlayer(_playerId);
-      final episodesFuture = _episodeService.getAllEpisodes();
-      final achievementsFuture = _achievementRepository.getAchievements(_playerId);
-
-      final authModel = await authFuture;
-      final episodes = await episodesFuture;
-      final achievements = await achievementsFuture;
-
-      // Проверяю прогресс параллельно
-      final progressResults = await Future.wait(
-        episodes.map((ep) async {
-          try {
-            final progress = await _progressRepository.getProgress(_playerId, ep.id);
-            return progress.sceneId.isNotEmpty ? 1 : 0;
-          } catch (e) {
-            return 0;
-          }
-        }),
-      );
-
-      final completed = progressResults.where((x) => x == 1).length;
-
-      final unlocked = <String>{};
-      for (final a in achievements) {
-        if (a.isUnlocked) unlocked.add(a.name);
-      }
-
+      _playerId = await (widget.loadPlayerId ?? StorageService.loadPlayerId)();
       if (!mounted) return;
-
-      setState(() {
-        _login = authModel.login;
-        _email = authModel.email;
-        _createdAt = authModel.createdAt;
-        _completedEpisodes = completed;
-        _totalEpisodes = episodes.length;
-        _unlockedAchievements.clear();
-        _unlockedAchievements.addAll(unlocked);
-        _isLoading = false;
-      });
+      if (_playerId.isEmpty) throw StateError('Нет данных игрока');
+      await Future.wait([_loadPlayer(), _loadStatistics(), _loadAchievements()]);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
+        _statsLoading = false;
+        _achievementsLoading = false;
+        _profileError = e is GrpcError ? networkError(e) : 'Не удалось загрузить профиль';
+        _statsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить прогресс';
+        _achievementsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить достижения';
       });
+    }
+  }
+
+  Future<void> _loadPlayer() async {
+    try {
+      final player = await _authRepository.getPlayer(_playerId);
+      if (!player.success) throw StateError(player.message);
+      if (!mounted) return;
+      setState(() {
+        _login = player.login;
+        _email = player.email;
+        _createdAt = player.createdAt;
+        _isLoading = false;
+        _profileError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _isLoading = false; _profileError = e is GrpcError ? networkError(e) : 'Не удалось загрузить профиль'; });
+    }
+  }
+
+  Future<void> _loadStatistics() async {
+    setState(() { _statsLoading = true; _statsError = null; });
+    try {
+      List<Episode>? episodes;
+      Set<int>? ids;
+      await Future.wait([
+        _episodeService.getAllEpisodes().then((value) { episodes = value; }),
+        _progressRepository.getProgressSummary(_playerId).then((value) { ids = value; }),
+      ], eagerError: true);
+      if (!mounted) return;
+      setState(() {
+        _completedEpisodes = episodes!.where((ep) => ids!.contains(ep.id)).map((ep) => ep.id).toSet().length;
+        _totalEpisodes = episodes!.length;
+        _statsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _statsLoading = false; _statsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить прогресс'; });
+    }
+  }
+
+  Future<void> _loadAchievements() async {
+    setState(() { _achievementsLoading = true; _achievementsError = null; });
+    try {
+      final achievements = await _achievementRepository.getAchievements(_playerId);
+      if (!mounted) return;
+      setState(() {
+        _unlockedAchievements.clear();
+        _unlockedAchievements.addAll(achievements.where((a) => a.isUnlocked).map((a) => a.name));
+        _achievementsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _achievementsLoading = false; _achievementsError = e is GrpcError ? networkError(e) : 'Не удалось загрузить достижения'; });
     }
   }
 
@@ -184,9 +216,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // Если пользователь подтвердил - выхожу
     if (confirmed == true) {
-      // Удаляю player_id и JWT-токен из Storage
-      await StorageService.savePlayerId('');
-      await StorageService.deleteToken();
+      // При ошибке записи выхода оставляю экран и показываю причину
+      try {
+        await SessionStore.shared.clear();
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось сохранить выход. Повторите попытку.')),
+        );
+        return;
+      }
 
       if (!mounted) return;
 
@@ -289,6 +328,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(height: 16),
 
+                              if (_profileError != null)
+                                Text(_profileError!, style: const TextStyle(color: Colors.red)),
                               // Логин
                               Center(
                                 child: Text(
@@ -324,10 +365,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'пройдено эпизодов: $_completedEpisodes/$_totalEpisodes',
+                                _statsLoading ? 'Прогресс загружается...' : _statsError ?? 'пройдено эпизодов: $_completedEpisodes/$_totalEpisodes',
                                 style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
                               ),
                               const SizedBox(height: 8),
+                              if (!_statsLoading && _statsError == null)
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
                                 child: LinearProgressIndicator(
@@ -345,6 +387,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w300),
                               ),
                               const SizedBox(height: 12),
+                              if (_achievementsLoading || _achievementsError != null)
+                                Text(_achievementsLoading ? 'Достижения загружаются...' : _achievementsError!,
+                                  style: const TextStyle(color: Colors.white)),
+                              if (!_achievementsLoading && _achievementsError == null)
                               Wrap(
                                 alignment: WrapAlignment.spaceEvenly,
                                 spacing: 12,

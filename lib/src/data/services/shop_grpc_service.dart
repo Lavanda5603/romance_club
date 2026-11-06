@@ -1,17 +1,17 @@
+import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+import 'dart:math'; // Импорт математических функций и случайных чисел
+import 'auth_options.dart'; // Метаданные с токеном
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/shop_api.pbgrpc.dart'; // Импорт gRPC-клиента
-import '../../../services/storage_service.dart'; // Импорт StorageService
-
-// Таймаут
-const _timeout = Duration(seconds: 15);
 
 // Сервис для работы с магазином через gRPC
 class ShopGrpcService {
   late final ClientChannel _channel; // Канал связи
   late final ShopApiClient _client; // gRPC-клиент
 
-  // Конструктор класса ShopGrpcService
-  ShopGrpcService({String host = '10.0.2.2', int port = 50051}) {
+  // Конструктор
+  ShopGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
+    // Создаю канал связи
     _channel = ClientChannel(
       host,
       port: port,
@@ -19,24 +19,14 @@ class ShopGrpcService {
         credentials: ChannelCredentials.insecure(),
       ),
     );
-    _client = ShopApiClient(_channel);
-  }
-
-  // Метаданные с токеном
-  Future<CallOptions> _getAuthOptions() async {
-    final token = await StorageService.loadToken();
-    if (token.isEmpty) return CallOptions(timeout: _timeout);
-    return CallOptions(
-      metadata: {'authorization': 'Bearer $token'},
-      timeout: _timeout,
-    );
+    // Создаю gRPC-клиент
+    _client = ShopApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 
   // Получить покупки
   Future<GetPurchasesResponse> getPurchases(String playerId) async {
     final request = GetPurchasesRequest(playerId: playerId);
-    final options = await _getAuthOptions();
-    return await _client.getPurchases(request, options: options);
+    return await _client.getPurchases(request, options: await authOptions());
   }
 
   // Купить
@@ -44,25 +34,25 @@ class ShopGrpcService {
     required String playerId,
     required String itemId,
     required String itemType,
+    String? requestId,
   }) async {
     final request = PurchaseRequest(
       playerId: playerId,
       itemId: itemId,
       itemType: itemType,
+      requestId: requestId ?? List.generate(16, (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0')).join(),
     );
-    final options = await _getAuthOptions();
-    return await _client.purchase(request, options: options);
+    return await _client.purchase(request, options: await authOptions());
   }
 
   // Получить баланс
   Future<Currency> getCurrency(String playerId) async {
     final request = GetCurrencyRequest(playerId: playerId);
-    final options = await _getAuthOptions();
-    return await _client.getCurrency(request, options: options);
+    return await _client.getCurrency(request, options: await authOptions());
   }
 
   // Закрыть соединение
   Future<void> close() async {
-    await _channel.shutdown();
+    await _channel.terminate();
   }
 }

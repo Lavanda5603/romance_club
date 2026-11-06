@@ -1,3 +1,4 @@
+import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import 'episode_editor_screen.dart'; // Импорт экрана редактирования эпизода
@@ -7,7 +8,8 @@ import '../src/data/repositories/admin_repository_remote.dart'; // Импорт 
 
 // Экран режима разработчика
 class ProgrammerScreen extends StatefulWidget {
-  const ProgrammerScreen({super.key});
+  final EpisodeGrpcService? episodeService;
+  const ProgrammerScreen({super.key, this.episodeService});
 
   @override
   State<ProgrammerScreen> createState() => _ProgrammerScreenState();
@@ -22,12 +24,13 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
 
   bool _isLoading = true; // Флаг загрузки
   String? _error; // Ошибка
+  int _loadId = 0; // Номер актуальной загрузки
 
   @override
   void initState() {
     super.initState();
     // Создаю сервисы
-    _service = EpisodeGrpcService();
+    _service = widget.episodeService ?? EpisodeGrpcService();
     _adminService = AdminGrpcService();
     _adminRepository = AdminRepositoryRemote(_adminService);
     // Загружаю эпизоды
@@ -44,21 +47,26 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
 
   // Загрузка эпизодов с сервера
   Future<void> _loadEpisodes() async {
+    if (!mounted) return;
+    final loadId = ++_loadId;
+    setState(() { _isLoading = true; _error = null; });
     try {
       final episodes = await _service.getAllEpisodes();
+      if (!mounted || loadId != _loadId) return;
       setState(() {
         _episodes = List.from(episodes); // Создаю новый список
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted || loadId != _loadId) return;
       setState(() {
-        _error = e.toString();
+        _error = networkError(e);
         _isLoading = false;
       });
       // Показываю SnackBar с ошибкой
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка загрузки эпизодов: $e')),
+        SnackBar(content: Text('Ошибка загрузки эпизодов: ${networkError(e)}')),
       );
     }
   }
@@ -89,7 +97,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
+        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
       );
     }
   }
@@ -107,37 +115,18 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => EpisodeEditorScreen(
+          builder: (_) => EpisodeEditorScreen(
             episode: fullEpisode,
             onSave: (newEpisode) async {
-              // Сохраняю эпизод
-              debugPrint('[FLUTTER] onSave вызван: ${newEpisode.title}, сцен: ${newEpisode.scenes.length}');
-
-              setState(() {
-                // Создаю новый список и обновляю элемент
-                final newList = List<Episode>.from(_episodes);
-                newList[index] = newEpisode;
-                _episodes = newList;
-              });
-
-              try {
-                // Отправляю на сервер
-                final response = await _service.saveEpisode(newEpisode);
-                debugPrint('[FLUTTER] saveEpisode ответ: success=${response.success}, message=${response.message}');
-
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Эпизод сохранён на сервере')),
-                );
-              } catch (e) {
-                debugPrint('[FLUTTER] Ошибка saveEpisode: $e');
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Ошибка: $e')),
-                );
+              final response = await _service.saveEpisode(newEpisode);
+              if (!response.success) throw StateError(response.message);
+              final saved = await _service.getEpisode(newEpisode.id);
+              if (mounted) {
+                setState(() {
+                  _episodes = _episodes.map((item) => item.id == saved.id ? saved : item).toList();
+                });
               }
+              return saved;
             },
           ),
         ),
@@ -145,7 +134,7 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка загрузки эпизода: $e')),
+        SnackBar(content: Text('Ошибка загрузки эпизода: ${networkError(e)}')),
       );
     }
   }
@@ -178,7 +167,13 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
       final episodeId = _episodes[index].id;
 
       // Вызываю АДМИН-репозиторий (проверка прав на сервере)
-      final success = await _adminRepository.deleteEpisode(episodeId);
+      bool success;
+      try {
+        success = await _adminRepository.deleteEpisode(episodeId);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(networkError(e))));
+        return;
+      }
 
       if (!mounted) return;
 
@@ -277,10 +272,10 @@ class _ProgrammerScreenState extends State<ProgrammerScreen> {
                               ? const Center(child: CircularProgressIndicator(color: Color(0xFFD30010)))
                               : _error != null
                                   ? Center(
-                                      child: Text(
-                                        'Ошибка: $_error',
-                                        style: const TextStyle(color: Colors.red),
-                                      ),
+                                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                        Text('Ошибка: $_error', style: const TextStyle(color: Colors.red)),
+                                        TextButton(onPressed: _loadEpisodes, child: const Text('Повторить')),
+                                      ]),
                                     )
                                   : _episodes.isEmpty
                                       ? const Center(

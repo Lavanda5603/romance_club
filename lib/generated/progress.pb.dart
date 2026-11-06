@@ -26,6 +26,10 @@ class Progress extends $pb.GeneratedMessage {
     $core.Iterable<$core.MapEntry<$core.String, $core.bool>>? flags,
     $core.Iterable<$core.MapEntry<$core.String, $core.int>>? counters,
     $core.String? updatedAt,
+    $core.int? revision,
+    $core.bool? completed,
+    $core.String? ending,
+    $core.int? generation,
   }) {
     final result = Progress._();
     if (id != null) result.id = id;
@@ -35,6 +39,10 @@ class Progress extends $pb.GeneratedMessage {
     if (flags != null) result.flags.addEntries(flags);
     if (counters != null) result.counters.addEntries(counters);
     if (updatedAt != null) result.updatedAt = updatedAt;
+    if (revision != null) result.revision = revision;
+    if (completed != null) result.completed = completed;
+    if (ending != null) result.ending = ending;
+    if (generation != null) result.generation = generation;
     return result;
   }
 
@@ -66,6 +74,10 @@ class Progress extends $pb.GeneratedMessage {
         valueFieldType: $pb.PbFieldType.O3,
         packageName: const $pb.PackageName('romance_club'))
     ..aOS(7, _omitFieldNames ? '' : 'updatedAt')
+    ..aI(8, _omitFieldNames ? '' : 'revision')
+    ..aOB(9, _omitFieldNames ? '' : 'completed')
+    ..aOS(10, _omitFieldNames ? '' : 'ending')
+    ..aI(11, _omitFieldNames ? '' : 'generation')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -138,6 +150,42 @@ class Progress extends $pb.GeneratedMessage {
   $core.bool hasUpdatedAt() => $_has(6);
   @$pb.TagNumber(7)
   void clearUpdatedAt() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get revision => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set revision($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasRevision() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearRevision() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.bool get completed => $_getBF(8);
+  @$pb.TagNumber(9)
+  set completed($core.bool value) => $_setBool(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasCompleted() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearCompleted() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get ending => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set ending($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasEnding() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearEnding() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.int get generation => $_getIZ(10);
+  @$pb.TagNumber(11)
+  set generation($core.int value) => $_setSignedInt32(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasGeneration() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearGeneration() => $_clearField(11);
 }
 
 const $core.bool _omitFieldNames =

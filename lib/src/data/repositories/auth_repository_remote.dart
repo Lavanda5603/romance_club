@@ -7,7 +7,7 @@ import '../../../generated/auth_api.pb.dart'; // Импорт Protobuf-моде�
 class AuthRepositoryRemote implements AuthRepository {
   final AuthGrpcService _service; // gRPC-сервис
 
-  // Конструктор класса AuthRepositoryRemote
+  // Конструктор
   AuthRepositoryRemote(this._service);
 
   // Зарегистрироваться

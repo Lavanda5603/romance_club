@@ -2,52 +2,77 @@ use tonic::{Request, Response, Status}; // Импорт tonic
 use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
 use surrealdb::Surreal; // Импорт Surreal
 use serde_json::Value; // Импорт Value
-use argon2::{
-    password_hash::{
-        rand_core::OsRng, // Генератор случайных чисел для соли
-        PasswordHash, // Для чтения хэша из строки
-        PasswordHasher, // Для хэширования пароля
-        PasswordVerifier, // Для проверки пароля
-        SaltString, // Соль для хэша
-    },
-    Argon2, // Алгоритм хэширования
-};
 use crate::romance_club::auth_api_server::AuthApi; // Импорт трейта
 use crate::romance_club::{
     AuthResponse, RegisterRequest, LoginRequest, GetPlayerRequest, Player,
 }; // Импорт структур
-use crate::jwt; // Модуль JWT
+use crate::jwt::JwtKeys; // Ключ JWT
+use crate::auth_limits::{self, AuthLimits, Operation}; // Подключаю лимиты попыток
+use std::sync::Arc; // Подключаю общие счётчики сервиса
 
 // Сервис для работы с авторизацией
 pub struct AuthApiService {
     pub db: Surreal<Client>, // Подключение к SurrealDB
+    jwt: JwtKeys, // Проверенный ключ
+    attempts: Arc<AuthLimits>, // Общие лимиты для всех запросов
 }
 
 impl AuthApiService {
-    // Создать новый сервис
-    pub fn new(db: Surreal<Client>) -> Self {
-        Self { db }
+    // Одинаковый ответ для занятого логина при проверке и при гонке запросов
+    fn login_taken() -> Response<AuthResponse> {
+        Response::new(AuthResponse {
+            success: false,
+            message: "Игрок с таким логином уже существует".to_string(),
+            player: None,
+            token: String::new(),
+            is_admin: false,
+        })
     }
 
+    // Уникальность окончательно проверяет индекс базы, а не предварительный SELECT
+    async fn create_player(&self, login: &str, email: &str, password_hash: &str) -> Result<Option<Value>, Status> {
+        for attempt in 0..4 {
+            let mut response = self.db
+                .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password_hash, is_admin: false, created_at: time::now() } RETURN id, login, email, created_at, is_admin")
+                .bind(("login", login.to_owned()))
+                .bind(("email", email.to_owned()))
+                .bind(("password_hash", password_hash.to_owned()))
+                .await.map_err(|e| Status::internal(e.to_string()))?;
+            match response.take::<Option<Value>>(0) {
+                Ok(Some(player)) => return Ok(Some(player)),
+                Ok(None) => return Err(Status::internal("База не вернула созданного игрока")),
+                Err(error) => {
+                    // SDK передаёт нарушение индекса текстом; другие ошибки не выдаю за занятый логин
+                    let message = error.to_string();
+                    if message.contains("player_login_unique") && message.contains("already contains") {
+                        return Ok(None);
+                    }
+                    if matches!(error.query_details(), Some(surrealdb::types::QueryError::TransactionConflict)) {
+                        if attempt < 3 { continue; }
+                        return Err(Status::aborted("Регистрация занята другим запросом. Повторите попытку"));
+                    }
+                    return Err(Status::internal(message));
+                }
+            }
+        }
+        Err(Status::aborted("Повторите регистрацию"))
+    }
+
+    // Создать новый сервис
+    pub fn new(db: Surreal<Client>, jwt: JwtKeys) -> Self {
+        Self { db, jwt, attempts:auth_limits::shared() }
+    }
+    #[cfg(test)]
+    pub fn with_attempts(mut self, attempts: Arc<AuthLimits>) -> Self { self.attempts=attempts; self }
+
     // Хэшировать пароль через Argon2
-    fn hash_password(password: &str) -> Result<String, String> {
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map(|hash| hash.to_string())
-            .map_err(|e| format!("Ошибка хэширования: {}", e))
+    async fn hash_password(password: &str) -> Result<String, Status> {
+        crate::password_work::hash(password.to_owned()).await
     }
 
     // Проверить пароль против хэша
-    fn verify_password(password: &str, hash: &str) -> bool {
-        let parsed_hash = match PasswordHash::new(hash) {
-            Ok(h) => h,
-            Err(_) => return false,
-        };
-        Argon2::default()
-            .verify_password(password.as_bytes(), &parsed_hash)
-            .is_ok()
+    async fn verify_password(password: &str, hash: &str) -> Result<bool, Status> {
+        crate::password_work::verify(password.to_owned(), hash.to_owned()).await
     }
 
     // Проверка логина
@@ -111,6 +136,9 @@ impl AuthApi for AuthApiService {
         &self,
         request: Request<RegisterRequest>,
     ) -> Result<Response<AuthResponse>, Status> {
+        let ip = auth_limits::peer_ip(&request);
+        self.attempts.check_source(ip, Operation::Register)?;
+        auth_limits::check_fields(&request.get_ref().login, Some(&request.get_ref().email), &request.get_ref().password)?;
         let req = request.into_inner();
         let login = req.login;
         let email = req.email;
@@ -148,6 +176,7 @@ impl AuthApi for AuthApiService {
         }
 
         // Проверяю, есть ли игрок с таким логином
+        self.attempts.check_account(ip, &login, Operation::Register)?;
         let mut check_response = self
             .db
             .query("SELECT * FROM player WHERE login = $login LIMIT 1")
@@ -160,43 +189,15 @@ impl AuthApi for AuthApiService {
             .map_err(|e| Status::internal(e.to_string()))?;
 
         if existing.is_some() {
-            return Ok(Response::new(AuthResponse {
-                success: false,
-                message: "Игрок с таким логином уже существует".to_string(),
-                player: None,
-                token: String::new(),
-                is_admin: false,
-            }));
+            return Ok(Self::login_taken());
         }
 
         // Хэширую пароль
-        let password_hash = match Self::hash_password(&password) {
-            Ok(h) => h,
-            Err(e) => {
-                println!("[REGISTER] Ошибка хэширования: {}", e);
-                return Ok(Response::new(AuthResponse {
-                    success: false,
-                    message: "Ошибка сервера при регистрации".to_string(),
-                    player: None,
-                    token: String::new(),
-                    is_admin: false,
-                }));
-            }
-        };
+        let password_hash = Self::hash_password(&password).await?;
 
         // Создаю игрока (с хэшем пароля и is_admin = false)
-        let mut create_response = self
-            .db
-            .query("CREATE player CONTENT { login: $login, email: $email, password_hash: $password_hash, is_admin: false, created_at: time::now() } RETURN id, login, email, created_at, is_admin")
-            .bind(("login", login.clone()))
-            .bind(("email", email.clone()))
-            .bind(("password_hash", password_hash))
-            .await
-            .map_err(|e| Status::internal(e.to_string()))?;
-
-        let result: Option<Value> = create_response
-            .take(0)
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let result = self.create_player(&login, &email, &password_hash).await?;
+        if result.is_none() { return Ok(Self::login_taken()); }
 
         match result {
             Some(v) => {
@@ -218,7 +219,7 @@ impl AuthApi for AuthApiService {
                     .unwrap_or(false);
 
                 // Генерирую JWT с is_admin
-                let token = match jwt::create_token(&id, &login, is_admin) {
+                let token = match self.jwt.create_token(&id, &login, is_admin) {
                     Ok(t) => t,
                     Err(e) => {
                         println!("[REGISTER] Ошибка создания токена: {}", e);
@@ -259,6 +260,9 @@ impl AuthApi for AuthApiService {
         &self,
         request: Request<LoginRequest>,
     ) -> Result<Response<AuthResponse>, Status> {
+        let ip = auth_limits::peer_ip(&request);
+        self.attempts.check_source(ip, Operation::Login)?;
+        auth_limits::check_fields(&request.get_ref().login, None, &request.get_ref().password)?;
         let req = request.into_inner();
         let login = req.login;
         let password = req.password;
@@ -286,6 +290,7 @@ impl AuthApi for AuthApiService {
         }
 
         // Ищу игрока по логину
+        self.attempts.check_account(ip, &login, Operation::Login)?;
         let mut response = self
             .db
             .query("SELECT * FROM player WHERE login = $login LIMIT 1")
@@ -325,7 +330,7 @@ impl AuthApi for AuthApiService {
                     .unwrap_or(false);
 
                 // Проверяю пароль
-                if !Self::verify_password(&password, &password_hash) {
+                if !Self::verify_password(&password, &password_hash).await? {
                     println!("[LOGIN] Неверный пароль для: {}", login);
                     return Ok(Response::new(AuthResponse {
                         success: false,
@@ -337,7 +342,7 @@ impl AuthApi for AuthApiService {
                 }
 
                 // Генерирую JWT с is_admin
-                let token = match jwt::create_token(&id, &login, is_admin) {
+                let token = match self.jwt.create_token(&id, &login, is_admin) {
                     Ok(t) => t,
                     Err(e) => {
                         println!("[LOGIN] Ошибка создания токена: {}", e);
@@ -376,25 +381,12 @@ impl AuthApi for AuthApiService {
     // Получить игрока по ID
     async fn get_player(
         &self,
-        request: Request<GetPlayerRequest>,
+        mut request: Request<GetPlayerRequest>,
     ) -> Result<Response<AuthResponse>, Status> {
-        // AuthApi без интерцептора - проверяю токен вручную
-        let token = request.metadata()
-            .get("authorization")
-            .and_then(|v| v.to_str().ok())
-            .map(|s| s.trim_start_matches("Bearer ").to_string())
-            .ok_or_else(|| Status::unauthenticated("Требуется токен"))?;
-
-        let claims = jwt::verify_token(&token)
-            .map_err(|e| Status::unauthenticated(format!("Неверный токен: {}", e)))?;
-
-        let req = request.into_inner();
-        let player_id = req.player_id;
-
-        // Проверяю, что запрашивают свой профиль
-        if player_id != claims.sub {
-            return Err(Status::permission_denied("Можно смотреть только свой профиль"));
-        }
+        // Здесь нет интерцептора, поэтому проверяю токен сама
+        let claims = crate::request_auth::authenticate(&request, &self.jwt)?;
+        request.extensions_mut().insert(claims);
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
 
         println!("[GET_PLAYER] player={}", player_id);
 
@@ -458,3 +450,6 @@ impl AuthApi for AuthApiService {
         }
     }
 }
+#[cfg(test)]
+#[path = "auth_tests.rs"]
+mod tests; // Проверки уникальности регистрации

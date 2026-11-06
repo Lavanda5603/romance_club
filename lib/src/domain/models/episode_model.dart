@@ -5,7 +5,7 @@ class EpisodeModel {
   final int version; // Версия
   final List<SceneModel> scenes; // Сцены
 
-  // Конструктор класса EpisodeModel
+  // Конструктор
   const EpisodeModel({
     required this.id,
     required this.title,
@@ -27,9 +27,14 @@ class SceneModel {
   final String condition; // Условие
   final String textPosition; // Позиция текста
   final String characterPosition; // Позиция персонажа
-  final String nextSceneId; // ID следующей сцены (пусто = конец)
+  final int nextSceneId; // Числовой ID для старых данных
+  final String nextSceneKey; // Ключ следующей сцены
+  final int orderIndex; // Порядок сцены
 
-  // Конструктор класса SceneModel
+  String get nextSceneTarget => nextSceneKey.isNotEmpty
+      ? nextSceneKey : nextSceneId > 0 ? 'scene:$nextSceneId' : '';
+
+  // Конструктор
   const SceneModel({
     required this.id,
     required this.sceneKey,
@@ -43,6 +48,8 @@ class SceneModel {
     required this.textPosition,
     required this.characterPosition,
     required this.nextSceneId,
+    this.nextSceneKey = '',
+    this.orderIndex = 0,
   });
 }
 
@@ -52,7 +59,7 @@ class ChoiceModel {
   final String title; // Название
   final List<ActionModel> actions; // Действия
 
-  // Конструктор класса ChoiceModel
+  // Конструктор
   const ChoiceModel({
     required this.text,
     required this.title,
@@ -63,7 +70,11 @@ class ChoiceModel {
 // Доменная модель действия
 class ActionModel {
   final String type; // Тип действия
-  final String sceneId; // ID сцены (SurrealDB-id)
+  final int sceneId; // Числовой ID для старых данных
+  final String sceneKey; // Ключ сцены для перехода
+
+  String get sceneTarget => sceneKey.isNotEmpty
+      ? sceneKey : sceneId > 0 ? 'scene:$sceneId' : '';
   final String flagName; // Имя флага
   final bool flagValue; // Значение флага
   final String counterName; // Имя счётчика
@@ -72,10 +83,11 @@ class ActionModel {
   final String imagePath; // Путь к картинке
   final String title; // Название
 
-  // Конструктор класса ActionModel
+  // Конструктор
   const ActionModel({
     required this.type,
     required this.sceneId,
+    this.sceneKey = '',
     required this.flagName,
     required this.flagValue,
     required this.counterName,

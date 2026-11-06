@@ -41,6 +41,13 @@ class ProgressApiClient extends $grpc.Client {
     return $createUnaryCall(_$getProgress, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.GetProgressSummaryResponse> getProgressSummary(
+    $0.GetProgressSummaryRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$getProgressSummary, request, options: options);
+  }
+
   $grpc.ResponseFuture<$0.SaveProgressResponse> saveProgress(
     $0.SaveProgressRequest request, {
     $grpc.CallOptions? options,
@@ -62,6 +69,11 @@ class ProgressApiClient extends $grpc.Client {
           '/romance_club.ProgressApi/GetProgress',
           ($0.GetProgressRequest value) => value.writeToBuffer(),
           $1.Progress.fromBuffer);
+  static final _$getProgressSummary = $grpc.ClientMethod<
+          $0.GetProgressSummaryRequest, $0.GetProgressSummaryResponse>(
+      '/romance_club.ProgressApi/GetProgressSummary',
+      ($0.GetProgressSummaryRequest value) => value.writeToBuffer(),
+      $0.GetProgressSummaryResponse.fromBuffer);
   static final _$saveProgress =
       $grpc.ClientMethod<$0.SaveProgressRequest, $0.SaveProgressResponse>(
           '/romance_club.ProgressApi/SaveProgress',
@@ -87,6 +99,15 @@ abstract class ProgressApiServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetProgressRequest.fromBuffer(value),
         ($1.Progress value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetProgressSummaryRequest,
+            $0.GetProgressSummaryResponse>(
+        'GetProgressSummary',
+        getProgressSummary_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetProgressSummaryRequest.fromBuffer(value),
+        ($0.GetProgressSummaryResponse value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.SaveProgressRequest, $0.SaveProgressResponse>(
             'SaveProgress',
@@ -114,6 +135,15 @@ abstract class ProgressApiServiceBase extends $grpc.Service {
 
   $async.Future<$1.Progress> getProgress(
       $grpc.ServiceCall call, $0.GetProgressRequest request);
+
+  $async.Future<$0.GetProgressSummaryResponse> getProgressSummary_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.GetProgressSummaryRequest> $request) async {
+    return getProgressSummary($call, await $request);
+  }
+
+  $async.Future<$0.GetProgressSummaryResponse> getProgressSummary(
+      $grpc.ServiceCall call, $0.GetProgressSummaryRequest request);
 
   $async.Future<$0.SaveProgressResponse> saveProgress_Pre(
       $grpc.ServiceCall $call,

@@ -10,6 +10,14 @@ message GetProgressRequest {
   int32 episode_id = 2; // ID эпизода
 }
 
+message GetProgressSummaryRequest {
+  string player_id = 1;
+}
+
+message GetProgressSummaryResponse {
+  repeated int32 episode_ids = 1; // Завершённые эпизоды
+}
+
 // Запрос на сохранение прогресса
 message SaveProgressRequest {
   string player_id = 1; // ID игрока
@@ -17,12 +25,17 @@ message SaveProgressRequest {
   string scene_id = 3; // ID сцены как строка
   map<string, bool> flags = 4; // Флаги
   map<string, int32> counters = 5; // Счётчики (баллы)
+  string ending = 8; // Концовка подтверждённого прохождения
+  bool completed = 7; // Эпизод завершён
+  int32 expected_revision = 6; // Версия, которую загрузил клиент
+  int32 expected_generation = 9; // Поколение, которое загрузил клиент
 }
 
 // Ответ после сохранения
 message SaveProgressResponse {
   bool success = 1; // Успешно ли сохранение
   string message = 2; // Сообщение
+  int32 revision = 3; // Новая версия сохранения
 }
 
 // Запрос на сброс прогресса
@@ -39,6 +52,7 @@ message ResetProgressResponse {
 // gRPC-сервис для работы с прогрессом
 service ProgressApi {
   rpc GetProgress(GetProgressRequest) returns (Progress); // Получить прогресс
+  rpc GetProgressSummary(GetProgressSummaryRequest) returns (GetProgressSummaryResponse); // Получить сводку одним запросом
   rpc SaveProgress(SaveProgressRequest) returns (SaveProgressResponse); // Сохранить прогресс
   rpc ResetProgress(ResetProgressRequest) returns (ResetProgressResponse); // Сбросить прогресс
 }

@@ -2,7 +2,6 @@ use tonic::{Request, Response, Status}; // Импорт tonic
 use surrealdb::engine::remote::ws::Client; // Импорт клиента SurrealDB
 use surrealdb::Surreal; // Импорт Surreal
 use serde_json::Value; // Импорт Value
-use crate::jwt::Claims; // Импорт Claims для проверки владельца
 use crate::romance_club::achievement_api_server::AchievementApi; // Импорт трейта
 use crate::romance_club::{
     Achievement, GetAchievementsRequest, GetAchievementsResponse,
@@ -28,25 +27,14 @@ impl AchievementApi for AchievementApiService {
         &self,
         request: Request<GetAchievementsRequest>,
     ) -> Result<Response<GetAchievementsResponse>, Status> {
-        // Достаю claims из extensions
-        let claims = request.extensions().get::<Claims>()
-            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
-            .clone();
-
-        let req = request.into_inner();
-        let player_id = req.player_id;
-
-        // Проверяю, что запрашивают свои достижения
-        if player_id != claims.sub {
-            return Err(Status::permission_denied("Нет доступа к чужим достижениям"));
-        }
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
 
         println!("[GET_ACHIEVEMENTS] player={}", player_id);
 
         // Запрашиваю достижения игрока
         let mut response = self
             .db
-            .query("SELECT * FROM achievement WHERE player_id = type::record($player_id)")
+            .query("SELECT * FROM achievement WHERE player_id = type::record($player_id) AND (name NOT IN ['all_episodes', 'all_endings'] OR fn::can_unlock_all(type::record($player_id), name))")
             .bind(("player_id", player_id.clone()))
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
@@ -78,21 +66,21 @@ impl AchievementApi for AchievementApiService {
         &self,
         request: Request<UnlockAchievementRequest>,
     ) -> Result<Response<UnlockAchievementResponse>, Status> {
-        // Достаю claims из extensions
-        let claims = request.extensions().get::<Claims>()
-            .ok_or_else(|| Status::unauthenticated("Нет claims"))?
-            .clone();
-
+        let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
         let req = request.into_inner();
-        let player_id = req.player_id;
         let name = req.name;
 
-        // Проверяю, что открывают достижение себе
-        if player_id != claims.sub {
-            return Err(Status::permission_denied("Нет доступа к чужим достижениям"));
-        }
-
         println!("[UNLOCK_ACHIEVEMENT] player={}, name={}", player_id, name);
+
+        // Для достижений «все» проверяю всю историю игрока
+        if matches!(name.as_str(), "all_episodes" | "all_endings") {
+            let mut response = self.db.query("RETURN fn::can_unlock_all(type::record($player_id), $name);")
+                .bind(("player_id", player_id.clone())).bind(("name", name.clone()))
+                .await.map_err(|e| Status::internal(e.to_string()))?
+                .check().map_err(|e| Status::internal(e.to_string()))?;
+            let allowed: Option<bool> = response.take(0).map_err(|e| Status::internal(e.to_string()))?;
+            if allowed != Some(true) { return Err(Status::failed_precondition("Условия достижения ещё не выполнены")); }
+        }
 
         // Проверяю, есть ли уже такое достижение
         let mut check_response = self
@@ -116,21 +104,24 @@ impl AchievementApi for AchievementApiService {
         }
 
         // Создаю достижение
-        let result = self
+        let mut result = self
             .db
-            .query("CREATE achievement CONTENT { player_id: type::record($player_id), name: $name, unlocked_at: time::now() }")
+            .query("CREATE achievement CONTENT { player_id: type::record($player_id), name: $name, unlocked_at: time::now() } RETURN AFTER")
             .bind(("player_id", player_id.clone()))
             .bind(("name", name.clone()))
-            .await;
-
-        match result {
-            Ok(_) => println!("[UNLOCK_ACHIEVEMENT] Открыто: {}", name),
-            Err(e) => println!("[UNLOCK_ACHIEVEMENT] ОШИБКА: {}", e),
+            .await.map_err(|e| Status::internal(e.to_string()))?
+            .check().map_err(|e| Status::internal(e.to_string()))?;
+        let saved: Vec<Value> = result.take(0).map_err(|e| Status::internal(e.to_string()))?;
+        if saved.len() != 1 {
+            return Err(Status::internal("Достижение не сохранено"));
         }
+        println!("[UNLOCK_ACHIEVEMENT] Открыто: {}", name);
 
         Ok(Response::new(UnlockAchievementResponse {
             success: true,
             message: "Достижение открыто".to_string(),
         }))
     }
-}
+}#[cfg(test)]
+#[path = "achievement_tests.rs"]
+mod tests;

@@ -6,7 +6,7 @@ import '../services/shop_grpc_service.dart'; // Импорт gRPC-сервиса
 class ShopRepositoryRemote implements ShopRepository {
   final ShopGrpcService _service; // gRPC-сервис
 
-  // Конструктор класса ShopRepositoryRemote
+  // Конструктор
   ShopRepositoryRemote(this._service);
 
   // Получить покупки игрока
@@ -19,6 +19,7 @@ class ShopRepositoryRemote implements ShopRepository {
         itemId: p.itemId,
         itemType: p.itemType,
         purchasedAt: p.purchasedAt,
+        entitlementActive: p.entitlementActive,
       );
     }).toList();
   }

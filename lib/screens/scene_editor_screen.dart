@@ -1,24 +1,28 @@
+import '../src/core/scene_links.dart'; // Ключи переходов
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'dart:typed_data'; // Импорт Uint8List
 import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
 import '../src/data/repositories/asset_repository_remote.dart'; // Импорт репозитория ассетов
 import '../src/data/services/asset_grpc_service.dart'; // Импорт gRPC-сервиса ассетов
 import '../src/domain/models/asset_model.dart'; // Импорт доменной модели
+import '../src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
 import 'choice_editor_screen.dart'; // Импорт экрана редактора выбора
 import 'asset_picker_screen.dart'; // Импорт экрана выбора ассета
 
 // Экран редактирования сцены
 class SceneEditorScreen extends StatefulWidget {
+  final AssetRepository? assetRepository;
   final Scene scene; // Сцена
   final Function(Scene) onSave; // Функция, вызывается при сохранении
   final String episodeId; // ID эпизода (для фильтра ассетов)
   final List<Scene> allScenes; // Все сцены эпизода (для выбора следующей)
 
-  // Конструктор класса SceneEditorScreen
+  // Конструктор
   const SceneEditorScreen({
     super.key,
     required this.scene,
     required this.onSave,
+    this.assetRepository,
     this.episodeId = '',
     this.allScenes = const [],
   });
@@ -28,6 +32,7 @@ class SceneEditorScreen extends StatefulWidget {
 }
 
 class _SceneEditorScreenState extends State<SceneEditorScreen> {
+  late Scene _scene; // Черновик сцены
   late TextEditingController _titleController; // Контроллер названия сцены
   late TextEditingController _conditionController; // Контроллер условия
   late TextEditingController _musicController; // Контроллер музыки
@@ -35,7 +40,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   late List<TextEditingController> _textControllers; // Контроллеры текстов сцены
 
   late AssetGrpcService _assetService; // gRPC-сервис ассетов
-  late AssetRepositoryRemote _assetRepository; // Репозиторий ассетов
+  late AssetRepository _assetRepository; // Репозиторий ассетов
 
   String _selectedBackground = ''; // Выбранный фон
   Uint8List? _selectedBackgroundBytes; // Байты фона (для предпросмотра)
@@ -46,7 +51,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   String _selectedCharacterPosition = 'center'; // Позиция персонажа
   String _selectedTextPosition = 'bottom_center'; // Позиция текста
 
-  String _selectedNextSceneId = ''; // ID следующей сцены (пусто = конец эпизода)
+  String _selectedNextSceneKey = ''; // Ключ следующей сцены
 
   // Список позиций персонажа (9 вариантов)
   final List<String> _characterPositions = [
@@ -83,14 +88,17 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   @override
   void initState() {
     super.initState();
+    _scene = widget.scene.deepCopy();
+    // При отдельном открытии новая сцена тоже получает ключ до построения списка
+    if (_scene.sceneKey.isEmpty) _scene.sceneKey = newSceneKey();
 
     // Создаю контроллеры
-    _titleController = TextEditingController(text: widget.scene.title);
-    _conditionController = TextEditingController(text: widget.scene.condition);
+    _titleController = TextEditingController(text: _scene.title);
+    _conditionController = TextEditingController(text: _scene.condition);
     _musicController = TextEditingController();
 
     // Создаю контроллеры для текстов сцены
-    _textControllers = widget.scene.texts
+    _textControllers = _scene.texts
         .map((t) => TextEditingController(text: t))
         .toList();
 
@@ -100,18 +108,18 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
 
     // Заполняю выбранные значения из сцены
-    _selectedBackground = widget.scene.background;
-    _selectedCharacter = widget.scene.character;
-    _selectedEmotion = widget.scene.characterEmotion;
-    _selectedCharacterPosition = widget.scene.characterPosition.isNotEmpty
-        ? widget.scene.characterPosition
+    _selectedBackground = _scene.background;
+    _selectedCharacter = _scene.character;
+    _selectedEmotion = _scene.characterEmotion;
+    _selectedCharacterPosition = _scene.characterPosition.isNotEmpty
+        ? _scene.characterPosition
         : 'center';
-    _selectedTextPosition = widget.scene.textPosition.isNotEmpty
-        ? widget.scene.textPosition
+    _selectedTextPosition = _scene.textPosition.isNotEmpty
+        ? _scene.textPosition
         : 'bottom_center';
 
     // Начальное значение для следующей сцены
-    _selectedNextSceneId = widget.scene.nextSceneId;
+    _selectedNextSceneKey = _scene.nextSceneTarget;
 
     // Для совместимости (если старая позиция не входит в список)
     if (!_textPositions.contains(_selectedTextPosition)) {
@@ -126,7 +134,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
     // Создаю сервисы
     _assetService = AssetGrpcService();
-    _assetRepository = AssetRepositoryRemote(_assetService);
+    _assetRepository = widget.assetRepository ?? AssetRepositoryRemote(_assetService);
 
     // Загружаю выбранные ассеты
     _loadSelectedAssets();
@@ -145,34 +153,30 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     super.dispose();
   }
 
-  // Загрузка выбранных ассетов (только фон и персонаж этой сцены)
+  // Запрашиваю только выбранный фон и персонажа
   Future<void> _loadSelectedAssets() async {
-    try {
-      // Загружаю фон только если он выбран
-      if (_selectedBackground.isNotEmpty) {
-        final bg = await _assetRepository.getAssetByName('background', _selectedBackground);
-        if (bg != null && bg.previewData.isNotEmpty) {
-          _selectedBackgroundBytes = bg.previewData;
-        }
+    final background = _selectedBackground;
+    final character = _selectedCharacter;
+    final emotion = _selectedEmotion;
+    Future<AssetModel?> load(String type, String name, String emotion) async {
+      if (name.isEmpty) return null;
+      try {
+        return await _assetRepository.getAsset(type: type, name: name, emotion: emotion, episodeId: widget.episodeId);
+      } catch (e) {
+        debugPrint('Ошибка загрузки выбранной картинки: $e');
+        return null;
       }
-
-      // Загружаю персонажа ТОЛЬКО если он выбран
-      if (_selectedCharacter.isNotEmpty) {
-        final ch = await _assetRepository.getAssetByName(
-          'character',
-          _selectedCharacter,
-          emotion: _selectedEmotion,
-        );
-        if (ch != null && ch.previewData.isNotEmpty) {
-          _selectedCharacterBytes = ch.previewData;
-        }
-      }
-
-      if (!mounted) return;
-      setState(() {});
-    } catch (e) {
-      debugPrint('Ошибка загрузки ассетов: $e');
     }
+    final selected = await Future.wait([
+      load('background', background, ''),
+      load('character', character, emotion),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      // Старый ответ не должен заменять уже выбранную картинку
+      if (_selectedBackground == background) _selectedBackgroundBytes = selected[0]?.fileData;
+      if (_selectedCharacter == character && _selectedEmotion == emotion) _selectedCharacterBytes = selected[1]?.fileData;
+    });
   }
 
   // Добавить текстовое поле
@@ -199,15 +203,16 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
           type: 'background',
           title: 'Выбор фона',
           episodeId: widget.episodeId,
+          repository: _assetRepository,
         ),
       ),
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() {
         _selectedBackground = result.name;
-        _selectedBackgroundBytes = result.previewData.isNotEmpty
-            ? result.previewData
+        _selectedBackgroundBytes = result.fileData.isNotEmpty
+            ? result.fileData
             : null;
       });
     }
@@ -221,16 +226,18 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         builder: (context) => AssetPickerScreen(
           type: 'character',
           title: 'Выбор персонажа',
+          episodeId: widget.episodeId,
+          repository: _assetRepository,
         ),
       ),
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() {
         _selectedCharacter = result.name;
         _selectedEmotion = result.emotion;
-        _selectedCharacterBytes = result.previewData.isNotEmpty
-            ? result.previewData
+        _selectedCharacterBytes = result.fileData.isNotEmpty
+            ? result.fileData
             : null;
       });
     }
@@ -248,16 +255,17 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   // Сохранить сцену
   void _saveScene() {
     final newScene = Scene(
-      id: widget.scene.id,
+      id: _scene.id,
       title: _titleController.text,
       background: _selectedBackground,
       character: _selectedCharacter,
       characterEmotion: _selectedEmotion,
       condition: _conditionController.text,
-      sceneKey: widget.scene.sceneKey,
+      sceneKey: _scene.sceneKey,
       characterPosition: _selectedCharacterPosition,
       textPosition: _selectedTextPosition,
-      nextSceneId: _selectedNextSceneId,
+      nextSceneKey: _selectedNextSceneKey,
+      orderIndex: _scene.orderIndex,
     );
 
     // Добавляю тексты
@@ -267,7 +275,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       }
     }
 
-    newScene.choices.addAll(widget.scene.choices);
+    newScene.choices.addAll(_scene.choices);
 
     widget.onSave(newScene);
 
@@ -284,11 +292,12 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ChoiceEditorScreen(
+          allScenes: widget.allScenes,
           choice: null,
-          defaultText: 'выбор ${widget.scene.choices.length + 1}',
+          defaultText: 'выбор ${_scene.choices.length + 1}',
           onSave: (newChoice) {
             setState(() {
-              widget.scene.choices.add(newChoice);
+              _scene.choices.add(newChoice);
             });
           },
         ),
@@ -302,10 +311,11 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ChoiceEditorScreen(
-          choice: widget.scene.choices[index],
+          allScenes: widget.allScenes,
+          choice: _scene.choices[index],
           onSave: (newChoice) {
             setState(() {
-              widget.scene.choices[index] = newChoice;
+              _scene.choices[index] = newChoice;
             });
           },
         ),
@@ -321,7 +331,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         return AlertDialog(
           title: const Text('Удалить выбор?'),
           content: Text(
-            'Вы точно уверены, что хотите удалить "${widget.scene.choices[index].text}"?',
+            'Вы точно уверены, что хотите удалить "${_scene.choices[index].text}"?',
           ),
           actions: [
             TextButton(
@@ -339,7 +349,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
     if (confirmed == true) {
       setState(() {
-        widget.scene.choices.removeAt(index);
+        _scene.choices.removeAt(index);
       });
     }
   }
@@ -425,16 +435,15 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
   // Выпадающий список Следующая сцена
   Widget _buildNextSceneDropdown() {
-    // Собираю пункты: все сцены эпизода b Конец эпизода (пустая строка)
-    final items = <String>[''];
-    for (final s in widget.allScenes) {
-      items.add(s.sceneKey); // SurrealDB-id
-    }
+    // Собираю пункты: все сцены эпизода и Конец эпизода
+    final scenes = {for (final scene in widget.allScenes)
+      if (scene.sceneKey.isNotEmpty) scene.sceneKey: scene};
+    scenes[_scene.sceneKey] = _scene;
+    final items = <String>{'', ...scenes.keys};
 
-    // Текущее значение (если не найдено - пусто)
-    final safeValue = items.contains(_selectedNextSceneId)
-        ? _selectedNextSceneId
-        : '';
+    // Не подменяю удалённую цель концом эпизода
+    if (!items.contains(_selectedNextSceneKey)) items.add(_selectedNextSceneKey);
+    final safeValue = _selectedNextSceneKey;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,33 +460,31 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: DropdownButton<String>(
+            key: const ValueKey('scene-target'),
             value: safeValue,
             isExpanded: true,
             dropdownColor: const Color(0xFF3F0404),
             style: const TextStyle(color: Colors.white, fontSize: 16),
             underline: const SizedBox(),
-            items: items.map((sceneKey) {
+            items: items.map((id) {
               String label;
-              if (sceneKey.isEmpty) {
+              if (id.isEmpty) {
                 label = 'Конец эпизода';
               } else {
-                // Ищу сцену по sceneKey
-                final scene = widget.allScenes.firstWhere(
-                  (s) => s.sceneKey == sceneKey,
-                  orElse: () => Scene(title: 'сцена'),
-                );
+                // Ищу сцену по id
+                final scene = scenes[id] ?? Scene(sceneKey: id, title: 'Недоступная сцена');
                 label = scene.title.isNotEmpty
                     ? scene.title
-                    : sceneKey;
+                    : 'сцена ${scenes.keys.toList().indexOf(id) + 1}';
               }
               return DropdownMenuItem<String>(
-                value: sceneKey,
+                value: id,
                 child: Text(label),
               );
             }).toList(),
             onChanged: (value) {
               if (value != null) {
-                setState(() => _selectedNextSceneId = value);
+                setState(() => _selectedNextSceneKey = value);
               }
             },
           ),
@@ -843,15 +850,15 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
                         ),
                         const SizedBox(height: 8),
-                        if (widget.scene.choices.isEmpty)
+                        if (_scene.choices.isEmpty)
                           const Text('нет выборов', style: TextStyle(color: Colors.white))
                         else
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: widget.scene.choices.length,
+                            itemCount: _scene.choices.length,
                             itemBuilder: (context, index) {
-                              final choice = widget.scene.choices[index];
+                              final choice = _scene.choices[index];
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 12),
                                 padding: const EdgeInsets.all(12),

@@ -26,7 +26,14 @@ const Asset$json = {
     {'1': 'url', '3': 5, '4': 1, '5': 9, '10': 'url'},
     {'1': 'display_name', '3': 6, '4': 1, '5': 9, '10': 'displayName'},
     {'1': 'episode_id', '3': 7, '4': 1, '5': 9, '10': 'episodeId'},
-    {'1': 'preview_data', '3': 8, '4': 1, '5': 12, '10': 'previewData'},
+    {'1': 'file_data', '3': 8, '4': 1, '5': 12, '10': 'fileData'},
+    {'1': 'preview_data', '3': 9, '4': 1, '5': 12, '10': 'previewData'},
+    {'1': 'version', '3': 10, '4': 1, '5': 9, '10': 'version'},
+    {'1': 'variant', '3': 11, '4': 1, '5': 9, '10': 'variant'},
+    {'1': 'width', '3': 12, '4': 1, '5': 5, '10': 'width'},
+    {'1': 'height', '3': 13, '4': 1, '5': 5, '10': 'height'},
+    {'1': 'mime', '3': 14, '4': 1, '5': 9, '10': 'mime'},
+    {'1': 'byte_length', '3': 15, '4': 1, '5': 5, '10': 'byteLength'},
   ],
 };
 
@@ -35,7 +42,11 @@ final $typed_data.Uint8List assetDescriptor = $convert.base64Decode(
     'CgVBc3NldBIOCgJpZBgBIAEoCVICaWQSEgoEdHlwZRgCIAEoCVIEdHlwZRISCgRuYW1lGAMgAS'
     'gJUgRuYW1lEhgKB2Vtb3Rpb24YBCABKAlSB2Vtb3Rpb24SEAoDdXJsGAUgASgJUgN1cmwSIQoM'
     'ZGlzcGxheV9uYW1lGAYgASgJUgtkaXNwbGF5TmFtZRIdCgplcGlzb2RlX2lkGAcgASgJUgllcG'
-    'lzb2RlSWQSIQoMcHJldmlld19kYXRhGAggASgMUgtwcmV2aWV3RGF0YQ==');
+    'lzb2RlSWQSGwoJZmlsZV9kYXRhGAggASgMUghmaWxlRGF0YRIhCgxwcmV2aWV3X2RhdGEYCSAB'
+    'KAxSC3ByZXZpZXdEYXRhEhgKB3ZlcnNpb24YCiABKAlSB3ZlcnNpb24SGAoHdmFyaWFudBgLIA'
+    'EoCVIHdmFyaWFudBIUCgV3aWR0aBgMIAEoBVIFd2lkdGgSFgoGaGVpZ2h0GA0gASgFUgZoZWln'
+    'aHQSEgoEbWltZRgOIAEoCVIEbWltZRIfCgtieXRlX2xlbmd0aBgPIAEoBVIKYnl0ZUxlbmd0aA'
+    '==');
 
 @$core.Deprecated('Use getAssetsRequestDescriptor instead')
 const GetAssetsRequest$json = {
@@ -43,13 +54,16 @@ const GetAssetsRequest$json = {
   '2': [
     {'1': 'type', '3': 1, '4': 1, '5': 9, '10': 'type'},
     {'1': 'episode_id', '3': 2, '4': 1, '5': 9, '10': 'episodeId'},
+    {'1': 'limit', '3': 3, '4': 1, '5': 5, '10': 'limit'},
+    {'1': 'cursor', '3': 4, '4': 1, '5': 9, '10': 'cursor'},
   ],
 };
 
 /// Descriptor for `GetAssetsRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getAssetsRequestDescriptor = $convert.base64Decode(
     'ChBHZXRBc3NldHNSZXF1ZXN0EhIKBHR5cGUYASABKAlSBHR5cGUSHQoKZXBpc29kZV9pZBgCIA'
-    'EoCVIJZXBpc29kZUlk');
+    'EoCVIJZXBpc29kZUlkEhQKBWxpbWl0GAMgASgFUgVsaW1pdBIWCgZjdXJzb3IYBCABKAlSBmN1'
+    'cnNvcg==');
 
 @$core.Deprecated('Use getAssetsResponseDescriptor instead')
 const GetAssetsResponse$json = {
@@ -63,38 +77,38 @@ const GetAssetsResponse$json = {
       '6': '.romance_club.Asset',
       '10': 'assets'
     },
+    {'1': 'next_cursor', '3': 2, '4': 1, '5': 9, '10': 'nextCursor'},
   ],
 };
 
 /// Descriptor for `GetAssetsResponse`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getAssetsResponseDescriptor = $convert.base64Decode(
     'ChFHZXRBc3NldHNSZXNwb25zZRIrCgZhc3NldHMYASADKAsyEy5yb21hbmNlX2NsdWIuQXNzZX'
-    'RSBmFzc2V0cw==');
+    'RSBmFzc2V0cxIfCgtuZXh0X2N1cnNvchgCIAEoCVIKbmV4dEN1cnNvcg==');
 
-@$core.Deprecated('Use getAssetFullRequestDescriptor instead')
-const GetAssetFullRequest$json = {
-  '1': 'GetAssetFullRequest',
+@$core.Deprecated('Use getAssetRequestDescriptor instead')
+const GetAssetRequest$json = {
+  '1': 'GetAssetRequest',
   '2': [
     {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'type', '3': 2, '4': 1, '5': 9, '10': 'type'},
+    {'1': 'name', '3': 3, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'emotion', '3': 4, '4': 1, '5': 9, '10': 'emotion'},
+    {'1': 'episode_id', '3': 5, '4': 1, '5': 9, '10': 'episodeId'},
+    {'1': 'metadata_only', '3': 6, '4': 1, '5': 8, '10': 'metadataOnly'},
+    {'1': 'variant', '3': 7, '4': 1, '5': 9, '10': 'variant'},
+    {'1': 'target_width', '3': 8, '4': 1, '5': 5, '10': 'targetWidth'},
+    {'1': 'target_height', '3': 9, '4': 1, '5': 5, '10': 'targetHeight'},
   ],
 };
 
-/// Descriptor for `GetAssetFullRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getAssetFullRequestDescriptor = $convert
-    .base64Decode('ChNHZXRBc3NldEZ1bGxSZXF1ZXN0Eg4KAmlkGAEgASgJUgJpZA==');
-
-@$core.Deprecated('Use getAssetFullResponseDescriptor instead')
-const GetAssetFullResponse$json = {
-  '1': 'GetAssetFullResponse',
-  '2': [
-    {'1': 'file_data', '3': 1, '4': 1, '5': 12, '10': 'fileData'},
-  ],
-};
-
-/// Descriptor for `GetAssetFullResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getAssetFullResponseDescriptor =
-    $convert.base64Decode(
-        'ChRHZXRBc3NldEZ1bGxSZXNwb25zZRIbCglmaWxlX2RhdGEYASABKAxSCGZpbGVEYXRh');
+/// Descriptor for `GetAssetRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getAssetRequestDescriptor = $convert.base64Decode(
+    'Cg9HZXRBc3NldFJlcXVlc3QSDgoCaWQYASABKAlSAmlkEhIKBHR5cGUYAiABKAlSBHR5cGUSEg'
+    'oEbmFtZRgDIAEoCVIEbmFtZRIYCgdlbW90aW9uGAQgASgJUgdlbW90aW9uEh0KCmVwaXNvZGVf'
+    'aWQYBSABKAlSCWVwaXNvZGVJZBIjCg1tZXRhZGF0YV9vbmx5GAYgASgIUgxtZXRhZGF0YU9ubH'
+    'kSGAoHdmFyaWFudBgHIAEoCVIHdmFyaWFudBIhCgx0YXJnZXRfd2lkdGgYCCABKAVSC3Rhcmdl'
+    'dFdpZHRoEiMKDXRhcmdldF9oZWlnaHQYCSABKAVSDHRhcmdldEhlaWdodA==');
 
 @$core.Deprecated('Use uploadAssetRequestDescriptor instead')
 const UploadAssetRequest$json = {

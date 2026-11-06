@@ -26,7 +26,14 @@ class Asset extends $pb.GeneratedMessage {
     $core.String? url,
     $core.String? displayName,
     $core.String? episodeId,
+    $core.List<$core.int>? fileData,
     $core.List<$core.int>? previewData,
+    $core.String? version,
+    $core.String? variant,
+    $core.int? width,
+    $core.int? height,
+    $core.String? mime,
+    $core.int? byteLength,
   }) {
     final result = Asset._();
     if (id != null) result.id = id;
@@ -36,7 +43,14 @@ class Asset extends $pb.GeneratedMessage {
     if (url != null) result.url = url;
     if (displayName != null) result.displayName = displayName;
     if (episodeId != null) result.episodeId = episodeId;
+    if (fileData != null) result.fileData = fileData;
     if (previewData != null) result.previewData = previewData;
+    if (version != null) result.version = version;
+    if (variant != null) result.variant = variant;
+    if (width != null) result.width = width;
+    if (height != null) result.height = height;
+    if (mime != null) result.mime = mime;
+    if (byteLength != null) result.byteLength = byteLength;
     return result;
   }
 
@@ -61,7 +75,15 @@ class Asset extends $pb.GeneratedMessage {
     ..aOS(6, _omitFieldNames ? '' : 'displayName')
     ..aOS(7, _omitFieldNames ? '' : 'episodeId')
     ..a<$core.List<$core.int>>(
-        8, _omitFieldNames ? '' : 'previewData', $pb.PbFieldType.OY)
+        8, _omitFieldNames ? '' : 'fileData', $pb.PbFieldType.OY)
+    ..a<$core.List<$core.int>>(
+        9, _omitFieldNames ? '' : 'previewData', $pb.PbFieldType.OY)
+    ..aOS(10, _omitFieldNames ? '' : 'version')
+    ..aOS(11, _omitFieldNames ? '' : 'variant')
+    ..aI(12, _omitFieldNames ? '' : 'width')
+    ..aI(13, _omitFieldNames ? '' : 'height')
+    ..aOS(14, _omitFieldNames ? '' : 'mime')
+    ..aI(15, _omitFieldNames ? '' : 'byteLength')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -148,13 +170,76 @@ class Asset extends $pb.GeneratedMessage {
   void clearEpisodeId() => $_clearField(7);
 
   @$pb.TagNumber(8)
-  $core.List<$core.int> get previewData => $_getN(7);
+  $core.List<$core.int> get fileData => $_getN(7);
   @$pb.TagNumber(8)
-  set previewData($core.List<$core.int> value) => $_setBytes(7, value);
+  set fileData($core.List<$core.int> value) => $_setBytes(7, value);
   @$pb.TagNumber(8)
-  $core.bool hasPreviewData() => $_has(7);
+  $core.bool hasFileData() => $_has(7);
   @$pb.TagNumber(8)
-  void clearPreviewData() => $_clearField(8);
+  void clearFileData() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.List<$core.int> get previewData => $_getN(8);
+  @$pb.TagNumber(9)
+  set previewData($core.List<$core.int> value) => $_setBytes(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasPreviewData() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearPreviewData() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get version => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set version($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasVersion() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearVersion() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get variant => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set variant($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasVariant() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearVariant() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.int get width => $_getIZ(11);
+  @$pb.TagNumber(12)
+  set width($core.int value) => $_setSignedInt32(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasWidth() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearWidth() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.int get height => $_getIZ(12);
+  @$pb.TagNumber(13)
+  set height($core.int value) => $_setSignedInt32(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasHeight() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearHeight() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.String get mime => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set mime($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasMime() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearMime() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.int get byteLength => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set byteLength($core.int value) => $_setSignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasByteLength() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearByteLength() => $_clearField(15);
 }
 
 /// Запрос на получение ассетов по типу
@@ -162,10 +247,14 @@ class GetAssetsRequest extends $pb.GeneratedMessage {
   factory GetAssetsRequest({
     $core.String? type,
     $core.String? episodeId,
+    $core.int? limit,
+    $core.String? cursor,
   }) {
     final result = GetAssetsRequest._();
     if (type != null) result.type = type;
     if (episodeId != null) result.episodeId = episodeId;
+    if (limit != null) result.limit = limit;
+    if (cursor != null) result.cursor = cursor;
     return result;
   }
 
@@ -184,6 +273,8 @@ class GetAssetsRequest extends $pb.GeneratedMessage {
       createEmptyInstance: GetAssetsRequest.$_createMessage)
     ..aOS(1, _omitFieldNames ? '' : 'type')
     ..aOS(2, _omitFieldNames ? '' : 'episodeId')
+    ..aI(3, _omitFieldNames ? '' : 'limit')
+    ..aOS(4, _omitFieldNames ? '' : 'cursor')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -225,15 +316,35 @@ class GetAssetsRequest extends $pb.GeneratedMessage {
   $core.bool hasEpisodeId() => $_has(1);
   @$pb.TagNumber(2)
   void clearEpisodeId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get cursor => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set cursor($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCursor() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCursor() => $_clearField(4);
 }
 
 /// Ответ со списком ассетов
 class GetAssetsResponse extends $pb.GeneratedMessage {
   factory GetAssetsResponse({
     $core.Iterable<Asset>? assets,
+    $core.String? nextCursor,
   }) {
     final result = GetAssetsResponse._();
     if (assets != null) result.assets.addAll(assets);
+    if (nextCursor != null) result.nextCursor = nextCursor;
     return result;
   }
 
@@ -252,6 +363,7 @@ class GetAssetsResponse extends $pb.GeneratedMessage {
       createEmptyInstance: GetAssetsResponse.$_createMessage)
     ..pPM<Asset>(1, _omitFieldNames ? '' : 'assets',
         subBuilder: Asset.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'nextCursor')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -278,56 +390,87 @@ class GetAssetsResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $pb.PbList<Asset> get assets => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.String get nextCursor => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set nextCursor($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasNextCursor() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearNextCursor() => $_clearField(2);
 }
 
-/// Запрос на получение оригинала ассета
-class GetAssetFullRequest extends $pb.GeneratedMessage {
-  factory GetAssetFullRequest({
+class GetAssetRequest extends $pb.GeneratedMessage {
+  factory GetAssetRequest({
     $core.String? id,
+    $core.String? type,
+    $core.String? name,
+    $core.String? emotion,
+    $core.String? episodeId,
+    $core.bool? metadataOnly,
+    $core.String? variant,
+    $core.int? targetWidth,
+    $core.int? targetHeight,
   }) {
-    final result = GetAssetFullRequest._();
+    final result = GetAssetRequest._();
     if (id != null) result.id = id;
+    if (type != null) result.type = type;
+    if (name != null) result.name = name;
+    if (emotion != null) result.emotion = emotion;
+    if (episodeId != null) result.episodeId = episodeId;
+    if (metadataOnly != null) result.metadataOnly = metadataOnly;
+    if (variant != null) result.variant = variant;
+    if (targetWidth != null) result.targetWidth = targetWidth;
+    if (targetHeight != null) result.targetHeight = targetHeight;
     return result;
   }
 
-  GetAssetFullRequest._();
+  GetAssetRequest._();
 
-  factory GetAssetFullRequest.fromBuffer($core.List<$core.int> data,
+  factory GetAssetRequest.fromBuffer($core.List<$core.int> data,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      GetAssetFullRequest()..mergeFromBuffer(data, registry);
-  factory GetAssetFullRequest.fromJson($core.String json,
+      GetAssetRequest()..mergeFromBuffer(data, registry);
+  factory GetAssetRequest.fromJson($core.String json,
           [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      GetAssetFullRequest()..mergeFromJson(json, registry);
+      GetAssetRequest()..mergeFromJson(json, registry);
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'GetAssetFullRequest',
+      _omitMessageNames ? '' : 'GetAssetRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
-      createEmptyInstance: GetAssetFullRequest.$_createMessage)
+      createEmptyInstance: GetAssetRequest.$_createMessage)
     ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'type')
+    ..aOS(3, _omitFieldNames ? '' : 'name')
+    ..aOS(4, _omitFieldNames ? '' : 'emotion')
+    ..aOS(5, _omitFieldNames ? '' : 'episodeId')
+    ..aOB(6, _omitFieldNames ? '' : 'metadataOnly')
+    ..aOS(7, _omitFieldNames ? '' : 'variant')
+    ..aI(8, _omitFieldNames ? '' : 'targetWidth')
+    ..aI(9, _omitFieldNames ? '' : 'targetHeight')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  GetAssetFullRequest clone() => deepCopy();
+  GetAssetRequest clone() => deepCopy();
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  GetAssetFullRequest copyWith(void Function(GetAssetFullRequest) updates) =>
-      super.copyWith((message) => updates(message as GetAssetFullRequest))
-          as GetAssetFullRequest;
+  GetAssetRequest copyWith(void Function(GetAssetRequest) updates) =>
+      super.copyWith((message) => updates(message as GetAssetRequest))
+          as GetAssetRequest;
 
   @$core.override
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
-  @$core
-      .Deprecated('Use GetAssetFullRequest() / GetAssetFullRequest.new instead')
-  static GetAssetFullRequest create() => GetAssetFullRequest._();
-  static $pb.GeneratedMessage $_createMessage() => GetAssetFullRequest._();
+  @$core.Deprecated('Use GetAssetRequest() / GetAssetRequest.new instead')
+  static GetAssetRequest create() => GetAssetRequest._();
+  static $pb.GeneratedMessage $_createMessage() => GetAssetRequest._();
   @$core.override
-  GetAssetFullRequest createEmptyInstance() => GetAssetFullRequest._();
+  GetAssetRequest createEmptyInstance() => GetAssetRequest._();
   @$core.pragma('dart2js:noInline')
-  static GetAssetFullRequest getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<GetAssetFullRequest>(
-          GetAssetFullRequest.$_createMessage);
-  static GetAssetFullRequest? _defaultInstance;
+  static GetAssetRequest getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetAssetRequest>(
+          GetAssetRequest.$_createMessage);
+  static GetAssetRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get id => $_getSZ(0);
@@ -337,66 +480,78 @@ class GetAssetFullRequest extends $pb.GeneratedMessage {
   $core.bool hasId() => $_has(0);
   @$pb.TagNumber(1)
   void clearId() => $_clearField(1);
-}
 
-/// Ответ с оригиналом
-class GetAssetFullResponse extends $pb.GeneratedMessage {
-  factory GetAssetFullResponse({
-    $core.List<$core.int>? fileData,
-  }) {
-    final result = GetAssetFullResponse._();
-    if (fileData != null) result.fileData = fileData;
-    return result;
-  }
+  @$pb.TagNumber(2)
+  $core.String get type => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set type($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasType() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearType() => $_clearField(2);
 
-  GetAssetFullResponse._();
+  @$pb.TagNumber(3)
+  $core.String get name => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set name($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearName() => $_clearField(3);
 
-  factory GetAssetFullResponse.fromBuffer($core.List<$core.int> data,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      GetAssetFullResponse()..mergeFromBuffer(data, registry);
-  factory GetAssetFullResponse.fromJson($core.String json,
-          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
-      GetAssetFullResponse()..mergeFromJson(json, registry);
+  @$pb.TagNumber(4)
+  $core.String get emotion => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set emotion($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasEmotion() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearEmotion() => $_clearField(4);
 
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      _omitMessageNames ? '' : 'GetAssetFullResponse',
-      package: const $pb.PackageName(_omitMessageNames ? '' : 'romance_club'),
-      createEmptyInstance: GetAssetFullResponse.$_createMessage)
-    ..a<$core.List<$core.int>>(
-        1, _omitFieldNames ? '' : 'fileData', $pb.PbFieldType.OY)
-    ..hasRequiredFields = false;
+  @$pb.TagNumber(5)
+  $core.String get episodeId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set episodeId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasEpisodeId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearEpisodeId() => $_clearField(5);
 
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  GetAssetFullResponse clone() => deepCopy();
-  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
-  GetAssetFullResponse copyWith(void Function(GetAssetFullResponse) updates) =>
-      super.copyWith((message) => updates(message as GetAssetFullResponse))
-          as GetAssetFullResponse;
+  @$pb.TagNumber(6)
+  $core.bool get metadataOnly => $_getBF(5);
+  @$pb.TagNumber(6)
+  set metadataOnly($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasMetadataOnly() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearMetadataOnly() => $_clearField(6);
 
-  @$core.override
-  $pb.BuilderInfo get info_ => _i;
+  @$pb.TagNumber(7)
+  $core.String get variant => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set variant($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasVariant() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearVariant() => $_clearField(7);
 
-  @$core.pragma('dart2js:noInline')
-  @$core.Deprecated(
-      'Use GetAssetFullResponse() / GetAssetFullResponse.new instead')
-  static GetAssetFullResponse create() => GetAssetFullResponse._();
-  static $pb.GeneratedMessage $_createMessage() => GetAssetFullResponse._();
-  @$core.override
-  GetAssetFullResponse createEmptyInstance() => GetAssetFullResponse._();
-  @$core.pragma('dart2js:noInline')
-  static GetAssetFullResponse getDefault() => _defaultInstance ??=
-      $pb.GeneratedMessage.$_defaultFor<GetAssetFullResponse>(
-          GetAssetFullResponse.$_createMessage);
-  static GetAssetFullResponse? _defaultInstance;
+  @$pb.TagNumber(8)
+  $core.int get targetWidth => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set targetWidth($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasTargetWidth() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearTargetWidth() => $_clearField(8);
 
-  @$pb.TagNumber(1)
-  $core.List<$core.int> get fileData => $_getN(0);
-  @$pb.TagNumber(1)
-  set fileData($core.List<$core.int> value) => $_setBytes(0, value);
-  @$pb.TagNumber(1)
-  $core.bool hasFileData() => $_has(0);
-  @$pb.TagNumber(1)
-  void clearFileData() => $_clearField(1);
+  @$pb.TagNumber(9)
+  $core.int get targetHeight => $_getIZ(8);
+  @$pb.TagNumber(9)
+  set targetHeight($core.int value) => $_setSignedInt32(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasTargetHeight() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearTargetHeight() => $_clearField(9);
 }
 
 /// Запрос на загрузку нового ассета

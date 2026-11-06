@@ -1,22 +1,25 @@
+import '../generated/scene.pb.dart'; // Сцены эпизода
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/choice.pb.dart'; // Импорт Protobuf-модели Choice
 import 'action_editor_screen.dart'; // Импорт экрана редактора действия
 
 // Экран редактирования выбора
 class ChoiceEditorScreen extends StatefulWidget {
+  final List<Scene> allScenes; // Сцены для переходов
   final Choice? choice; // Выбор (null, если новый)
   final String defaultText; // Текст по умолчанию
   final Function(Choice) onSave; // Функция, вызывается при сохранении
 
-  // Конструктор класса ChoiceEditorScreen
+  // Конструктор
   const ChoiceEditorScreen({
     super.key,
     this.choice,
+    this.allScenes = const [],
     this.defaultText = '',
     required this.onSave,
   });
 
-  // Метод createState (создание объекта состояния)
+  // Создаю состояние экрана
   @override
   State<ChoiceEditorScreen> createState() => _ChoiceEditorScreenState();
 }
@@ -29,8 +32,8 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
   @override
   void initState() {
     super.initState();
-    // Создаю локальный выбор (или беру существующий)
-    _choice = widget.choice ?? Choice(); // Choice - Protobuf-модель
+    // Меняю копию, пока выбор не сохранён
+    _choice = widget.choice?.deepCopy() ?? Choice();
 
     // Если выбор новый - задаю текст по умолчанию
     if (_choice.text.isEmpty) {
@@ -64,7 +67,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     _choice.text = _textController.text;
 
     // Вызываю функцию onSave (передаю выбор родителю)
-    widget.onSave(_choice);
+    widget.onSave(_choice.deepCopy());
 
     // Закрываю экран
     Navigator.pop(context);
@@ -77,6 +80,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ActionEditorScreen(
+          allScenes: widget.allScenes,
           action: null, // Новое действие
           defaultTitle: 'действие ${_choice.actions.length + 1}',
           onSave: (newAction) {
@@ -96,6 +100,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ActionEditorScreen(
+          allScenes: widget.allScenes,
           action: _choice.actions[index], // Действие
           onSave: (newAction) {
             setState(() {

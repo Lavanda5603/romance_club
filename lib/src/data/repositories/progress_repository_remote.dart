@@ -7,8 +7,14 @@ import '../../../generated/progress.pb.dart'; // Импорт Protobuf-моде�
 class ProgressRepositoryRemote implements ProgressRepository {
   final ProgressGrpcService _service; // gRPC-сервис
 
-  // Конструктор класса ProgressRepositoryRemote
+  // Конструктор
   ProgressRepositoryRemote(this._service);
+
+  @override
+  Future<Set<int>> getProgressSummary(String playerId) async {
+    final response = await _service.getProgressSummary(playerId);
+    return Set.unmodifiable(response.episodeIds);
+  }
 
   // Получить прогресс игрока
   @override
@@ -19,15 +25,20 @@ class ProgressRepositoryRemote implements ProgressRepository {
 
   // Сохранить прогресс
   @override
-  Future<bool> saveProgress(ProgressModel progress) async {
+  Future<int> saveProgress(ProgressModel progress) async {
     final response = await _service.saveProgress(
       playerId: progress.playerId,
       episodeId: progress.episodeId,
       sceneId: progress.sceneId,
+      ending: progress.ending,
+      expectedRevision: progress.revision,
+      expectedGeneration: progress.generation,
+      completed: progress.completed,
       flags: progress.flags,
       counters: progress.counters,
     );
-    return response.success;
+    if (!response.success) throw StateError(response.message);
+    return response.revision;
   }
 
   // Сбросить прогресс игрока
@@ -43,6 +54,10 @@ class ProgressRepositoryRemote implements ProgressRepository {
       playerId: progress.playerId,
       episodeId: progress.episodeId,
       sceneId: progress.sceneId,
+      revision: progress.revision,
+      generation: progress.generation,
+      ending: progress.ending,
+      completed: progress.completed,
       flags: Map<String, bool>.from(progress.flags),
       counters: Map<String, int>.from(progress.counters),
     );

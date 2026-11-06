@@ -2,7 +2,6 @@ import '../src/data/services/rpc_policy.dart'; // Импорт сроков ож
 import '../src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'package:file_picker/file_picker.dart'; // Импорт выбора файла
-import 'dart:io'; // Импорт File
 import 'dart:typed_data'; // Импорт Uint8List
 import '../src/data/repositories/asset_repository_remote.dart'; // Импорт репозитория ассетов
 import '../src/data/repositories/admin_repository_remote.dart'; // Импорт админ-репозитория
@@ -104,31 +103,29 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
 
   // Загрузка нового ассета
   Future<void> _uploadNewAsset() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg'],
-      withData: true,
-    );
-
-    if (result == null || result.files.isEmpty) return;
-
-    final file = result.files.first;
-
-    if (!mounted) return;
-    if (file.size > AssetGrpcService.maxUploadBytes) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Файл больше 5 MiB (5 242 880 байт)')));
-      return;
-    }
-    Uint8List? bytes = file.bytes;
-    if (bytes == null && file.path != null) {
-      bytes = await File(file.path!).readAsBytes();
-    }
-
-    if (bytes == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось прочитать файл')),
+    final String fileName;
+    final Uint8List bytes;
+    try {
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg'],
       );
+      if (file == null || !mounted) return;
+
+      final size = file.lengthSync() ?? await file.length();
+      if (!mounted) return;
+      if (size != null && size > AssetGrpcService.maxUploadBytes) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Файл больше 5 MiB (5 242 880 байт)')));
+        return;
+      }
+      fileName = file.name;
+      bytes = await file.readAsBytes();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось открыть или прочитать файл')),
+        );
+      }
       return;
     }
 
@@ -139,7 +136,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       return;
     }
     final nameController = TextEditingController();
-    final displayController = TextEditingController(text: file.name);
+    final displayController = TextEditingController(text: fileName);
     final emotionController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
@@ -224,7 +221,7 @@ class _AssetPickerScreenState extends State<AssetPickerScreen> {
       final asset = await _repository.uploadAsset(
         type: widget.type, name: name, emotion: emotionController.text.trim(),
         displayName: displayController.text.trim(), episodeId: widget.episodeId,
-        fileData: bytes, fileName: file.name,
+        fileData: bytes, fileName: fileName,
       );
       if (asset == null) throw StateError('Не удалось загрузить ассет');
       if (!mounted) return;

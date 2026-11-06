@@ -36,14 +36,16 @@ async fn current_save(api: &ProgressApiService, points: i32) -> Result<Request<S
 }
 
 async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    db.query(include_str!("../migrations/006_progress.surql")).await?.check()?;
-    db.query(include_str!("../migrations/016_progress_completed.surql")).await?.check()?;
-    db.query(include_str!("../migrations/020_progress_generation.surql")).await?.check()?;
-    db.query("DEFINE FIELD IF NOT EXISTS ending ON progress TYPE string DEFAULT '';").await?.check()?;
+    crate::migrations::test_query(&db, include_str!("../migrations/006_progress.surql")).await?;
+    crate::migrations::test_query(&db, include_str!("../migrations/016_progress_completed.surql")).await?;
+    crate::migrations::test_query(&db, include_str!("../migrations/020_progress_generation.surql")).await?;
+    crate::migrations::test_query(&db, "DEFINE FIELD IF NOT EXISTS ending ON progress TYPE string DEFAULT '';").await?;
     // Дубли специально создаю до миграции и проверяю сохранность обеих версий
-    db.query("CREATE progress:old CONTENT {player_id:player:test,episode_id:episode:1,scene_id:scene:test,flags:{},counters:{points:1},updated_at:d'2026-01-01T00:00:00Z'}; CREATE progress:new CONTENT {player_id:player:test,episode_id:episode:1,scene_id:scene:test,flags:{chosen:true},counters:{points:2},updated_at:d'2026-01-02T00:00:00Z'};").await?.check()?;
-    db.query(include_str!("../migrations/014_progress_atomic.surql")).await?.check()?;
-    db.query(include_str!("../migrations/014_progress_atomic.surql")).await?.check()?;
+    crate::migrations::test_query(&db, "CREATE progress:old CONTENT {player_id:player:test,episode_id:episode:1,scene_id:scene:test,flags:{},counters:{points:1},updated_at:d'2026-01-01T00:00:00Z'}; CREATE progress:new CONTENT {player_id:player:test,episode_id:episode:1,scene_id:scene:test,flags:{chosen:true},counters:{points:2},updated_at:d'2026-01-02T00:00:00Z'};").await?;
+    crate::migrations::test_query(&db, include_str!("../migrations/013_progress_revision.surql")).await?;
+    crate::migrations::test_query(&db, include_str!("../migrations/014_progress_atomic.surql")).await?;
+    crate::migrations::test_query(&db, include_str!("../migrations/014_progress_atomic.surql")).await?;
+    crate::migrations::test_query(&db, include_str!("../migrations/014_progress_index.surql")).await?;
     let mut counts = db.query("SELECT * FROM progress; SELECT * FROM progress_archive;").await?.check()?;
     let rows: Vec<Value> = counts.take(0)?;
     let archive: Vec<Value> = counts.take(1)?;
@@ -51,7 +53,7 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     assert_eq!(archive.len(), 2);
     assert_eq!(rows[0]["counters"]["points"], 2);
     assert!(db.query("CREATE progress:duplicate CONTENT {player_id:player:test,episode_id:episode:1,scene_id:scene:test,flags:{},counters:{}};").await?.check().is_err());
-    db.query("CREATE scene:test CONTENT {episode_id:episode:1};").await?.check()?;
+    crate::migrations::test_query(&db, "CREATE scene:test CONTENT {episode_id:episode:1};").await?;
     let api = std::sync::Arc::new(ProgressApiService::new(db.clone()));
     assert_eq!(read(&api).await?.counters["points"], 2);
 
@@ -75,7 +77,7 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     assert_eq!(api.save_progress(save(0, 999)).await.unwrap_err().code(), Code::Aborted);
 
     // Ошибка внутри SQL не стирает последний успешный снимок
-    db.query("DEFINE FIELD OVERWRITE counters ON progress TYPE object FLEXIBLE ASSERT $value.points < 100;").await?.check()?;
+    crate::migrations::test_query(&db, "DEFINE FIELD OVERWRITE counters ON progress TYPE object FLEXIBLE ASSERT $value.points < 100;").await?;
     assert_eq!(api.save_progress(save(1, 999)).await.unwrap_err().code(), Code::Internal);
     let unchanged = read(&api).await?;
     assert_eq!(unchanged.revision, previous.revision);
@@ -86,12 +88,12 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     assert_eq!(api.save_progress(foreign_scene).await.unwrap_err().code(), Code::InvalidArgument);
     assert_eq!(read(&api).await?.counters["points"], 50);
     // Отказ SQL при сбросе не должен превращаться в успех
-    db.query("DEFINE FIELD OVERWRITE revision ON progress TYPE int DEFAULT 0 ASSERT $value < 3;").await?.check()?;
+    crate::migrations::test_query(&db, "DEFINE FIELD OVERWRITE revision ON progress TYPE int DEFAULT 0 ASSERT $value < 3;").await?;
     assert_eq!(api.reset_progress(request(ResetProgressRequest { player_id: "player:test".into() })).await.unwrap_err().code(), Code::Internal);
     assert_eq!(read(&api).await?.revision, 2);
     assert_eq!(read(&api).await?.generation, 0);
     assert_eq!(read(&api).await?.counters["points"], 50);
-    db.query("DEFINE FIELD OVERWRITE revision ON progress TYPE int DEFAULT 0;").await?.check()?;
+    crate::migrations::test_query(&db, "DEFINE FIELD OVERWRITE revision ON progress TYPE int DEFAULT 0;").await?;
     api.reset_progress(request(ResetProgressRequest { player_id: "player:test".into() })).await?;
     let reset = read(&api).await?;
     assert!(reset.scene_id.is_empty());
@@ -100,7 +102,7 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     assert_eq!(api.save_progress(current_save(&api, 5).await?).await?.into_inner().revision, 4);
 
     // Отдельно проверяю гонку при самом первом сохранении
-    db.query("DELETE progress;").await?.check()?;
+    crate::migrations::test_query(&db, "DELETE progress;").await?;
     assert_eq!(api.save_progress(save(4, 7)).await.unwrap_err().code(), Code::Aborted);
     let a = current_save(&api, 7).await?;
     let b = current_save(&api, 8).await?;
@@ -111,14 +113,14 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
     assert_eq!(rows.len(), 1);
     assert_eq!(read(&api).await?.revision, 1);
     // Сводка выбирает только свои активные записи существующих эпизодов
-    db.query("DEFINE TABLE episode SCHEMALESS; CREATE episode:1; CREATE episode:2; CREATE episode:3; CREATE progress:other CONTENT {player_id:player:other,episode_id:episode:2,scene_id:scene:test,flags:{},counters:{}}; CREATE progress:reset CONTENT {player_id:player:test,episode_id:episode:2,flags:{},counters:{}}; CREATE progress:third CONTENT {player_id:player:test,episode_id:episode:3,scene_id:scene:test,completed:true,flags:{},counters:{}}; CREATE progress:orphan CONTENT {player_id:player:test,episode_id:episode:99,scene_id:scene:test,flags:{},counters:{}};").await?.check()?;
+    crate::migrations::test_query(&db, "DEFINE TABLE episode SCHEMALESS; CREATE episode:1; CREATE episode:2; CREATE episode:3; CREATE progress:other CONTENT {player_id:player:other,episode_id:episode:2,scene_id:scene:test,flags:{},counters:{}}; CREATE progress:reset CONTENT {player_id:player:test,episode_id:episode:2,flags:{},counters:{}}; CREATE progress:third CONTENT {player_id:player:test,episode_id:episode:3,scene_id:scene:test,completed:true,flags:{},counters:{}}; CREATE progress:orphan CONTENT {player_id:player:test,episode_id:episode:99,scene_id:scene:test,flags:{},counters:{}};").await?;
     let summary = api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner();
     assert_eq!(summary.episode_ids, vec![3]);
     api.reset_progress(request(ResetProgressRequest {player_id:"player:test".into()})).await?;
     assert!(api.get_progress_summary(request(GetProgressSummaryRequest {player_id:"player:test".into()})).await?.into_inner().episode_ids.is_empty());
-    db.query(include_str!("../migrations/007_achievement.surql")).await?.check()?;
-    db.query("DEFINE TABLE action SCHEMALESS; DEFINE TABLE choice SCHEMALESS;").await?.check()?;
-    db.query(include_str!("../migrations/017_episode_completion.surql")).await?.check()?;
+    crate::migrations::test_query(&db, include_str!("../migrations/007_achievement.surql")).await?;
+    crate::migrations::test_query(&db, "DEFINE TABLE action SCHEMALESS; DEFINE TABLE choice SCHEMALESS;").await?;
+    crate::migrations::test_query(&db, include_str!("../migrations/017_episode_completion.surql")).await?;
     // Начатые и старые записи не считаю завершёнными
     assert!(!read(&api).await?.completed);
     let mut completion = current_save(&api, 5).await?;
@@ -141,7 +143,7 @@ async fn scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error 
 }
 
 async fn generation_scenarios(db: Surreal<Client>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    db.query("CREATE episode:4; CREATE scene:late SET episode_id=episode:4;").await?.check()?;
+    crate::migrations::test_query(&db, "CREATE episode:4; CREATE scene:late SET episode_id=episode:4;").await?;
     let first = ProgressApiService::new(db.clone());
     let second = ProgressApiService::new(db.clone());
     let get = || request(GetProgressRequest {player_id:"player:test".into(),episode_id:4});

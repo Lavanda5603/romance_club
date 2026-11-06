@@ -1,4 +1,5 @@
-DEFINE FIELD IF NOT EXISTS ending ON progress TYPE string DEFAULT '';
+DEFINE FIELD IF NOT EXISTS ending ON progress TYPE string DEFAULT ''
+    MIGRATE EXISTING ROWS AS add_progress_ending USING '';
 -- Историю прохождений сохраняю и при повторном запуске эпизода
 DEFINE TABLE IF NOT EXISTS episode_completion SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS player_id ON episode_completion TYPE record<player>;

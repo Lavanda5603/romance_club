@@ -13,6 +13,9 @@ FOR $row IN (SELECT id, file_data, preview_data FROM asset) {
         UPDATE $row.id SET preview_data = $bytes;
     };
 };
-DEFINE FIELD OVERWRITE file_data ON asset TYPE option<bytes>;
-DEFINE FIELD OVERWRITE preview_data ON asset TYPE option<bytes>;
+-- Все строки проверены и преобразованы выше; 4.0 требует явного сужения типа.
+DEFINE FIELD OVERWRITE file_data ON asset TYPE option<bytes>
+    MIGRATE EXISTING ROWS AS asset_original_bytes USING $value FALLBACK NONE;
+DEFINE FIELD OVERWRITE preview_data ON asset TYPE option<bytes>
+    MIGRATE EXISTING ROWS AS asset_preview_bytes USING $value FALLBACK NONE;
 COMMIT TRANSACTION;

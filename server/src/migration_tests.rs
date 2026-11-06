@@ -51,13 +51,16 @@ async fn scenarios(db: Surreal<Client>, folder: std::path::PathBuf) -> TestResul
     for entry in std::fs::read_dir("migrations")? {
         let path = entry?.path();
         let file = path.file_name().unwrap().to_str().unwrap();
-        if file <= "012_zz.surql" { std::fs::copy(&path,folder.join(file))?; }
+        if file <= "010_zz.surql" { std::fs::copy(&path,folder.join(file))?; }
     }
     apply_dir(&db,&folder).await?;
     db.query("DEFINE FIELD OVERWRITE next_scene_id ON scene TYPE string DEFAULT '';
         DEFINE FIELD OVERWRITE scene_id ON action TYPE option<string>;
         CREATE scene:200 CONTENT {episode_id:episode:1,title:'Начало',background:'',character:'',character_emotion:'',texts:['Текст'],condition:'',text_position:'bottom',character_position:'center',order_index:0,next_scene_id:'scene:220'};
-        CREATE action:one CONTENT {choice_id:choice:one,type:'nextScene',title:'Выбор',scene_id:'scene:220',counter_name:'points',counter_value:5};").await?.check()?;
+        CREATE action:one CONTENT {choice_id:choice:one,type:'nextScene',title:'Выбор',scene_id:'scene:220',counter_name:'points',counter_value:5};
+        CREATE player:legacy CONTENT {login:'legacy',email:'legacy@example.test',password_hash:'unchanged'};
+        CREATE progress:legacy CONTENT {player_id:player:legacy,episode_id:episode:1,scene_id:scene:200,flags:{chosen:true},counters:{points:7}};
+        CREATE asset:legacy CONTENT {type:'background',name:'legacy',url:'legacy.png',display_name:'Старый фон',file_data:'aGVsbG8='};").await?.check()?;
     for entry in std::fs::read_dir("migrations")? {
         let path = entry?.path();
         std::fs::copy(&path,folder.join(path.file_name().unwrap()))?;
@@ -69,7 +72,23 @@ async fn scenarios(db: Surreal<Client>, folder: std::path::PathBuf) -> TestResul
     assert_eq!(strings["actions"][0]["scene_id"],"scene:220");
     assert_eq!(strings["actions"][0]["scene_key"],"scene:220");
     assert_eq!(strings["actions"][0]["counter_value"],5);
-    for _ in 0..2 { apply_dir(&db,&folder).await?; assert_eq!(snapshot(&db).await?,strings); }
+    let mut migrated = db.query("RETURN {player:(SELECT * FROM ONLY player:legacy),progress:(SELECT * FROM progress),original:encoding::base64::encode(asset:legacy.file_data)};").await?.check()?;
+    let data: Option<serde_json::Value> = migrated.take(0)?;
+    let data = data.unwrap();
+    assert_eq!(data["player"]["password_hash"],"unchanged");
+    assert_eq!(data["player"]["is_admin"],false);
+    assert_eq!(data["progress"][0]["counters"]["points"],7);
+    assert_eq!(data["progress"][0]["flags"]["chosen"],true);
+    assert_eq!(data["progress"][0]["revision"],0);
+    assert_eq!(data["progress"][0]["completed"],false);
+    assert_eq!(data["progress"][0]["ending"],"");
+    assert_eq!(data["original"],"aGVsbG8");
+    for _ in 0..2 {
+        apply_dir(&db,&folder).await?;
+        assert_eq!(snapshot(&db).await?,strings);
+        let mut migrated = db.query("RETURN {player:(SELECT * FROM ONLY player:legacy),progress:(SELECT * FROM progress),original:encoding::base64::encode(asset:legacy.file_data)};").await?.check()?;
+        assert_eq!(migrated.take::<Option<serde_json::Value>>(0)?.unwrap(),data);
+    }
     Ok(())
 }
 

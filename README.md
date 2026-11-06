@@ -6,7 +6,13 @@ Flutter-клиент обращается к Rust-серверу по gRPC. То
 
 ## Локальный сервер
 
-Нужны Flutter/Dart из `pubspec.yaml`, стабильный Rust, `protoc` и SurrealDB 3.
+Нужны Flutter/Dart из `pubspec.yaml`, стабильный Rust ≥1.95, `protoc` и SurrealDB 4.0.0.
+Серверный SDK закреплён на `4.0.0`. Миграции учитывают compatibility level 4:
+новые обязательные поля заполняют существующие записи через `MIGRATE EXISTING ROWS`,
+а индекс прогресса строится отдельной миграцией после фиксации переноса данных.
+Обновление хранилища SurrealDB 3 → 4 выполняйте по
+[официальной инструкции](https://surrealdb.com/docs/build/migrating/from-old-surrealdb-versions/3x-to-4x)
+на копии данных: преобразование формата необратимо.
 Запустите SurrealDB на **127.0.0.1:8000**, задав свои логин и пароль.
 Порт БД не требуется открывать для телефона.
 
@@ -102,6 +108,9 @@ cargo test --locked
 ```sh
 cargo test --locked -- --ignored --test-threads=1
 ```
+
+Сопоставление прежних issues с исправлениями, результаты тестов и ограничения:
+[проверка перед merge](docs/MAIN_READINESS_2026-11-06.md).
 
 О сетевых адресах: [Android Emulator](https://developer.android.com/studio/run/emulator-networking-address),
 [adb reverse](https://developer.android.com/develop/ui/views/layout/webapps/access-local-server),

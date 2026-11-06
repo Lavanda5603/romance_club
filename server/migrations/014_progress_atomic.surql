@@ -22,6 +22,3 @@ FOR $pair IN $pairs {
     };
 };
 COMMIT TRANSACTION;
-
--- Строю индекс после фиксации переноса, до запуска API
-DEFINE INDEX IF NOT EXISTS progress_owner_episode ON progress FIELDS player_id, episode_id UNIQUE;

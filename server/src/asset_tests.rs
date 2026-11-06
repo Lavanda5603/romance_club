@@ -199,8 +199,10 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     db.query("CREATE asset:migrate CONTENT {type:'background',name:'legacy',url:'old',display_name:'Legacy',file_data:$file,preview_data:$preview,version:$version};")
         .bind(("file", STANDARD.encode(&legacy))).bind(("preview", STANDARD.encode(&thumb)))
         .bind(("version", version.clone())).await?.check()?;
-    db.query(include_str!("../migrations/018_asset_bytes.surql")).await?.check()?;
-    db.query(include_str!("../migrations/018_asset_bytes.surql")).await?.check()?;
+    for run in 1..=2 {
+        crate::migrations::test_query(&db, include_str!("../migrations/018_asset_bytes.surql"))
+            .await.map_err(|error| format!("Перенос байтов, запуск {run}: {error}"))?;
+    }
     let mut result = db.query("SELECT * FROM asset:migrate;").await?.check()?;
     let migrated: Option<AssetRow> = result.take(0)?;
     let migrated = migrated.unwrap();

@@ -4,6 +4,34 @@ use surrealdb::{engine::remote::ws::Client, types::RecordId, Surreal}; // Под
 
 type MigrationResult = Result<(), Box<dyn Error + Send + Sync>>;
 
+// Повторять целиком можно только атомарную транзакцию: её записи откатились.
+async fn retry_transaction<F, Fut>(mut query: F) -> Result<surrealdb::IndexedResults, Box<dyn Error + Send + Sync>>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<surrealdb::IndexedResults, surrealdb::Error>>,
+{
+    for attempt in 0..8 {
+        let mut result = query().await?;
+        let errors = result.take_errors();
+        if errors.is_empty() { return Ok(result); }
+        let conflict = errors.values().any(|error|
+            matches!(error.query_details(), Some(surrealdb::types::QueryError::TransactionConflict)));
+        if conflict && attempt < 7 {
+            tokio::time::sleep(std::time::Duration::from_millis(10 << attempt)).await;
+            continue;
+        }
+        return Err(io::Error::other(errors.values().map(ToString::to_string).collect::<Vec<_>>().join("; ")).into());
+    }
+    unreachable!()
+}
+
+#[cfg(test)]
+pub(crate) async fn test_query(db: &Surreal<Client>, sql: &str) -> Result<surrealdb::IndexedResults, Box<dyn Error + Send + Sync>> {
+    let sql = if sql.contains("BEGIN TRANSACTION;") { sql.to_owned() }
+        else { format!("BEGIN TRANSACTION;\n{sql}\nCOMMIT TRANSACTION;") };
+    retry_transaction(|| async { db.query(sql.clone()).await }).await
+}
+
 // Версию записываю в той же транзакции, что и изменение базы
 pub async fn apply_dir(db: &Surreal<Client>, directory: &Path) -> MigrationResult {
     let mut paths = std::fs::read_dir(directory)?.map(|entry| entry.map(|entry| entry.path()))
@@ -33,13 +61,10 @@ pub async fn apply_dir(db: &Surreal<Client>, directory: &Path) -> MigrationResul
             .collect::<Vec<_>>().join("\n");
         let query = format!("BEGIN TRANSACTION;\nIF record::exists($migration_key) {{ THROW 'MIGRATION_ALREADY_APPLIED'; }};\n{body}\nCREATE $migration_key CONTENT {{name:$migration_name,checksum:$migration_checksum,applied_at:time::now()}};\nCOMMIT TRANSACTION;");
         println!("Применяю миграцию: {name}");
-        let mut result = db.query(query).bind(("migration_key", key)).bind(("migration_name", name.clone()))
-            .bind(("migration_checksum", checksum)).await?;
-        let errors = result.take_errors();
-        if !errors.is_empty() {
-            let details = errors.values().map(ToString::to_string).collect::<Vec<_>>().join("; ");
-            return Err(io::Error::other(format!("Ошибка миграции {name}: {details}")).into());
-        }
+        retry_transaction(|| async {
+            db.query(query.clone()).bind(("migration_key", key.clone())).bind(("migration_name", name.clone()))
+                .bind(("migration_checksum", checksum.clone())).await
+        }).await.map_err(|error| io::Error::other(format!("Ошибка миграции {name}: {error}")))?;
     }
     Ok(())
 }

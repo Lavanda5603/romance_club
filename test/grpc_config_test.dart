@@ -5,16 +5,17 @@ void main() {
   test('Every build uses its configured endpoint and TLS mode', () async {
     final channel = GrpcConfig.createChannel();
     addTearDown(channel.terminate);
-    expect(channel.host, GrpcConfig.host);
-    expect(channel.port, GrpcConfig.port);
-    expect(channel.options.credentials.isSecure, GrpcConfig.tls);
     expect(
-      GrpcConfig.host,
+      channel.host,
       const String.fromEnvironment('GRPC_HOST', defaultValue: 'localhost'),
     );
     expect(
-      GrpcConfig.port,
+      channel.port,
       const int.fromEnvironment('GRPC_PORT', defaultValue: 50051),
+    );
+    expect(
+      channel.options.credentials.isSecure,
+      const bool.fromEnvironment('GRPC_TLS'),
     );
   });
 

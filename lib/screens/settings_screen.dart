@@ -36,7 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      
+
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -69,13 +69,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Navigator.pop(context);
                         },
                       ),
-                      
+
                       // Заголовок
                       const Text(
                         'Клуб романтики',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      
+
                       // Пустой контейнер для симметрии
                       const SizedBox(width: 48),
                     ],
@@ -110,7 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
-                        
+
                         // Слайдер музыки и процент
                         Row(
                           children: [
@@ -140,7 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
-                        
+
                         // Слайдер звуков и процент
                         Row(
                           children: [
@@ -196,8 +196,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             child: const Text(
                               'сохранить',
                               style: TextStyle(
-                                color: Color(0xFF3F0404), 
-                                fontSize: 18, 
+                                color: Color(0xFF3F0404),
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold
                               ),
                             ),

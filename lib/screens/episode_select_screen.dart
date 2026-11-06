@@ -204,7 +204,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
       canPop: !_isResetting,
       child: Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      
+
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -241,13 +241,13 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                           );
                         },
                       ),
-                      
+
                       // Заголовок
                       const Text(
                         'Клуб романтики',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      
+
                       // Пустой контейнер для симметрии
                       const SizedBox(width: 48),
                     ],
@@ -309,7 +309,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                             final episode = _episodes[index];
                                             // Эпизод пройден
                                             final isPassed = _passedEpisodes.contains(episode.id);
-                                            
+
                                             return Padding(
                                               padding: const EdgeInsets.only(bottom: 12),
                                               child: Center(
@@ -329,8 +329,8 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                                           ? const BorderSide(color: Colors.white, width: 2)
                                                           : BorderSide.none,
                                                       // Красный, если пройден, серый, если нет
-                                                      backgroundColor: isPassed 
-                                                          ? const Color(0xFFD30010) 
+                                                      backgroundColor: isPassed
+                                                          ? const Color(0xFFD30010)
                                                           : const Color(0xFF534F50),
                                                       shape: RoundedRectangleBorder(
                                                         borderRadius: BorderRadius.circular(30),
@@ -341,8 +341,8 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                                       episode.title, // Название эпизода
                                                       textAlign: TextAlign.center,
                                                       style: const TextStyle(
-                                                        color: Color(0xFF3F0404), 
-                                                        fontSize: 18, 
+                                                        color: Color(0xFF3F0404),
+                                                        fontSize: 18,
                                                         fontWeight: FontWeight.bold
                                                       ),
                                                     ),
@@ -353,7 +353,7 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                                           },
                                         ),
                         ),
-                        
+
                         const SizedBox(height: 8),
 
                         // Кнопка продолжить
@@ -373,15 +373,15 @@ class _EpisodeSelectScreenState extends State<EpisodeSelectScreen> {
                               child: const Text(
                                 'продолжить',
                                 style: TextStyle(
-                                  color: Color(0xFF3F0404), 
-                                  fontSize: 18, 
+                                  color: Color(0xFF3F0404),
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 12),
 
                         // Кнопка сбросить прогресс

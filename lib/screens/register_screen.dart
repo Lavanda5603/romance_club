@@ -273,8 +273,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   : const Text(
                                       'зарегистрироваться',
                                       style: TextStyle(
-                                        color: Color(0xFF3F0404), 
-                                        fontSize: 16, 
+                                        color: Color(0xFF3F0404),
+                                        fontSize: 16,
                                         fontWeight: FontWeight.bold
                                       ),
                                     ),
@@ -303,8 +303,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               child: const Text(
                                 'вход',
                                 style: TextStyle(
-                                  color: Color(0xFF3F0404), 
-                                  fontSize: 18, 
+                                  color: Color(0xFF3F0404),
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold
                                 ),
                               ),

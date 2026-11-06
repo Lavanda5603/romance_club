@@ -246,8 +246,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   : const Text(
                                       'войти',
                                       style: TextStyle(
-                                        color: Color(0xFF3F0404), 
-                                        fontSize: 18, 
+                                        color: Color(0xFF3F0404),
+                                        fontSize: 18,
                                         fontWeight: FontWeight.bold
                                       ),
                                     ),
@@ -281,8 +281,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const Text(
                                 'регистрация',
                                 style: TextStyle(
-                                  color: Color(0xFF3F0404), 
-                                  fontSize: 18, 
+                                  color: Color(0xFF3F0404),
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold
                                 ),
                               ),

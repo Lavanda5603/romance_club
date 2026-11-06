@@ -145,7 +145,7 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      
+
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -178,13 +178,13 @@ class _ActionEditorScreenState extends State<ActionEditorScreen> {
                           Navigator.pop(context);
                         },
                       ),
-                      
+
                       // Заголовок
                       const Text(
                         'Клуб романтики',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      
+
                       // Пустой контейнер для симметрии
                       const SizedBox(width: 48),
                     ],

@@ -149,7 +149,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold( // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-      
+
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -182,13 +182,13 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                           Navigator.pop(context);
                         },
                       ),
-                      
+
                       // Заголовок
                       const Text(
                         'Клуб романтики',
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
-                      
+
                       // Пустой контейнер для симметрии
                       const SizedBox(width: 48),
                     ],
@@ -216,7 +216,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Поле ввода названия выбора (розовое)
                         TextField(
                           controller: _titleController,
@@ -227,14 +227,14 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         // Подпись
                         const Text(
                           'текст выбора',
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
                         ),
                         const SizedBox(height: 4),
-                        
+
                         // Поле ввода текста выбора (белая рамка)
                         TextField(
                           controller: _textController,
@@ -254,14 +254,14 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        
+
                         // Надпись
                         const Text(
                           'действия',
                           style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
                         ),
                         const SizedBox(height: 8),
-                        
+
                         // Список действий
                         if (_choice.actions.isEmpty)
                           const Text('нет действий', style: TextStyle(color: Colors.white))
@@ -303,7 +303,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                               );
                             },
                           ),
-                        
+
                         // Плюсик для добавления действия
                         Align(
                           alignment: Alignment.centerLeft,

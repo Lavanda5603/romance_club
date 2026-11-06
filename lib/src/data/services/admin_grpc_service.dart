@@ -1,3 +1,4 @@
+import 'grpc_config.dart';
 import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/admin_api.pbgrpc.dart'; // Импорт gRPC-клиента
@@ -9,14 +10,8 @@ class AdminGrpcService {
   late final AdminApiClient _client; // gRPC-клиент
 
   // Конструктор
-  AdminGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
-    _channel = ClientChannel(
-      host,
-      port: port,
-      options: const ChannelOptions(
-        credentials: ChannelCredentials.insecure(),
-      ),
-    );
+  AdminGrpcService({String host = GrpcConfig.host, int port = GrpcConfig.port, bool tls = GrpcConfig.tls, RpcDeadline? deadlines}) {
+    _channel = GrpcConfig.createChannel(host: host, port: port, tls: tls);
     _client = AdminApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
 

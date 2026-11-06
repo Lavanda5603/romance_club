@@ -1,3 +1,4 @@
+import 'grpc_config.dart';
 import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'dart:math'; // Импорт математических функций и случайных чисел
 import 'auth_options.dart'; // Метаданные с токеном
@@ -10,15 +11,9 @@ class ShopGrpcService {
   late final ShopApiClient _client; // gRPC-клиент
 
   // Конструктор
-  ShopGrpcService({String host = '10.0.2.2', int port = 50051, RpcDeadline? deadlines}) {
+  ShopGrpcService({String host = GrpcConfig.host, int port = GrpcConfig.port, bool tls = GrpcConfig.tls, RpcDeadline? deadlines}) {
     // Создаю канал связи
-    _channel = ClientChannel(
-      host,
-      port: port,
-      options: const ChannelOptions(
-        credentials: ChannelCredentials.insecure(),
-      ),
-    );
+    _channel = GrpcConfig.createChannel(host: host, port: port, tls: tls);
     // Создаю gRPC-клиент
     _client = ShopApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }

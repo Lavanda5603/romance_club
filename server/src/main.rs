@@ -1,5 +1,6 @@
 mod episode_delete; // Подключаю транзакционное удаление дерева эпизода
 mod migrations; // Подключаю одноразовый запуск миграций
+mod config;
 #[cfg(test)]
 mod shop_transaction_tests; // Проверки покупок в транзакции
 #[cfg(test)]
@@ -320,21 +321,21 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Проверяю ключ до подключения к БД и запуска API
     let jwt = jwt::JwtKeys::from_env()?;
+    let config = config::Config::from_env()?;
 
     // Подключаюсь к SurrealDB
-    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
+    let db = Surreal::new::<Ws>(&config.surreal_endpoint).await?;
 
     // Авторизуюсь
     db.signin(Root {
-        username: "root".to_string(),
-        password: "root".to_string(),
+        username: config.surreal_user,
+        password: config.surreal_pass,
     })
     .await?;
 
     // Использую namespace и database
-    let namespace = std::env::var("SURREAL_NAMESPACE")
-        .unwrap_or_else(|_| "romance_club".into());
-    let database = std::env::var("SURREAL_DATABASE").unwrap_or_else(|_| "main".into());
+    let namespace = config.namespace;
+    let database = config.database;
     db.use_ns(&namespace).use_db(&database).await?;
 
     println!("Подключение к SurrealDB установлено: namespace={}, database={}", namespace, database);
@@ -342,7 +343,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Применяю миграции
     apply_migrations(&db).await?;
     // Удаление ассетов выполняю без прав на остальные таблицы
-    let asset_delete_db = asset_delete::connection(&db, &namespace, &database).await
+    let asset_delete_db = asset_delete::connection(&db, &config.surreal_endpoint, &namespace, &database).await
         .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     let episode_service = EpisodeApiService::new(db.clone()); // Сервис эпизодов
@@ -353,9 +354,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let asset_service = AssetApiService::new(db.clone()).with_delete_db(asset_delete_db.clone()); // Сервис ассетов
     asset_service.backfill_previews().await?; // Готовлю превью старых картинок перед открытием каталога
     let admin_service = AdminApiService::new(db).with_delete_db(asset_delete_db); // Сервис админа
-    let addr = std::env::var("GRPC_BIND")
-        .unwrap_or_else(|_| "0.0.0.0:50051".into())
-        .parse()?;
+    let addr = config.grpc_bind;
 
     println!("Сервер запущен на {}", addr);
 

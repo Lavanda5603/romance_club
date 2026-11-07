@@ -1,3 +1,4 @@
+import '../services/app_audio.dart'; // Импорт управления громкостью
 import 'package:flutter/material.dart'; // Импорт Material UI
 import '../generated/settings.pb.dart'; // Импорт Protobuf-модели Settings
 import '../services/storage_service.dart'; // Импорт сервиса хранения
@@ -178,6 +179,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                               // Сохраняю в файл
                               await StorageService.saveSettings(settings);
+                              await AppAudio.shared.setVolumes(_musicVolume, _soundVolume);
 
                               // Показываю уведомление
                               if (!mounted) return;

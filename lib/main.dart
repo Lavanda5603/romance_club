@@ -1,3 +1,4 @@
+import 'services/app_audio.dart'; // Импорт фоновой музыки
 import 'package:flutter/material.dart'; // Импорт Material UI
 import 'screens/main_menu_screen.dart'; // Импорт главного меню
 import 'screens/login_screen.dart'; // Импорт экрана авторизации
@@ -10,6 +11,7 @@ import 'src/data/services/rpc_policy.dart'; // Импорт понятных о�
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Инициализация Flutter
   runApp(const RomanceClubApp()); // Запуск приложения
+  unawaited(AppAudio.shared.initialize());
 }
 
 // Корневой виджет приложения
@@ -22,7 +24,7 @@ class RomanceClubApp extends StatefulWidget {
   State<RomanceClubApp> createState() => _RomanceClubAppState();
 }
 
-class _RomanceClubAppState extends State<RomanceClubApp> {
+class _RomanceClubAppState extends State<RomanceClubApp> with WidgetsBindingObserver {
   final _navigator = GlobalKey<NavigatorState>();
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   late final StreamSubscription<String> _sessionChanges;
@@ -30,6 +32,7 @@ class _RomanceClubAppState extends State<RomanceClubApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _sessionChanges = SessionStore.shared.expired.listen((message) {
       if (!mounted) return;
       _navigator.currentState?.pushAndRemoveUntil(
@@ -40,8 +43,15 @@ class _RomanceClubAppState extends State<RomanceClubApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sessionChanges.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Ставлю музыку на паузу, когда приложение свёрнуто.
+    unawaited(AppAudio.shared.setForeground(state == AppLifecycleState.resumed));
   }
 
   @override

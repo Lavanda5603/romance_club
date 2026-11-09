@@ -3,12 +3,12 @@ use surrealdb::types::{RecordId, RecordIdKey, ToSql}; // Подключаю ти
 use tonic::Status; // Подключаю ошибки gRPC
 
 // Для удаления использую отдельный вход с ограниченными правами в базе
-pub async fn connection(root: &Surreal<Client>, endpoint: &str, namespace: &str, database: &str)
+pub async fn connection(root: &Surreal<Client>, namespace: &str, database: &str)
     -> Result<Surreal<Client>, Box<dyn std::error::Error + Send + Sync>> {
     let password = format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple());
     root.query("UPSERT asset_delete_identity:server SET password_hash=crypto::argon2::generate($password);")
         .bind(("password", password.clone())).await?.check()?;
-    let db = Surreal::new::<surrealdb::engine::remote::ws::Ws>(endpoint).await?;
+    let db = Surreal::new::<surrealdb::engine::remote::ws::Ws>("127.0.0.1:8000/rpc").await?;
     db.signin(surrealdb::opt::auth::Record {
         namespace:namespace.into(), database:database.into(), access:"asset_delete_access".into(),
         params:std::collections::BTreeMap::from([("password".to_owned(), password)]),

@@ -30,6 +30,8 @@ impl AdminApi for AdminApiService {
     ) -> Result<Response<AdminResponse>, Status> {
         // Проверяю админа
         crate::request_auth::check_admin(&request)?;
+        crate::asset_delete::asset_id(&request.get_ref().asset_id)?;
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
 
         let id = request.into_inner().asset_id;
 
@@ -52,7 +54,7 @@ impl AdminApi for AdminApiService {
         request: Request<AdminDeleteEpisodeRequest>,
     ) -> Result<Response<AdminResponse>, Status> {
         // Проверяю админа
-        crate::request_auth::check_admin(&request)?;
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
 
         let id = request.into_inner().episode_id;
 

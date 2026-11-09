@@ -1,7 +1,14 @@
+import '../widgets/novel_background.dart'; // Импорт фона выбранной истории
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../generated/scene.pb.dart'; // Сцены эпизода
+
 import 'package:flutter/material.dart'; // Импорт Material UI
+
 import '../generated/choice.pb.dart'; // Импорт Protobuf-модели Choice
 import 'action_editor_screen.dart'; // Импорт экрана редактора действия
+import '../generated/action.pb.dart'
+    as story; // Импорт записи решения как действия
+import '../src/core/scene_links.dart'; // Импорт постоянного ключа записи
 
 // Экран редактирования выбора
 class ChoiceEditorScreen extends StatefulWidget {
@@ -25,15 +32,35 @@ class ChoiceEditorScreen extends StatefulWidget {
 }
 
 class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
-  late TextEditingController _titleController; // Контроллер для поля ввода названия
-  late TextEditingController _textController; // Контроллер для поля ввода текста
-  late Choice _choice; // Локальный выбор (создаётся, если widget.choice == null)
+  late TextEditingController
+  _titleController; // Контроллер для поля ввода названия
+  late TextEditingController
+  _textController; // Контроллер для поля ввода текста
+  late Choice
+  _choice; // Локальный выбор (создаётся, если widget.choice == null)
+  late TextEditingController
+  _diaryController; // Текст записи после этого решения
+  late TextEditingController
+  _consequenceController; // Короткая реакция на выбор
+  late TextEditingController
+  _priceController; // 0 — бесплатно, иначе 15–50 алмазов
 
   @override
   void initState() {
     super.initState();
     // Меняю копию, пока выбор не сохранён
     _choice = widget.choice?.deepCopy() ?? Choice();
+    _priceController = TextEditingController(text: '${_choice.diamondPrice}');
+    final entries = _choice.actions.where(
+      (a) => a.flagName.startsWith('diary_'),
+    );
+    _diaryController = TextEditingController(
+      text: entries.isEmpty ? '' : entries.first.title,
+    );
+    final notices = _choice.actions.where((a) => a.type == 'notification');
+    _consequenceController = TextEditingController(
+      text: notices.isEmpty ? '' : notices.first.title,
+    );
 
     // Если выбор новый - задаю текст по умолчанию
     if (_choice.text.isEmpty) {
@@ -57,14 +84,81 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     // Освобождение ресурса контроллера при закрытии экрана
     _textController.dispose();
     _titleController.dispose();
+    _diaryController.dispose();
+    _consequenceController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
   // Сохранение выбора
   void _saveChoice() {
+    final price = int.tryParse(_priceController.text.trim());
+    if (price == null || (price != 0 && (price < 15 || price > 50))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Цена: 0 бесплатно или от 15 до 50 алмазов'),
+        ),
+      );
+      return;
+    }
+    if (price > 0 &&
+        _choice.actions
+                .where((a) => a.type == 'nextScene' && a.sceneTarget.isNotEmpty)
+                .length !=
+            1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Добавь платному выбору переход к отдельной сцене'),
+        ),
+      );
+      return;
+    }
+    final notice = _consequenceController.text.trim();
+    if (notice.runes.length > 160) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Уведомление — не больше 160 символов')),
+      );
+      return;
+    }
     // Обновляю название и текст выбора
     _choice.title = _titleController.text;
     _choice.text = _textController.text;
+    _choice.diamondPrice = price;
+    if (price > 0 && _choice.premiumKey.isEmpty) {
+      _choice.premiumKey = 'choice:${newSceneKey().substring(6)}';
+    }
+    // Храню запись в обычном действии: сервер сохраняет её вместе с выбором.
+    final entries = _choice.actions
+        .where((a) => a.flagName.startsWith('diary_'))
+        .toList();
+    final text = _diaryController.text.trim();
+    if (text.length > 500) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Запись дневника — не больше 500 символов'),
+        ),
+      );
+      return;
+    }
+    final key = entries.isEmpty
+        ? 'diary_${newSceneKey().substring(6)}'
+        : entries.first.flagName;
+    _choice.actions.removeWhere((a) => a.flagName.startsWith('diary_'));
+    if (text.isNotEmpty) {
+      _choice.actions.add(
+        story.Action(
+          type: 'changeFlag',
+          flagName: key,
+          flagValue: true,
+          title: text,
+        ),
+      );
+    }
+    // Сообщение не содержит баллов, флагов и переходов: это только реакция интерфейса.
+    _choice.actions.removeWhere((a) => a.type == 'notification');
+    if (notice.isNotEmpty) {
+      _choice.actions.add(story.Action(type: 'notification', title: notice));
+    }
 
     // Вызываю функцию onSave (передаю выбор родителю)
     widget.onSave(_choice.deepCopy());
@@ -86,6 +180,9 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
           onSave: (newAction) {
             setState(() {
               _choice.actions.add(newAction); // Добавляю действие в список
+              if (newAction.type == 'notification') {
+                _consequenceController.text = newAction.title;
+              }
             });
           },
         ),
@@ -104,7 +201,16 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
           action: _choice.actions[index], // Действие
           onSave: (newAction) {
             setState(() {
+              final wasNotice = _choice.actions[index].type == 'notification';
               _choice.actions[index] = newAction; // Заменяю действие в списке
+              if (wasNotice || newAction.type == 'notification') {
+                final notices = _choice.actions.where(
+                  (a) => a.type == 'notification',
+                );
+                _consequenceController.text = notices.isEmpty
+                    ? ''
+                    : notices.first.title;
+              }
             });
           },
         ),
@@ -118,18 +224,25 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog( // Всплывающее окно
+        return AlertDialog(
+          // Всплывающее окно
           title: const Text('Удалить действие?'),
           content: const Text(
             'Вы точно уверены, что хотите удалить это действие?',
           ),
           actions: [
-            TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, false), // Отмена
+            TextButton(
+              // Кнопка без фона
+              onPressed: withButtonSound(
+                () => Navigator.pop(context, false),
+              ), // Отмена
               child: const Text('Отмена'),
             ),
-            TextButton( // Кнопка без фона
-              onPressed: () => Navigator.pop(context, true), // Подтверждение
+            TextButton(
+              // Кнопка без фона
+              onPressed: withButtonSound(
+                () => Navigator.pop(context, true),
+              ), // Подтверждение
               child: const Text('Удалить'),
             ),
           ],
@@ -140,16 +253,25 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
     // Если пользователь подтвердил, удаляю действие
     if (confirmed == true) {
       setState(() {
+        final wasNotice = _choice.actions[index].type == 'notification';
         _choice.actions.removeAt(index);
+        if (wasNotice) {
+          final notices = _choice.actions.where(
+            (a) => a.type == 'notification',
+          );
+          _consequenceController.text = notices.isEmpty
+              ? ''
+              : notices.first.title;
+        }
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return Scaffold(
+      // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -158,10 +280,7 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
             child: Container(
               color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
               // Картинка фона
-              child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
-              ),
+              child: const NovelBackground(),
             ),
           ),
 
@@ -171,16 +290,23 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
               children: [
                 // Верхняя панель
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Кнопка назад
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () {
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFFD30010),
+                          size: 28,
+                        ),
+                        onPressed: withButtonSound(() {
                           Navigator.pop(context);
-                        },
+                        }),
                       ),
 
                       // Заголовок
@@ -220,7 +346,10 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                         // Поле ввода названия выбора (розовое)
                         TextField(
                           controller: _titleController,
-                          style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18),
+                          style: const TextStyle(
+                            color: Color(0xFFFFA0A0),
+                            fontSize: 18,
+                          ),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             isDense: true,
@@ -231,14 +360,20 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                         // Подпись
                         const Text(
                           'текст выбора',
-                          style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+                          style: TextStyle(
+                            color: Color(0xFFFFA0A0),
+                            fontSize: 16,
+                          ),
                         ),
                         const SizedBox(height: 4),
 
                         // Поле ввода текста выбора (белая рамка)
                         TextField(
                           controller: _textController,
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                           decoration: InputDecoration(
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -249,7 +384,9 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFD30010)),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD30010),
+                              ),
                             ),
                           ),
                         ),
@@ -258,13 +395,19 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                         // Надпись
                         const Text(
                           'действия',
-                          style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+                          style: TextStyle(
+                            color: Color(0xFFFFA0A0),
+                            fontSize: 16,
+                          ),
                         ),
                         const SizedBox(height: 8),
 
                         // Список действий
                         if (_choice.actions.isEmpty)
-                          const Text('нет действий', style: TextStyle(color: Colors.white))
+                          const Text(
+                            'нет действий',
+                            style: TextStyle(color: Colors.white),
+                          )
                         else
                           ListView.builder(
                             shrinkWrap: true,
@@ -274,7 +417,10 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                               final action = _choice.actions[index];
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   border: Border.all(color: Colors.white),
                                   borderRadius: BorderRadius.circular(12),
@@ -284,19 +430,34 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                                     // Текст действия
                                     Expanded(
                                       child: Text(
-                                        action.title.isNotEmpty ? action.title : 'действие',
-                                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                                        action.title.isNotEmpty
+                                            ? action.title
+                                            : 'действие',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                        ),
                                       ),
                                     ),
                                     // Кнопка редактирования
                                     IconButton(
-                                      icon: const Icon(Icons.edit, color: Colors.white),
-                                      onPressed: () => _editAction(index),
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: withButtonSound(
+                                        () => _editAction(index),
+                                      ),
                                     ),
                                     // Кнопка удаления (ИЗМЕНЕНО: белая)
                                     IconButton(
-                                      icon: const Icon(Icons.delete_outline, color: Colors.white),
-                                      onPressed: () => _deleteAction(index),
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: withButtonSound(
+                                        () => _deleteAction(index),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -308,18 +469,61 @@ class _ChoiceEditorScreenState extends State<ChoiceEditorScreen> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: IconButton(
-                            icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFA0A0)),
-                            onPressed: _addAction,
+                            icon: const Icon(
+                              Icons.add_circle_outline,
+                              color: Color(0xFFFFA0A0),
+                            ),
+                            onPressed: withButtonSound(_addAction),
                           ),
                         ),
                         const SizedBox(height: 8),
 
+                        TextField(
+                          key: const ValueKey('diary-entry-editor'),
+                          controller: _diaryController,
+                          maxLength: 500,
+                          maxLines: 3,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Запись в «Мой дневник»',
+                            helperText: 'Появится после этого выбора. Пусто — без записи.',
+                            labelStyle: TextStyle(color: Color(0xFFFFA0A0)),
+                            helperStyle: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                        TextField(
+                          key: const ValueKey('consequence-editor'),
+                          controller: _consequenceController,
+                          maxLength: 160,
+                          maxLines: 2,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Последствие выбора',
+                            hintText: 'Алья это запомнит',
+                            helperText:
+                                'Короткое сообщение. Пусто — без уведомления.',
+                            labelStyle: TextStyle(color: Color(0xFFFFA0A0)),
+                            helperStyle: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                        TextField(
+                          key: const ValueKey('choice-diamond-price'),
+                          controller: _priceController,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Цена в алмазах',
+                            helperText: '0 — бесплатно. Платный выбор: 15–50 и отдельная сцена.',
+                            labelStyle: TextStyle(color: Color(0xFFFFA0A0)),
+                            helperStyle: TextStyle(color: Colors.white70),
+                          ),
+                        ),
                         // Кнопка сохранить
                         SizedBox(
                           width: 200, // Уже
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _saveChoice,
+                            onPressed: withButtonSound(_saveChoice),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(

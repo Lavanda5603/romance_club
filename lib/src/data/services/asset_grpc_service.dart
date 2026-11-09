@@ -1,4 +1,4 @@
-import 'grpc_config.dart';
+import '../../../services/server_connection.dart'; // Импорт выбранного адреса сервера
 import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'auth_options.dart'; // Метаданные с токеном
 import '../../../services/storage_service.dart'; // Импорт сервиса хранения
@@ -11,15 +11,20 @@ class AssetGrpcService {
   static const maxUploadBytes = 5 * 1024 * 1024;
   final String host;
   final int port;
-  final bool tls;
-  Future<String> cacheScope() async => '${tls ? 'grpcs' : 'grpc'}://$host:$port:${await StorageService.loadToken()}';
+  Future<String> cacheScope() async => '$host:$port:${await StorageService.loadToken()}';
   late final ClientChannel _channel; // Канал связи
   late final AssetApiClient _client; // gRPC-клиент
 
   // Конструктор
-  AssetGrpcService({this.host = GrpcConfig.host, this.port = GrpcConfig.port, this.tls = GrpcConfig.tls, RpcDeadline? deadlines}) {
+  AssetGrpcService({String? host, int? port, RpcDeadline? deadlines}) : host = host ?? ServerConnection.host, port = port ?? ServerConnection.port {
     // Создаю канал связи с сервером
-    _channel = GrpcConfig.createChannel(host: host, port: port, tls: tls);
+    _channel = ClientChannel(
+      this.host,
+      port: this.port,
+      options: const ChannelOptions(
+        credentials: ChannelCredentials.insecure(), // Без шифрования
+      ),
+    );
 
     // Создаю gRPC-клиент
     _client = AssetApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);

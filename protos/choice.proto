@@ -9,4 +9,6 @@ message Choice {
   string text = 1; // Текст выбора
   repeated Action actions = 2; // Действия после выбора
   string title = 3; // Название выбора
+  int32 diamond_price = 4; // 0 — бесплатно, платные выборы от 15 до 50
+  string premium_key = 5; // Постоянный товар выбора, не зависит от позиции в списке
 }

@@ -12,10 +12,13 @@ message GetProgressRequest {
 
 message GetProgressSummaryRequest {
   string player_id = 1;
+  string novel_id = 2; // Коллекция выбранной истории
 }
 
 message GetProgressSummaryResponse {
   repeated int32 episode_ids = 1; // Завершённые эпизоды
+  repeated string seen_endings = 2; // Найденные финалы пятого эпизода из истории прохождений
+  bool endings_available = 3; // Отличаю пустую коллекцию от старой версии сервера
 }
 
 // Запрос на сохранение прогресса

@@ -28,17 +28,29 @@ impl ProgressApi for ProgressApiService {
         request: Request<GetProgressSummaryRequest>,
     ) -> Result<Response<GetProgressSummaryResponse>, Status> {
         let player_id = crate::request_auth::player_id(&request, &request.get_ref().player_id)?;
-        // Для списка нужны только ID, без флагов и счётчиков каждого эпизода
-        let mut response = self.db.query("SELECT VALUE episode_id FROM progress WHERE player_id = type::record($player_id) AND completed = true AND record::exists(episode_id)")
-            .bind(("player_id", player_id)).await.map_err(|e| Status::internal(e.to_string()))?
+        let novel_id=crate::novel_service::scope(&request.get_ref().novel_id)?;
+        let mut config_response=self.db.query("SELECT VALUE config FROM ONLY type::record($novel); SELECT VALUE <int>record::id(id) FROM episode WHERE (novel_id ?? novel:ladybug)=type::record($novel)")
+            .bind(("novel",novel_id.clone())).await.map_err(|e|Status::internal(e.to_string()))?.check().map_err(|e|Status::internal(e.to_string()))?;
+        let config:Option<Value>=config_response.take(0).map_err(|e|Status::internal(e.to_string()))?;
+        let config=config.filter(|v|v.as_object().is_some_and(|v|!v.is_empty())).unwrap_or_else(||if novel_id==crate::novel_service::LEGACY {crate::novel_service::legacy_config()}else{serde_json::json!({})});
+        let chapter_ids:Vec<i32>=config_response.take(1).map_err(|e|Status::internal(e.to_string()))?;
+        let final_id=config["final_episode_id"].as_i64().filter(|n|*n>0).unwrap_or_else(||i64::from(chapter_ids.into_iter().max().unwrap_or(0)));
+        let mut response = self.db.query("SELECT VALUE episode_id FROM progress WHERE player_id = type::record($player_id) AND completed = true AND record::exists(episode_id) AND (episode_id.novel_id ?? novel:ladybug)=type::record($novel); SELECT VALUE endings FROM episode_completion WHERE player_id = type::record($player_id) AND episode_id = type::record('episode',$final_id);")
+            .bind(("player_id", player_id)).bind(("novel",novel_id)).bind(("final_id",final_id)).await.map_err(|e| Status::internal(e.to_string()))?
             .check().map_err(|e| Status::internal(e.to_string()))?;
         let records: Vec<Value> = response.take(0).map_err(|e| Status::internal(e.to_string()))?;
         let mut episode_ids: Vec<i32> = records.iter()
             .filter_map(|value| value.as_str()?.strip_prefix("episode:")?.parse::<i32>().ok())
             .filter(|id| *id > 0).collect();
-        episode_ids.sort_unstable();
-        episode_ids.dedup();
-        Ok(Response::new(GetProgressSummaryResponse { episode_ids }))
+        episode_ids.sort_unstable(); episode_ids.dedup();
+        let allowed:Vec<String>=config["endings"].as_array().into_iter().flatten().filter_map(|v|v["key"].as_str().map(str::to_owned)).collect();
+        // История не стирается при перезапуске эпизода и не включает чужие финалы.
+        let histories: Vec<Vec<String>> = response.take(1).map_err(|e| Status::internal(e.to_string()))?;
+        let mut seen_endings: Vec<String> = histories.into_iter().flatten().filter(|name|
+            allowed.contains(name)).collect();
+        seen_endings.sort();
+        seen_endings.dedup();
+        Ok(Response::new(GetProgressSummaryResponse { episode_ids, seen_endings, endings_available: true }))
     }
 
     // Получить прогресс игрока по эпизоду
@@ -136,6 +148,11 @@ impl ProgressApi for ProgressApiService {
         let req = request.into_inner();
         let episode_id = req.episode_id;
         let scene_id = req.scene_id;
+        // Ограничиваю размер состояния до сериализации и обращения к БД.
+        if req.flags.len() > 256 || req.counters.len() > 256 || scene_id.len() > 256
+            || req.ending.len() > 256 || req.flags.keys().chain(req.counters.keys()).any(|key| key.len() > 128) {
+            return Err(Status::invalid_argument("Слишком большое состояние прогресса"));
+        }
         let flags = req.flags;
         let counters = req.counters;
 
@@ -173,6 +190,9 @@ impl ProgressApi for ProgressApiService {
             }
             if messages.contains("PROGRESS_SCENE_INVALID") {
                 return Err(Status::invalid_argument("Сцена не принадлежит эпизоду"));
+            }
+            if messages.contains("PREMIUM_CHOICE_REQUIRED") {
+                return Err(Status::permission_denied("Сначала откройте этот особый выбор за алмазы"));
             }
             return Err(Status::internal(messages));
         }
@@ -213,6 +233,7 @@ impl ProgressApi for ProgressApiService {
         }))
     }
 }
+
 #[cfg(test)]
 #[path = "progress_tests.rs"]
 mod tests;

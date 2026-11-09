@@ -7,7 +7,7 @@ type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 fn buy(item: &str, kind: &str, key: &str) -> Request<PurchaseRequest> {
     let mut req = Request::new(PurchaseRequest { player_id: "player:test".into(),
-        item_id: item.into(), item_type: kind.into(), request_id: key.into() });
+        item_id: item.into(), item_type: kind.into(), request_id: key.into() , expected_price: 0});
     req.extensions_mut().insert(Claims { sub:"player:test".into(), login:"test".into(), is_admin:false, exp:usize::MAX });
     req
 }
@@ -19,6 +19,8 @@ async fn balance(shop: &ShopApiService) -> i32 {
 }
 
 async fn scenarios(db: Surreal<Client>) -> TestResult {
+    // Сводка покупок теперь проверяет и каталог необязательных выборов.
+    db.query("DEFINE TABLE IF NOT EXISTS choice SCHEMALESS;").await?.check()?;
     db.query(include_str!("../migrations/008_purchase.surql")).await?.check()?;
     db.query("CREATE episode:1; CREATE episode:2; CREATE episode:3; CREATE episode:4; CREATE episode:5; CREATE episode:6; CREATE episode:7;").await?.check()?;
     db.query("CREATE player_currency:old CONTENT {player_id:player:test,diamonds:500};").await?.check()?;

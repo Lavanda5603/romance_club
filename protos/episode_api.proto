@@ -11,6 +11,7 @@ message GetEpisodeRequest {
 
 // Запрос на получение всех эпизодов
 message GetAllEpisodesRequest {
+  string novel_id = 1; // Пусто — исходная история для совместимости
   // Пустой запрос
 }
 
@@ -43,8 +44,16 @@ message DeleteEpisodeResponse {
 
 // gRPC-сервис для работы с эпизодами
 service EpisodeApi {
+  rpc GetRelationshipRules(GetAllEpisodesRequest) returns (RelationshipRules); // Получаю общие уровни отношений
+  rpc SaveRelationshipRules(RelationshipRules) returns (RelationshipRules); // Сохраняю настройки как администратор
   rpc GetEpisode(GetEpisodeRequest) returns (Episode); // Получить эпизод по ID
   rpc GetAllEpisodes(GetAllEpisodesRequest) returns (GetAllEpisodesResponse); // Получить все эпизоды
   rpc SaveEpisode(SaveEpisodeRequest) returns (SaveEpisodeResponse); // Сохранить эпизод
   rpc DeleteEpisode(DeleteEpisodeRequest) returns (DeleteEpisodeResponse); // Удалить эпизод
+}
+
+message RelationshipRules {
+  string novel_id = 3; // Отдельные уровни у каждой новеллы
+  string json = 1; // Названия уровней и пороги дружбы и романтики
+  int32 revision = 2; // Защита от перезаписи чужих изменений
 }

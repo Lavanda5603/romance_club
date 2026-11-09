@@ -20,4 +20,10 @@ message Scene {
   int32 next_scene_id = 12; // ID следующей сцены (0 = конец эпизода)
   string next_scene_key = 13; // Ключ следующей сцены (пустой = конец)
   int32 order_index = 14; // Порядок сцены в эпизоде
+  repeated SceneRoute routes = 15; // Автоматические переходы: первое выполненное условие
+}
+
+message SceneRoute {
+  string condition = 1; // Условие перехода
+  string scene_key = 2; // Постоянный ключ целевой сцены
 }

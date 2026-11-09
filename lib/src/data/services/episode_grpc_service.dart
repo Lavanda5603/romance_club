@@ -1,22 +1,47 @@
-import 'grpc_config.dart';
+import '../../../services/active_novel.dart'; // Импорт выбранной новеллы
+import '../../../services/server_connection.dart'; // Импорт выбранного адреса сервера
 import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'auth_options.dart'; // Метаданные с токеном
+
 import 'package:grpc/grpc.dart'; // Импорт gRPC
+
 import '../../../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../../../generated/episode_api.pbgrpc.dart'; // Импорт gRPC-клиента
 
 // Сервис для работы с gRPC (транспортный слой)
 class EpisodeGrpcService {
+  // Общие настройки читают игроки, изменять их разрешает только серверная роль админа.
+  Future<RelationshipRules> getRelationshipRules() async =>
+      _client.getRelationshipRules(
+        GetAllEpisodesRequest(novelId: ActiveNovel.shared.id),
+        options: await authOptions(),
+      );
+
+  Future<RelationshipRules> saveRelationshipRules(
+    RelationshipRules rules,
+  ) async => _client.saveRelationshipRules(
+    rules.deepCopy()..novelId = ActiveNovel.shared.id,
+    options: await authOptions(),
+  );
   late final ClientChannel _channel; // Канал связи
   late final EpisodeApiClient _client; // gRPC-клиент
 
   // Конструктор
-  EpisodeGrpcService({String host = GrpcConfig.host, int port = GrpcConfig.port, bool tls = GrpcConfig.tls, RpcDeadline? deadlines}) {
+  EpisodeGrpcService({String? host, int? port, RpcDeadline? deadlines}) {
     // Создаю канал связи с сервером
-    _channel = GrpcConfig.createChannel(host: host, port: port, tls: tls);
+    _channel = ClientChannel(
+      host ?? ServerConnection.host,
+      port: port ?? ServerConnection.port,
+      options: const ChannelOptions(
+        credentials: ChannelCredentials.insecure(), // Без шифрования
+      ),
+    );
 
     // Создаю gRPC-клиент
-    _client = EpisodeApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
+    _client = EpisodeApiClient(
+      _channel,
+      interceptors: [deadlines ?? RpcDeadline()],
+    );
   }
 
   // Получить эпизод по ID
@@ -31,12 +56,21 @@ class EpisodeGrpcService {
   // Получить все эпизоды
   Future<List<Episode>> getAllEpisodes() async {
     // Создаю запрос
-    final request = GetAllEpisodesRequest();
+    final scope = ActiveNovel.shared.id;
+    final request = GetAllEpisodesRequest(novelId: scope);
 
     // Вызываю метод сервера
-    final response = await _client.getAllEpisodes(request, options: await authOptions());
+    final response = await _client.getAllEpisodes(
+      request,
+      options: await authOptions(),
+    );
 
     // Возвращаю список эпизодов
+    if (scope == ActiveNovel.shared.id) {
+      ActiveNovel.shared.episodeIds = response.episodes
+          .map((e) => e.id)
+          .toList();
+    }
     return response.episodes;
   }
 

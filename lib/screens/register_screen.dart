@@ -1,6 +1,10 @@
+import '../widgets/novel_background.dart'; // Импорт фона выбранной истории
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+
 import 'package:flutter/material.dart'; // Импорт Material UI
-import 'main_menu_screen.dart'; // Импорт главного меню
+
+import 'novel_catalog_screen.dart'; // Импорт главного меню
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория
 import '../src/data/services/auth_grpc_service.dart'; // Импорт gRPC-сервиса
 import '../src/core/validators.dart'; // Импорт валидаторов
@@ -20,7 +24,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   late TextEditingController _loginController; // Контроллер для логина
   late TextEditingController _emailController; // Контроллер для email
   late TextEditingController _passwordController; // Контроллер для пароля
-  late TextEditingController _confirmPasswordController; // Контроллер для повторного пароля
+  late TextEditingController
+  _confirmPasswordController; // Контроллер для повторного пароля
   bool _obscurePassword = true; // Флаг видимости пароля
   bool _isLoading = false; // Флаг загрузки
 
@@ -106,23 +111,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         // После сохранения полной сессии открываю меню
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Регистрация успешна! Добро пожаловать, ${result.login}!')),
+          SnackBar(
+            content: Text(
+              'Регистрация успешна! Добро пожаловать, ${result.login}!',
+            ),
+          ),
         );
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MainMenu()),
+          MaterialPageRoute(builder: (context) => const NovelCatalogScreen()),
         );
       } else {
         // Ошибка
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.message)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(result.message)));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Ошибка: ${networkError(e)}')));
     }
 
     if (mounted) {
@@ -143,7 +150,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Подпись (розовая)
-        Text(label, style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16)),
+        Text(
+          label,
+          style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 16),
+        ),
         const SizedBox(height: 8),
         // Поле ввода
         TextField(
@@ -157,19 +167,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
             suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                       color: Colors.grey,
                     ),
-                    onPressed: () {
+                    onPressed: withButtonSound(() {
                       setState(() {
                         _obscurePassword = !_obscurePassword;
                       });
-                    },
+                    }),
                   )
                 : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.white),
@@ -187,9 +197,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return Scaffold(
+      // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -198,10 +208,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Container(
               color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
               // Картинка фона
-              child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
-              ),
+              child: const NovelBackground(),
             ),
           ),
 
@@ -211,7 +218,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 // Верхняя панель
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center, // Центрирую
                     children: [
@@ -247,10 +257,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 24),
 
                         // Поля регистрации
-                        _buildField('логин', _loginController, errorText: _loginError),
-                        _buildField('email', _emailController, errorText: _emailError),
-                        _buildField('пароль', _passwordController, isPassword: true, errorText: _passwordError),
-                        _buildField('повторите пароль', _confirmPasswordController, isPassword: true, errorText: _confirmError),
+                        _buildField(
+                          'логин',
+                          _loginController,
+                          errorText: _loginError,
+                        ),
+                        _buildField(
+                          'email',
+                          _emailController,
+                          errorText: _emailError,
+                        ),
+                        _buildField(
+                          'пароль',
+                          _passwordController,
+                          isPassword: true,
+                          errorText: _passwordError,
+                        ),
+                        _buildField(
+                          'повторите пароль',
+                          _confirmPasswordController,
+                          isPassword: true,
+                          errorText: _confirmError,
+                        ),
 
                         const SizedBox(height: 8),
 
@@ -260,7 +288,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: 260,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _register,
+                              onPressed: withButtonSound(
+                                _isLoading ? null : _register,
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(
@@ -269,13 +299,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 elevation: 0,
                               ),
                               child: _isLoading
-                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  ? const CircularProgressIndicator(
+                                      color: Colors.white,
+                                    )
                                   : const Text(
                                       'зарегистрироваться',
                                       style: TextStyle(
                                         color: Color(0xFF3F0404),
                                         fontSize: 16,
-                                        fontWeight: FontWeight.bold
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                             ),
@@ -290,9 +322,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: 160,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: withButtonSound(() {
                                 Navigator.pop(context); // Назад на логин
-                              },
+                              }),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(
@@ -305,7 +337,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 style: TextStyle(
                                   color: Color(0xFF3F0404),
                                   fontSize: 18,
-                                  fontWeight: FontWeight.bold
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),

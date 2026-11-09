@@ -1,5 +1,12 @@
-import '../widgets/button_sound.dart'; // Импорт звука кнопок
+import '../widgets/novel_background.dart'; // Импорт фона выбранной истории
+import '../services/active_novel.dart'; // Импорт названия новеллы
+import 'novel_catalog_screen.dart'; // Импорт выбора другой истории
+import 'diary_screen.dart'; // Импорт дневника решений
+import 'hidden_scene_album_screen.dart'; // Импорт альбома открытых разговоров
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
+
 import 'package:flutter/material.dart'; // Импорт Material UI
+
 import 'programmer_screen.dart'; // Импорт экрана режима разработчика
 import 'profile_screen.dart'; // Импорт экрана профиля
 import 'settings_screen.dart'; // Импорт экрана настроек
@@ -28,6 +35,7 @@ class _MainMenuState extends State<MainMenu> {
   @override
   void initState() {
     super.initState();
+    ActiveNovel.shared.addListener(_novelChanged);
     // Создаю сервис и репозиторий
     _authService = AuthGrpcService();
     _authRepository = AuthRepositoryRemote(_authService);
@@ -35,8 +43,13 @@ class _MainMenuState extends State<MainMenu> {
     _loadPlayer();
   }
 
+  void _novelChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    ActiveNovel.shared.removeListener(_novelChanged);
     _authService.close();
     super.dispose();
   }
@@ -73,7 +86,8 @@ class _MainMenuState extends State<MainMenu> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return Scaffold(
+      // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
       body: Stack(
         children: [
@@ -81,10 +95,7 @@ class _MainMenuState extends State<MainMenu> {
           Positioned.fill(
             child: Container(
               color: const Color(0xFF1A1A1A),
-              child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
-              ),
+              child: const NovelBackground(),
             ),
           ),
 
@@ -94,28 +105,45 @@ class _MainMenuState extends State<MainMenu> {
               children: [
                 // Верхняя панель
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Левая часть: настройки и магазин
                       Row(
                         children: [
-                          IconButton( // Настройки
-                            icon: const Icon(Icons.settings, color: Color(0xFFD30010), size: 28),
+                          IconButton(
+                            // Настройки
+                            icon: const Icon(
+                              Icons.settings,
+                              color: Color(0xFFD30010),
+                              size: 28,
+                            ),
                             onPressed: withButtonSound(() {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                                MaterialPageRoute(
+                                  builder: (context) => const SettingsScreen(),
+                                ),
                               );
                             }),
                           ),
-                          IconButton( // Магазин
-                            icon: const Icon(Icons.shopping_cart, color: Color(0xFFD30010), size: 28),
+                          IconButton(
+                            // Магазин
+                            icon: const Icon(
+                              Icons.shopping_cart,
+                              color: Color(0xFFD30010),
+                              size: 28,
+                            ),
                             onPressed: withButtonSound(() {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const ShopScreen()),
+                                MaterialPageRoute(
+                                  builder: (context) => const ShopScreen(),
+                                ),
                               );
                             }),
                           ),
@@ -129,12 +157,19 @@ class _MainMenuState extends State<MainMenu> {
                       ),
 
                       // Правая часть: профиль
-                      IconButton( // Профиль
-                        icon: const Icon(Icons.person_outline, color: Color(0xFFD30010), size: 28),
+                      IconButton(
+                        // Профиль
+                        icon: const Icon(
+                          Icons.person_outline,
+                          color: Color(0xFFD30010),
+                          size: 28,
+                        ),
                         onPressed: withButtonSound(() {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                            MaterialPageRoute(
+                              builder: (context) => const ProfileScreen(),
+                            ),
                           );
                         }),
                       ),
@@ -144,106 +179,172 @@ class _MainMenuState extends State<MainMenu> {
 
                 // Основной блок с текстом и кнопками
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Логотип
-                        const Text(
-                          'КЛУБ\nРОМАНТИКИ',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 40,
-                            height: 1.1,
-                            fontWeight: FontWeight.w300,
-                            color: Color(0xFFD30010),
-                          ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
                         ),
-                        const SizedBox(height: 10),
-
-                        // Подзаголовок
-                        const Text(
-                          'Леди Баг и Супер-Кот',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 22,
-                            color: Color(0xFFFFA0A0),
-                            fontWeight: FontWeight.w300,
-                          ),
-                        ),
-
-                        const SizedBox(height: 60),
-
-                        // Кнопка играть
-                        SizedBox(
-                          width: 220,
-                          height: 60,
-                          child: ElevatedButton(
-                            onPressed: withButtonSound(() {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const EpisodeSelectScreen(),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 30),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Логотип
+                              const Text(
+                                'КЛУБ\nРОМАНТИКИ',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 40,
+                                  height: 1.1,
+                                  fontWeight: FontWeight.w300,
+                                  color: Color(0xFFD30010),
                                 ),
-                              );
-                            }),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFD30010),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
                               ),
-                              elevation: 0,
-                            ),
-                            child: const Text(
-                              'ИГРАТЬ',
-                              style: TextStyle(
-                                fontSize: 22,
-                                color: Color(0xFF3F0404),
-                                fontWeight: FontWeight.bold,
+                              const SizedBox(height: 10),
+
+                              // Подзаголовок
+                              Text(
+                                ActiveNovel.shared.current.title,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  color: Color(0xFFFFA0A0),
+                                  fontWeight: FontWeight.w300,
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
 
-                        const SizedBox(height: 20),
+                              const SizedBox(height: 60),
 
-                        // Кнопка разработчик (активна только для админа)
-                        SizedBox(
-                          width: 220,
-                          height: 60,
-                          child: ElevatedButton(
-                            onPressed: (_isLoading || !_isAdmin)
-                                ? null // Серая, неактивная
-                                : () {
+                              // Кнопка играть
+                              SizedBox(
+                                width: 220,
+                                height: 60,
+                                child: ElevatedButton(
+                                  onPressed: withButtonSound(() {
                                     Navigator.push(
                                       context,
-                                      MaterialPageRoute(builder: (context) => const ProgrammerScreen()),
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const EpisodeSelectScreen(),
+                                      ),
                                     );
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFD30010),
-                              // Серая для неактивной
-                              disabledBackgroundColor: const Color(0xFF534F50),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: Center(
-                              child: Text(
-                                _isAdmin ? 'разработчик' : 'разработчик (только админ)',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  color: Color(0xFF3F0404),
-                                  fontWeight: FontWeight.bold,
+                                  }),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFD30010),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child: const Text(
+                                    'ИГРАТЬ',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      color: Color(0xFF3F0404),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+
+                              const SizedBox(height: 20),
+
+                              // Кнопка разработчик (активна только для админа)
+                              SizedBox(
+                                width: 220,
+                                height: 60,
+                                child: ElevatedButton(
+                                  onPressed: withButtonSound(
+                                    (_isLoading || !_isAdmin)
+                                        ? null // Серая, неактивная
+                                        : () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const ProgrammerScreen(),
+                                              ),
+                                            );
+                                          },
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFD30010),
+                                    // Серая для неактивной
+                                    disabledBackgroundColor: const Color(
+                                      0xFF534F50,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _isAdmin
+                                          ? 'разработчик'
+                                          : 'разработчик (только админ)',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        color: Color(0xFF3F0404),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: withButtonSound(
+                                  () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const HiddenSceneAlbumScreen(),
+                                    ),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Альбом скрытых сцен',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: withButtonSound(
+                                  () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const DiaryScreen(),
+                                    ),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Мой дневник',
+                                  style: TextStyle(color: Color(0xFFFFA0A0)),
+                                ),
+                              ),
+                              // Выбор другой новеллы
+                              TextButton(
+                                onPressed: withButtonSound(() {
+                                  final navigator = Navigator.of(context);
+                                  navigator.pushAndRemoveUntil(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const NovelCatalogScreen(),
+                                    ),
+                                    (route) => false,
+                                  );
+                                }),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFFAAA0A0),
+                                ),
+                                child: const Text('Выбрать новеллу'),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

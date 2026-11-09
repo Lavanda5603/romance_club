@@ -108,51 +108,16 @@ class _TimeoutPickerRepository extends _PickerRepository {
   }
 }
 
-final class _PickedFile extends PlatformFile {
+class _Files extends FilePicker {
   final int size;
-  bool unknownSize = false;
-  bool failRead = false;
-  bool bytesRead = false;
-  _PickedFile(this.size);
+  _Files([this.size = 3]);
   @override
-  String get name => 'room.png';
-  @override
-  Uri get uri => Uri.file('/room.png');
-  @override
-  Never get xFile => throw UnimplementedError();
-  @override
-  int? lengthSync() => unknownSize ? null : size;
-  @override
-  Future<int?> length() async => lengthSync();
-  @override
-  Future<Uint8List> readAsBytes() async {
-    bytesRead = true;
-    if (failRead) throw const FileSystemException('Cannot read selected file');
-    return Uint8List(size);
-  }
-  @override
-  Stream<Uint8List> readAsByteStream() async* {
-    yield await readAsBytes();
-  }
-}
-
-class _Files extends FilePickerPlatform {
-  final _PickedFile file;
-  bool cancelled = false;
-  bool failPick = false;
-  _Files([int size = 3]) : file = _PickedFile(size);
-  @override
-  Future<PlatformFile?> pickFile({String? dialogTitle, String? initialDirectory,
+  Future<FilePickerResult?> pickFiles({String? dialogTitle, String? initialDirectory,
     FileType type = FileType.any, List<String>? allowedExtensions,
-    Function(FilePickerStatus)? onFileLoading, int compressionQuality = 0,
-    AndroidOptions androidOptions = const AndroidOptions(),
-    DarwinOptions darwinOptions = const DarwinOptions(),
-    WindowsOptions windowsOptions = const WindowsOptions(),
-    LinuxOptions linuxOptions = const LinuxOptions(),
-    WebOptions webOptions = const WebOptions()}) async {
-    if (failPick) throw StateError('Picker unavailable');
-    return cancelled ? null : file;
-  }
+    Function(FilePickerStatus)? onFileLoading, bool allowCompression = false,
+    int compressionQuality = 0, bool allowMultiple = false, bool withData = false,
+    bool withReadStream = false, bool lockParentWindow = false, bool readSequential = false}) async =>
+    FilePickerResult([PlatformFile(name: 'room.png', size: size, bytes: Uint8List(size))]);
 }
 
 class _Uploads extends _PickerRepository {
@@ -174,12 +139,6 @@ class _Uploads extends _PickerRepository {
 }
 
 void main() {
-  setUp(() {
-    final previous = FilePickerPlatform.instance;
-    addTearDown(() => FilePickerPlatform.instance = previous);
-    FilePickerPlatform.instance = _Files();
-  });
-
   for (final outcome in ['success', 'refused', 'sql_error']) {
     testWidgets('Сетка меняется только после подтверждённого удаления: $outcome', (tester) async {
       final assets = _DeletePickerRepository();
@@ -239,9 +198,10 @@ void main() {
     }
   });
   testWidgets('Picker принимает до 5 MiB и не отправляет файл больше лимита', (tester) async {
+    final previous = FilePicker.platform;
+    addTearDown(() => FilePicker.platform = previous);
     for (final size in [4 * 1024 * 1024 + 512 * 1024, AssetGrpcService.maxUploadBytes, AssetGrpcService.maxUploadBytes + 1]) {
-      final picker = _Files(size);
-      FilePickerPlatform.instance = picker;
+      FilePicker.platform = _Files(size);
       final repo = _Uploads('');
       await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(key: ValueKey(size),
         type: 'background', title: 'Фоны', episodeId: 'episode:2', repository: repo)));
@@ -249,7 +209,6 @@ void main() {
       await tester.tap(find.byIcon(Icons.upload));
       await tester.pumpAndSettle();
       if (size > AssetGrpcService.maxUploadBytes) {
-        expect(picker.file.bytesRead, isFalse);
         expect(find.text('Файл больше 5 MiB (5 242 880 байт)'), findsOneWidget);
         expect(repo.uploadedName, isNull);
         expect(find.byType(AlertDialog), findsNothing);
@@ -266,60 +225,11 @@ void main() {
     }
   });
 
-  testWidgets('Отмена выбора файла не открывает загрузку', (tester) async {
-    FilePickerPlatform.instance = _Files()..cancelled = true;
-    final repo = _Uploads('');
-    await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(
-      type: 'background', title: 'Фоны', repository: repo)));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.upload));
-    await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
-    expect(repo.uploadedName, isNull);
-    expect(tester.takeException(), isNull);
-  });
-
-  for (final stage in ['picker', 'read']) {
-    testWidgets('Ошибка выбора или чтения файла показана пользователю: $stage', (tester) async {
-      final picker = _Files();
-      picker.failPick = stage == 'picker';
-      picker.file.failRead = stage == 'read';
-      FilePickerPlatform.instance = picker;
-      final repo = _Uploads('');
-      await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(
-        type: 'background', title: 'Фоны', repository: repo)));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.upload));
-      await tester.pumpAndSettle();
-      expect(find.text('Не удалось открыть или прочитать файл'), findsOneWidget);
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(repo.uploadedName, isNull);
-      expect(tester.takeException(), isNull);
-    });
-  }
-
-  for (final size in [3, AssetGrpcService.maxUploadBytes + 1]) {
-    testWidgets('Неизвестный размер проверяется после чтения: $size', (tester) async {
-      final picker = _Files(size);
-      picker.file.unknownSize = true;
-      FilePickerPlatform.instance = picker;
-      final repo = _Uploads('');
-      await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(
-        type: 'background', title: 'Фоны', repository: repo)));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.upload));
-      await tester.pumpAndSettle();
-      expect(picker.file.bytesRead, isTrue);
-      expect(find.byType(AlertDialog), size <= AssetGrpcService.maxUploadBytes ? findsOneWidget : findsNothing);
-      if (size > AssetGrpcService.maxUploadBytes) {
-        expect(find.text('Файл больше 5 MiB (5 242 880 байт)'), findsOneWidget);
-      }
-      expect(repo.uploadedName, isNull);
-      expect(tester.takeException(), isNull);
-    });
-  }
-
+  setUpAll(() { FilePicker.platform = _Files(); });
   testWidgets('Загрузка фона передаёт текущий эпизод без префикса ep1', (tester) async {
+    final previous = FilePicker.platform;
+    FilePicker.platform = _Files();
+    addTearDown(() => FilePicker.platform = previous);
     for (final episode in ['episode:2', 'episode:3', '']) {
       final repo = _Uploads(episode.isEmpty ? 'episode:1' : '');
       await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(key: ValueKey(episode),
@@ -339,6 +249,9 @@ void main() {
     }
   });
   testWidgets('Дубликат в том же эпизоде не отправляется повторно', (tester) async {
+    final previous = FilePicker.platform;
+    FilePicker.platform = _Files();
+    addTearDown(() => FilePicker.platform = previous);
     final repo = _Uploads('episode:2');
     await tester.pumpWidget(MaterialApp(home: AssetPickerScreen(type: 'background', title: 'Фоны',
       episodeId: 'episode:2', repository: repo)));

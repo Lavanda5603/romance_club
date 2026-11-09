@@ -26,6 +26,7 @@ async fn snapshot(db:&Surreal<Client>) -> TestResult<Vec<Vec<Value>>> {
 }
 
 async fn scenarios(db:Surreal<Client>) -> TestResult<()> {
+    crate::request_auth::seed_test_admin(&db,"player:editor").await?;
     for admin_api in [false,true] {
         // Смешиваю числовые и строковые ключи, соседний эпизод должен остаться целым
         db.query("CREATE episode:1; CREATE episode:2;

@@ -93,6 +93,7 @@ const PurchaseRequest$json = {
     {'1': 'item_id', '3': 2, '4': 1, '5': 9, '10': 'itemId'},
     {'1': 'item_type', '3': 3, '4': 1, '5': 9, '10': 'itemType'},
     {'1': 'request_id', '3': 4, '4': 1, '5': 9, '10': 'requestId'},
+    {'1': 'expected_price', '3': 5, '4': 1, '5': 5, '10': 'expectedPrice'},
   ],
 };
 
@@ -100,7 +101,8 @@ const PurchaseRequest$json = {
 final $typed_data.Uint8List purchaseRequestDescriptor = $convert.base64Decode(
     'Cg9QdXJjaGFzZVJlcXVlc3QSGwoJcGxheWVyX2lkGAEgASgJUghwbGF5ZXJJZBIXCgdpdGVtX2'
     'lkGAIgASgJUgZpdGVtSWQSGwoJaXRlbV90eXBlGAMgASgJUghpdGVtVHlwZRIdCgpyZXF1ZXN0'
-    'X2lkGAQgASgJUglyZXF1ZXN0SWQ=');
+    'X2lkGAQgASgJUglyZXF1ZXN0SWQSJQoOZXhwZWN0ZWRfcHJpY2UYBSABKAVSDWV4cGVjdGVkUH'
+    'JpY2U=');
 
 @$core.Deprecated('Use purchaseResponseDescriptor instead')
 const PurchaseResponse$json = {

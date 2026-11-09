@@ -1,0 +1,29 @@
+syntax = "proto3"; // Подключаю формат сообщений
+package romance_club;
+import "episode.proto";
+
+message Novel {
+  string id = 1; // Постоянный ключ новеллы
+  string title = 2; // Название на карточке и главном экране
+  string cover_id = 3; // Обложка из библиотеки картинок
+  string background_id = 4; // Фон экранов этой новеллы
+  string music_id = 5; // Музыка из библиотеки звуков
+  string click_id = 6; // Звук кнопок
+  string config_json = 7; // Редактируемые отношения, скрытые сцены и финалы
+  int32 revision = 8; // Версия настроек
+}
+message NovelRequest { string novel_id = 1; }
+message ListNovelsRequest {}
+message ListNovelsResponse { repeated Novel novels = 1; }
+message CreateNovelEpisodeRequest { string novel_id = 1; string title = 2; }
+message UploadNovelAudioRequest { string novel_id = 1; string kind = 2; bytes data = 3; }
+message NovelAudioRequest { string novel_id = 1; string id = 2; }
+message NovelAudio { string id = 1; bytes data = 2; string hash = 3; }
+
+service NovelApi {
+  rpc ListNovels(ListNovelsRequest) returns (ListNovelsResponse);
+  rpc SaveNovel(Novel) returns (Novel);
+  rpc CreateNovelEpisode(CreateNovelEpisodeRequest) returns (Episode);
+  rpc UploadAudio(UploadNovelAudioRequest) returns (NovelAudio);
+  rpc GetAudio(NovelAudioRequest) returns (NovelAudio);
+}

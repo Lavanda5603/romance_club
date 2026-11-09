@@ -4,6 +4,7 @@ import 'dart:ui' as ui; // Импорт кодирования тестовой 
 import 'package:flutter/material.dart'; // Импорт игровых виджетов
 import 'package:flutter/services.dart'; // Импорт канала хранилища и байтов
 import 'package:flutter_test/flutter_test.dart'; // Импорт тестов Flutter
+import 'package:grpc/grpc.dart'; // Импорт ответа об отсутствующей картинке
 import 'package:romance_club/generated/episode.pb.dart'; // Импорт метаданных эпизода
 import 'package:romance_club/screens/game_screen.dart'; // Импорт игрового экрана
 import 'package:romance_club/services/session_store.dart'; // Импорт полной тестовой сессии
@@ -12,6 +13,8 @@ import 'package:romance_club/src/domain/models/asset_model.dart'; // Импор�
 import 'package:romance_club/src/domain/repositories/episode_repository.dart'; // Импорт загрузки эпизода
 import 'package:romance_club/src/domain/repositories/asset_repository.dart'; // Импорт загрузки картинок
 import 'package:romance_club/src/features/game/game_view_model.dart'; // Импорт игровой логики
+import 'package:romance_club/src/data/services/shop_grpc_service.dart'; // Импорт подмены оплаты
+import 'package:romance_club/generated/shop_api.pb.dart' as shop; // Импорт результата покупки
 
 class _Episodes implements EpisodeRepository {
   final calls = <int>[];
@@ -35,6 +38,7 @@ EpisodeModel story(int id) => EpisodeModel(id: id, title: 'Полный эпиз
 
 class _Assets implements AssetRepository {
   final Uint8List bytes;
+  bool missing = false; // Проверяю точную локальную копию при отсутствии файла на сервере
   final calls = <String>[];
   _Assets(this.bytes);
   @override
@@ -48,6 +52,7 @@ class _Assets implements AssetRepository {
     expect(targetWidth, greaterThan(0));
     expect(targetHeight, greaterThan(0));
     calls.add('$episodeId|$type|$name|$emotion');
+    if (missing) throw const GrpcError.notFound('Точной картинки нет в каталоге');
     return AssetModel(id: 'asset:$name', type: type, name: name, emotion: emotion,
       url: '', displayName: name, episodeId: episodeId, fileData: bytes);
   }
@@ -56,6 +61,20 @@ class _Assets implements AssetRepository {
   @override
   Future<AssetModel?> uploadAsset({required String type, required String name, required String emotion,
     required String displayName, required String episodeId, required Uint8List fileData, required String fileName}) async => null;
+}
+
+class _Shop extends ShopGrpcService {
+  int payments = 0;
+  bool success = true;
+  @override
+  Future<shop.GetPurchasesResponse> getPurchases(String playerId) async => shop.GetPurchasesResponse();
+  @override
+  Future<shop.PurchaseResponse> purchase({required String playerId, required String itemId, required String itemType,
+    String? requestId, int expectedPrice = 0}) async {
+    expect(expectedPrice,30);
+    payments++;
+    return shop.PurchaseResponse(success: success, message: success ? 'Готово' : 'Не хватает алмазов');
+  }
 }
 
 void main() {
@@ -87,6 +106,85 @@ void main() {
     }
   }
   Finder pictures() => find.byWidgetPredicate((widget) => widget is Image && widget.image is MemoryImage);
+
+  for (final enough in [true,false]) {
+    testWidgets('Платный выбор открываю только после подтверждения сервера: $enough', (tester) async {
+      final original = story(1);
+      final first = original.scenes.first;
+      final scenes = [SceneModel(id:first.id,sceneKey:first.sceneKey,title:first.title,background:first.background,
+        character:first.character,characterEmotion:first.characterEmotion,texts:['Разговор на крыше'],
+        choices:[ChoiceModel(text:'Остаться',title:'Разговор',diamondPrice:30,premiumKey:'choice:test',actions:[
+          const ActionModel(type:'nextScene',sceneId:0,sceneKey:'scene:12',flagName:'',flagValue:false,counterName:'',counterValue:0,soundPath:'',imagePath:'',title:'Переход'),
+        ])],condition:'',textPosition:'bottom_center',characterPosition:'center',nextSceneId:0),original.scenes.last];
+      final episodes = _Episodes()..pending=Completer<EpisodeModel>();
+      final vm = GameViewModel(episodes);
+      final payments = _Shop()..success=enough;
+      addTearDown(vm.dispose);
+      addTearDown(payments.close);
+      await tester.pumpWidget(MaterialApp(home:GameScreen(episode:Episode(id:1),viewModel:vm,assetRepository:_Assets(bytes),shopService:payments)));
+      episodes.pending!.complete(EpisodeModel(id:1,title:'Тест',version:1,scenes:scenes));
+      await drain(tester);
+      expect(find.text(' 30'),findsOneWidget);
+      await tester.tap(find.text('Остаться'));
+      await drain(tester);
+      expect(payments.payments,0);
+      expect(find.text('Особый выбор'),findsOneWidget);
+      await tester.tap(find.text('Открыть'));
+      await drain(tester);
+      expect(payments.payments,1);
+      expect(vm.currentScene!.sceneKey,enough ? 'scene:12' : first.sceneKey);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  testWidgets('Сообщение появляется только после выбора, без эффектов и повторов загрузки', (tester) async {
+    final source = story(1).scenes.first;
+    final scene = SceneModel(id: source.id, sceneKey: source.sceneKey, title: source.title,
+      background: source.background, character: source.character, characterEmotion: source.characterEmotion,
+      texts: ['Выбираю ответ'], choices: [ChoiceModel(text: 'Поддержать Алью', title: 'Поддержать', actions: [
+        const ActionModel(type: 'notification', sceneId: 0, flagName: 'should_not_change', flagValue: true,
+          counterName: 'points', counterValue: 100, soundPath: '', imagePath: '', title: 'Алья это запомнит'),
+      ])], condition: '', textPosition: 'bottom_center', characterPosition: 'center', nextSceneId: 0);
+    final episodes = _Episodes()..pending = Completer<EpisodeModel>();
+    final vm = GameViewModel(episodes);
+    addTearDown(vm.dispose);
+    await tester.pumpWidget(MaterialApp(home: GameScreen(episode: Episode(id: 1), viewModel: vm, assetRepository: _Assets(bytes))));
+    episodes.pending!.complete(EpisodeModel(id: 1, title: 'Тест', version: 1, scenes: [scene]));
+    await drain(tester);
+    expect(find.text('Алья это запомнит'), findsNothing);
+    await tester.tap(find.text('Поддержать Алью'));
+    await tester.pump();
+    expect(find.text('Алья это запомнит'), findsOneWidget);
+    expect(vm.points, 0);
+    expect(vm.flags['should_not_change'], isNull);
+    await tester.pump(const Duration(seconds: 4));
+    expect(find.text('Алья это запомнит'), findsNothing);
+    vm.notifyListeners();
+    await tester.pump();
+    expect(find.text('Алья это запомнит'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Точные локальные картинки пары и бегущей Маринетт доступны после NotFound', (tester) async {
+    final episode = story(1);
+    final first = episode.scenes.first;
+    final localStory = EpisodeModel(id: 1, title: episode.title, version: 1,
+      scenes: [SceneModel(id: first.id, sceneKey: first.sceneKey, title: first.title,
+        background: 'ep1/kiss_marinet_adrian', character: 'marinet', characterEmotion: 'running',
+        texts: first.texts, choices: [], condition: '', textPosition: first.textPosition,
+        characterPosition: first.characterPosition, nextSceneId: 0, nextSceneKey: '')]);
+    final episodes = _Episodes()..pending = Completer<EpisodeModel>();
+    final assets = _Assets(bytes)..missing = true;
+    final vm = GameViewModel(episodes);
+    addTearDown(vm.dispose);
+    await tester.pumpWidget(MaterialApp(home: GameScreen(episode: Episode(id: 1), viewModel: vm, assetRepository: assets)));
+    episodes.pending!.complete(localStory);
+    await drain(tester);
+    expect(assets.calls, ['episode:1|background|ep1/kiss_marinet_adrian|', 'episode:1|character|marinet|running']);
+    expect(pictures(), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('Пустые метаданные ждут полного эпизода, после загрузки видны обе картинки', (tester) async {
     final episodes = _Episodes()..pending = Completer<EpisodeModel>();

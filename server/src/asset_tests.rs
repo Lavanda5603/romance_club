@@ -1,5 +1,5 @@
 use super::*; // Подключаю код проверяемого сервиса
-use base64::{Engine as _, engine::general_purpose::STANDARD};
+use base64::{Engine as _, engine::general_purpose::STANDARD}; // Подключаю старый формат файлов для проверки переноса
 use crate::jwt::Claims; // Подключаю модули сервера
 use image::{DynamicImage, RgbaImage, Rgba, ImageFormat}; // Подключаю чтение и обработку картинок
 use std::{collections::HashSet, io::Cursor}; // Подключаю стандартные классы Rust
@@ -199,10 +199,8 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     db.query("CREATE asset:migrate CONTENT {type:'background',name:'legacy',url:'old',display_name:'Legacy',file_data:$file,preview_data:$preview,version:$version};")
         .bind(("file", STANDARD.encode(&legacy))).bind(("preview", STANDARD.encode(&thumb)))
         .bind(("version", version.clone())).await?.check()?;
-    for run in 1..=2 {
-        crate::migrations::test_query(&db, include_str!("../migrations/018_asset_bytes.surql"))
-            .await.map_err(|error| format!("Перенос байтов, запуск {run}: {error}"))?;
-    }
+    db.query(include_str!("../migrations/018_asset_bytes.surql")).await?.check()?;
+    db.query(include_str!("../migrations/018_asset_bytes.surql")).await?.check()?;
     let mut result = db.query("SELECT * FROM asset:migrate;").await?.check()?;
     let migrated: Option<AssetRow> = result.take(0)?;
     let migrated = migrated.unwrap();
@@ -216,6 +214,7 @@ async fn scenarios(db: Surreal<Client>) -> TestResult<()> {
     assert_eq!(result.take::<Vec<String>>(0)?, vec!["not-base64"]);
     db.query("DELETE asset:bad; DELETE asset:migrate;").await?.check()?;
     crate::apply_migrations(&db).await.map_err(|e| e.to_string())?;
+    crate::request_auth::seed_test_admin(&db,"player:test").await?;
     let original = picture(1);
     db.query("FOR $n IN 0..55 { CREATE type::record('asset', 'old_' + <string>$n) CONTENT {type:'background',name:'old_' + <string>$n,url:'test',display_name:'Same name',episode_id:(IF $n=54 {episode:2} ELSE {NONE}),file_data:$file}; };")
         .bind(("file", Bytes::from(original.clone()))).await?.check()?;
@@ -355,11 +354,17 @@ async fn backfill_scenarios(db: Surreal<Client>) -> TestResult<()> {
     }
     db.query("CREATE asset:broken CONTENT {type:'background',name:'broken',url:'bad.png',display_name:'Ошибка',file_data:$bytes}; CREATE asset:missing CONTENT {type:'character',name:'missing',url:'none.png',display_name:'Нет файла'};")
         .bind(("bytes",Bytes::from(b"broken".to_vec()))).await?.check()?;
+    // Старый сервер уже записал JPEG-превью персонажа: его тоже пересоздаю из оригинала
+    let mut old_preview=Cursor::new(Vec::new());
+    image::load_from_memory(&original)?.to_rgb8().write_to(&mut old_preview,ImageFormat::Jpeg)?;
+    db.query("CREATE asset:legacy_character CONTENT {type:'character',name:'legacy_character',url:'old.png',display_name:'Старый фон',file_data:$source,preview_data:$preview};")
+        .bind(("source",Bytes::from(original.clone()))).bind(("preview",Bytes::from(old_preview.into_inner())))
+        .await?.check()?;
     let api = AssetApiService::new(db.clone());
     api.backfill_previews().await?;
     let mut response = db.query("SELECT * FROM asset ORDER BY id;").await?.check()?;
     let rows: Vec<AssetRow> = response.take(0)?;
-    assert_eq!(rows.len(),27);
+    assert_eq!(rows.len(),28);
     for row in &rows {
         assert_eq!(row.preview_source_version,row.version);
         match row.name.as_str() {
@@ -373,6 +378,10 @@ async fn backfill_scenarios(db: Surreal<Client>) -> TestResult<()> {
                 let image = image::load_from_memory(preview)?;
                 assert!(image.width() <= 160 && image.height() <= 160);
                 assert_eq!(row.display_name,"Старый фон");
+                if row.name == "legacy_character" {
+                    assert_eq!(image::guess_format(preview)?,ImageFormat::Png);
+                    assert!(image.into_rgba8().pixels().any(|pixel|pixel.0[3] < 255));
+                }
             }
         }
     }
@@ -460,5 +469,34 @@ async fn grpc_upload_limits(db: Surreal<Client>) -> TestResult<()> {
     }.await;
     let _ = shutdown.send(());
     server.await??;
+    result
+}
+
+// Старый ассет без вариантов должен открываться без обработки во время игры.
+#[tokio::test]
+#[ignore = "Нужна локальная SurrealDB; использую отдельную тестовую БД"]
+async fn legacy_screen_returns_original_without_generating_variants() -> TestResult<()> {
+    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
+    db.signin(Root {username:std::env::var("SURREAL_USER")?,password:std::env::var("SURREAL_PASS")?}).await?;
+    let name = format!("legacy_screen_{}",uuid::Uuid::new_v4().simple());
+    db.use_ns("romance_club").await?;
+    db.query(format!("DEFINE DATABASE {name};")).await?.check()?;
+    db.use_db(&name).await?;
+    let result: TestResult<()> = async {
+        let bytes = picture(7);
+        db.query("CREATE asset:legacy CONTENT {type:'character',name:'miraculer',emotion:'normal',url:'test',display_name:'Миракулёр',version:'test-version',file_data:$bytes};")
+            .bind(("bytes", Bytes::from(bytes.clone()))).await?.check()?;
+        let api = AssetApiService::new(db.clone());
+        let response = api.get_asset(Request::new(GetAssetRequest {id:"asset:legacy".into(),variant:"screen".into(),target_width:1080,target_height:1920,..Default::default()})).await?.into_inner();
+        assert_eq!(response.file_data,bytes);
+        assert_eq!(response.variant,"original");
+        assert_eq!(response.mime,"image/png");
+        assert_eq!(response.version,"test-version");
+        let mut row = db.query("SELECT array::len(variants ?? []) AS count FROM asset:legacy;").await?.check()?;
+        let rows: Vec<Value> = row.take(0)?;
+        assert_eq!(rows[0]["count"],0);
+        Ok(())
+    }.await;
+    db.query(format!("REMOVE DATABASE {name};")).await?.check()?;
     result
 }

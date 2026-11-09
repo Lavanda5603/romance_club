@@ -1,13 +1,15 @@
 BEGIN TRANSACTION;
+IF !record::exists(type::record($novel_id)) { THROW 'NOVEL_NOT_FOUND'; };
 
 LET $episode = type::record('episode', $episode_id);
+IF record::exists($episode) AND ((SELECT VALUE novel_id FROM ONLY $episode) ?? novel:ladybug) != type::record($novel_id) { THROW 'EPISODE_OTHER_NOVEL'; };
 
 -- Не оставляю сохранённый прогресс со ссылкой на удалённую сцену
 LET $removed_scenes = (SELECT VALUE id FROM scene WHERE episode_id = $episode AND <string>id NOT IN $scene_keys);
 IF array::len((SELECT VALUE id FROM progress WHERE scene_id IN $removed_scenes LIMIT 1)) > 0 {
     THROW "SCENE_HAS_PROGRESS";
 };
-UPSERT $episode MERGE { title: $title, version: $version, updated_at: time::now() };
+UPSERT $episode MERGE { title: $title, version: $version, novel_id:type::record($novel_id), updated_at: time::now() };
 
 LET $old_scenes = (SELECT VALUE id FROM scene WHERE episode_id = $episode);
 LET $old_choices = (SELECT VALUE id FROM choice WHERE scene_id IN $old_scenes);
@@ -17,10 +19,10 @@ DELETE choice WHERE scene_id IN $old_scenes;
 FOR $scene IN $scenes {
     LET $scene_id = type::record($scene.key);
     LET $data = {
-        episode_id: $episode, title: $scene.title,
+        episode_id: $episode, title: $scene.title, premium_key: $scene.premium_key,
         background: $scene.background, character: $scene.character,
         character_emotion: $scene.character_emotion, texts: $scene.texts,
-        condition: $scene.condition, text_position: $scene.text_position,
+        condition: $scene.condition, routes: $scene.routes, text_position: $scene.text_position,
         character_position: $scene.character_position,
         order_index: $scene.order_index, next_scene_id: $scene.next_scene_id,
         next_scene_key: $scene.next_scene_key
@@ -31,10 +33,12 @@ FOR $scene IN $scenes {
         UPDATE $scene_id MERGE $data;
     };
     FOR $choice IN $scene.choices {
+        IF $choice.diamond_price > 0 AND array::len(SELECT VALUE id FROM choice WHERE premium_key = $choice.premium_key AND diamond_price > 0) > 0 { THROW 'PREMIUM_KEY_DUPLICATE'; };
         LET $choice_id = type::record('choice', rand::ulid());
         CREATE $choice_id CONTENT {
             scene_id: $scene_id, text: $choice.text,
-            title: $choice.title, order_index: $choice.order_index
+            title: $choice.title, order_index: $choice.order_index,
+            diamond_price: $choice.diamond_price, premium_key: $choice.premium_key
         };
         FOR $action IN $choice.actions {
             CREATE action CONTENT {

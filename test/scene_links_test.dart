@@ -1,3 +1,4 @@
+import 'dart:convert'; // Импорт чтения правил из миграции
 import 'package:romance_club/services/session_store.dart'; // Импорт тестовой сессии
 import 'package:romance_club/src/domain/repositories/achievement_repository.dart'; // Импорт интерфейса репозитория достижений
 import 'package:romance_club/src/domain/models/achievement_model.dart'; // Импорт модели достижений
@@ -30,6 +31,14 @@ class _Episodes implements EpisodeRepository {
   Future<List<EpisodeModel>> getAllEpisodes() async => [episode];
   @override
   Future<bool> saveEpisode(EpisodeModel episode) async => true;
+}
+
+// Подменяю каталог сезона, чтобы проверить перенос между эпизодами.
+class _Season extends _Episodes {
+  final List<EpisodeModel> season;
+  _Season(super.episode, this.season);
+  @override
+  Future<List<EpisodeModel>> getAllEpisodes() async => season;
 }
 
 class _Progress implements ProgressRepository {
@@ -118,6 +127,135 @@ void main() {
     Scene(sceneKey: 'scene:branch', orderIndex: 1, title: 'Ветка', texts: ['Ветка'], nextSceneKey: 'scene:ending'),
     Scene(sceneKey: 'scene:ending', orderIndex: 2, title: 'Конец', texts: ['Конец']),
   ]);
+
+  test('Сохраняю новые счётчики и использую правила без привязки к ID', () async {
+    final proto = story();
+    proto.scenes[0].choices[0].actions.clear();
+    proto.scenes[0].choices[0].actions.addAll([
+      Action(type: 'changeCounter', counterName: 'my_score', counterValue: 7),
+      Action(type: 'nextScene', sceneKey: 'scene:branch', flagName: 'met', flagValue: true),
+    ]);
+    proto.scenes[1].routes.add(SceneRoute(condition: 'my_score>=7 И flag:met=true', sceneKey: 'scene:ending'));
+    final mapped = mapper.toDomain(proto);
+    expect(mapper.toProto(mapped).scenes[1].routes, proto.scenes[1].routes);
+    final progress = _Progress();
+    final vm = GameViewModel(_Episodes(mapped), progress);
+    await vm.loadEpisode(1);
+    vm.onChoiceSelected(0);
+    await vm.flushProgress();
+    expect(progress.saved.counters['my_score'], 7);
+    expect(vm.currentScene!.sceneKey, 'scene:branch');
+    vm.dispose();
+    final restored = GameViewModel(_Episodes(mapped), progress);
+    await restored.loadEpisode(1);
+    expect(restored.counters['my_score'], 7);
+    restored.nextScene();
+    await restored.flushProgress();
+    expect(restored.currentScene!.sceneKey, 'scene:ending');
+    restored.dispose();
+  });
+
+  for (final score in [0, 10]) {
+    test('Условный переход: первый совпавший, иначе обычный, баллы=$score', () async {
+      final proto = story();
+      proto.scenes[0].routes.addAll([
+        SceneRoute(condition: 'friendship>=5', sceneKey: 'scene:ending'),
+        SceneRoute(condition: 'friendship>=5', sceneKey: 'scene:200'),
+      ]);
+      final progress = _Progress()..saved = ProgressModel(playerId:'player:1',episodeId:1,
+        sceneId:'scene:200',flags:{},counters:{'friendship':score});
+      final vm = GameViewModel(_Episodes(mapper.toDomain(proto)),progress);
+      await vm.loadEpisode(1);
+      expect(vm.isLastScene,isFalse);
+      vm.nextScene();
+      expect(vm.currentScene!.sceneKey,score == 0 ? 'scene:branch' : 'scene:ending');
+      await vm.flushProgress();
+      vm.dispose();
+    });
+  }
+
+  test('Неверное условие останавливает загрузку до сохранения прогресса', () async {
+    final proto=story();
+    proto.scenes[1].condition='friendship=>5';
+    final progress=_Progress();
+    final vm=GameViewModel(_Episodes(mapper.toDomain(proto)),progress);
+    await vm.loadEpisode(1,startFromBeginning:true);
+    expect(vm.state.error,contains('Сцена'));
+    expect(progress.writes,isEmpty);
+    vm.dispose();
+  });
+
+  testWidgets('В редакторе добавляю условный переход и отклоняю ошибку выражения', (tester) async {
+    final proto=story();
+    Scene? saved;
+    await tester.pumpWidget(MaterialApp(home: SceneEditorScreen(scene:proto.scenes[0],allScenes:proto.scenes,onSave:(value)=>saved=value)));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Добавить условный переход'));
+    await tester.tap(find.text('Добавить условный переход'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first,'friendship=>5');
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Конец').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Применить'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog),findsOneWidget);
+    expect(saved,isNull);
+    await tester.enterText(find.byType(TextFormField).first,'friendship>=5 И flag:met=true');
+    await tester.tap(find.text('Применить'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog),findsNothing);
+    expect(find.text('friendship>=5 И flag:met=true'),findsOneWidget);
+    expect(proto.scenes[0].routes,isEmpty);
+    final save=find.widgetWithText(ElevatedButton,'сохранить');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(saved!.routes.single.sceneKey,'scene:ending');
+    expect(saved!.routes.single.condition,'friendship>=5 И flag:met=true');
+    expect(tester.takeException(),isNull);
+  });
+
+  test('Перезапуск пропускает закрытую начальную сцену до записи прогресса', () async {
+    final proto=story();
+    proto.scenes.first.condition='friendship>=1';
+    final progress=_Progress();
+    final vm=GameViewModel(_Episodes(mapper.toDomain(proto)),progress);
+    await vm.loadEpisode(1,startFromBeginning:true);
+    expect(vm.currentScene!.sceneKey,'scene:branch');
+    expect(progress.saved.sceneId,'scene:branch');
+    vm.dispose();
+  });
+
+  test('Отсутствие доступной сцены не открывает запрещённую концовку', () async {
+    final proto=Episode(id:1,title:'Закрытый эпизод',scenes:[Scene(sceneKey:'scene:only',title:'Закрытая',condition:'points>10')]);
+    final progress=_Progress();
+    final vm=GameViewModel(_Episodes(mapper.toDomain(proto)),progress);
+    await vm.loadEpisode(1,startFromBeginning:true);
+    expect(vm.currentScene,isNull);
+    expect(vm.state.error,contains('Нет доступной сцены'));
+    expect(progress.writes,isEmpty);
+    vm.dispose();
+  });
+
+  testWidgets('Редактор баллов отклоняет текст и принимает отрицательное целое', (tester) async {
+    Action? saved;
+    await tester.pumpWidget(MaterialApp(home: ActionEditorScreen(
+      action:Action(type:'changeCounter',counterName:'trust',counterValue:1),
+      defaultTitle:'Баллы',onSave:(value)=>saved=value)));
+    await tester.enterText(find.byType(TextField).last,'abc');
+    await tester.tap(find.widgetWithText(ElevatedButton,'сохранить'));
+    await tester.pumpAndSettle();
+    expect(saved,isNull);
+    expect(find.textContaining('целое количество баллов'),findsOneWidget);
+    await tester.enterText(find.byType(TextField).last,'-2');
+    await tester.tap(find.widgetWithText(ElevatedButton,'сохранить'));
+    await tester.pumpAndSettle();
+    expect(saved!.counterName,'trust');
+    expect(saved!.counterValue,-2);
+    expect(tester.takeException(),isNull);
+  });
 
   test('При потере сессии не загружаю игру от имени player:1', () async {
     await SessionStore.shared.clear();
@@ -772,6 +910,85 @@ void main() {
     expect(vm.progressSceneMissing, isFalse);
     expect(progress.saved.sceneId, 'scene:200');
     expect(progress.saved.counters['points'], 0);
+  });
+
+  test('Новый эпизод наследует один итог, продолжение и перезапуск не удваивают баллы', () async {
+    final one = mapper.toDomain(story());
+    final proto = story()..id = 2;
+    final two = mapper.toDomain(proto);
+    final progress = _EpisodeProgress();
+    progress.records[1] = const ProgressModel(playerId: 'player:1', episodeId: 1,
+      sceneId: 'scene:ending', completed: true, flags: {'met': true},
+      counters: {'romance_luka': 4, 'friendship_alya': 2, 'points': 7});
+    final vm = GameViewModel(_Season(two, [one, two]), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(2, startFromBeginning: true);
+    expect(vm.counters['romance_luka'], 4);
+    expect(vm.flags['met'], true);
+    expect(vm.points, 7);
+    vm.counters['romance_luka'] = 9;
+    await vm.loadEpisode(2, startFromBeginning: true);
+    expect(vm.counters['romance_luka'], 4);
+    await vm.loadEpisode(2);
+    expect(vm.counters['romance_luka'], 4);
+    expect(progress.records[1]!.counters['romance_luka'], 4);
+  });
+
+  test('После полного сброса не наследую старое поколение сезона', () async {
+    final one = mapper.toDomain(story());
+    final two = mapper.toDomain(story()..id = 2);
+    final progress = _EpisodeProgress();
+    progress.records[1] = const ProgressModel(playerId: 'player:1', episodeId: 1,
+      sceneId: 'scene:ending', completed: true, flags: {}, counters: {'romance_luka': 9});
+    progress.records[2] = const ProgressModel(playerId: 'player:1', episodeId: 2,
+      sceneId: '', generation: 1, flags: {}, counters: {});
+    final vm = GameViewModel(_Season(two, [one, two]), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(2);
+    expect(vm.counters['romance_luka'], 0);
+  });
+
+  test('Завершение первого эпизода не выдаёт финальную романтическую концовку', () async {
+    final progress = _Progress();
+    final vm = GameViewModel(_Episodes(mapper.toDomain(story())), progress);
+    addTearDown(vm.dispose);
+    await vm.loadEpisode(1);
+    vm.goToSceneKey('scene:ending');
+    expect(await vm.completeEpisode(), true);
+    expect(progress.saved.completed, true);
+    expect(progress.saved.ending, isEmpty);
+  });
+
+  test('Правила из реальной миграции ведут к пяти правильным парам и двум особым финалам', () async {
+    final sql = File('server/migrations/027_story_scoring.surql').readAsStringSync();
+    final rules = jsonDecode(RegExp(r'UPDATE scene:307 SET routes=(.*?) WHERE').firstMatch(sql)!.group(1)!) as List;
+    final routes = rules.map((r) => SceneRoute(condition: r['condition'], sceneKey: r['scene_key'])).toList();
+    final cases = <(Map<String, int>, String, String)>[
+      ({'romance_adrian': 5}, 'scene:308', 'МариАдриан'),
+      ({'romance_cat': 5}, 'scene:328', 'МариКот'),
+      ({'romance_luka': 5}, 'scene:320', 'Лука'),
+      ({'romance_ladybug_adrian': 5}, 'scene:334', 'АдриБаг'),
+      ({'romance_ladybug_cat': 5}, 'scene:314', 'СуперБаг'),
+      ({}, 'scene:338', 'Выбираю себя'),
+      ({'romance_cat': -1}, 'scene:308', 'МариАдриан'),
+      ({'friendship_alya': 2, 'friendship_nino': 2, 'friendship_kagami': 2, 'friendship_chloe': 2}, 'scene:338', 'Команда вместе'),
+    ];
+    for (final (counters, target, ending) in cases) {
+      final episode = Episode(id: 5, scenes: [
+        Scene(sceneKey: 'scene:307', texts: ['Развилка'], routes: routes, nextSceneKey: 'scene:308'),
+        for (final key in ['scene:308','scene:328','scene:320','scene:334','scene:314','scene:338'])
+          Scene(sceneKey: key, texts: ['Финал']),
+      ]);
+      final progress = _Progress()..saved = ProgressModel(playerId: 'player:1', episodeId: 5,
+        sceneId: 'scene:307', flags: {}, counters: counters);
+      final vm = GameViewModel(_Episodes(mapper.toDomain(episode)), progress);
+      await vm.loadEpisode(5);
+      vm.nextScene();
+      expect(vm.currentScene!.sceneKey, target, reason: ending);
+      expect(vm.determineEnding(), ending);
+      await vm.flushProgress();
+      vm.dispose();
+    }
   });
 
 }

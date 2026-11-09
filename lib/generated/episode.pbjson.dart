@@ -30,6 +30,7 @@ const Episode$json = {
       '10': 'scenes'
     },
     {'1': 'version', '3': 4, '4': 1, '5': 5, '10': 'version'},
+    {'1': 'novel_id', '3': 5, '4': 1, '5': 9, '10': 'novelId'},
   ],
 };
 
@@ -37,4 +38,4 @@ const Episode$json = {
 final $typed_data.Uint8List episodeDescriptor = $convert.base64Decode(
     'CgdFcGlzb2RlEg4KAmlkGAEgASgFUgJpZBIUCgV0aXRsZRgCIAEoCVIFdGl0bGUSKwoGc2Nlbm'
     'VzGAMgAygLMhMucm9tYW5jZV9jbHViLlNjZW5lUgZzY2VuZXMSGAoHdmVyc2lvbhgEIAEoBVIH'
-    'dmVyc2lvbg==');
+    'dmVyc2lvbhIZCghub3ZlbF9pZBgFIAEoCVIHbm92ZWxJZA==');

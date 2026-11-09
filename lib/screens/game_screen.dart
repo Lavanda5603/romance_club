@@ -1,7 +1,18 @@
+import '../services/active_novel.dart'; // Импорт правил именования выбранной истории
+import '../widgets/consequence_notice.dart'; // Импорт реакции после выбора
+import '../src/data/services/shop_grpc_service.dart'; // Импорт подтверждения оплаты на сервере
+import '../services/storage_service.dart'; // Импорт владельца покупки
+import '../src/domain/models/episode_model.dart'; // Импорт модели платного выбора
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
+
 import 'package:grpc/grpc.dart'; // Импорт для gRPC-запросов
+
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+
 import 'package:flutter/material.dart'; // Импорт Material UI
+
 import 'dart:typed_data'; // Импорт Uint8List
+
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../src/data/repositories/episode_repository_remote.dart'; // Импорт репозитория эпизодов
 import '../src/data/repositories/progress_repository_remote.dart'; // Импорт репозитория прогресса
@@ -15,10 +26,16 @@ import '../src/features/game/game_view_model.dart'; // Импорт ViewModel
 import '../src/domain/repositories/asset_repository.dart'; // Импорт интерфейса репозитория ассетов
 import 'episode_end_screen.dart'; // Импорт экрана конца эпизода
 
+import 'package:flutter/services.dart'
+    show rootBundle; // Импорт точных картинок из ресурсов приложения
+
+import '../src/core/ending_art.dart'; // Импорт соответствий картинок концовок
+
 // Игровой экран
 class GameScreen extends StatefulWidget {
   final AssetRepository? assetRepository;
   final GameViewModel? viewModel;
+  final ShopGrpcService? shopService; // Подменяю только оплату в проверках
   final Episode episode; // Эпизод (Protobuf)
   final bool startFromBeginning;
 
@@ -28,6 +45,7 @@ class GameScreen extends StatefulWidget {
     required this.episode,
     this.assetRepository,
     this.viewModel,
+    this.shopService,
     this.startFromBeginning = false,
   });
 
@@ -36,6 +54,124 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
+  late final ShopGrpcService _shop; // Не списываю баланс локально
+  bool _buyingChoice = false;
+  final _ownedChoices = <String>{}; // Подтверждённые покупки текущего экрана
+
+  Future<void> _choose(int index, ChoiceModel choice) async {
+    if (_buyingChoice ||
+        _leaving ||
+        _finishingEpisode ||
+        _viewModel.saveError != null) {
+      return;
+    }
+    final choices = _viewModel.currentScene?.choices;
+    if (choices == null ||
+        index < 0 ||
+        index >= choices.length ||
+        !identical(choices[index], choice)) {
+      return;
+    }
+    final sceneKey = _viewModel.currentScene?.sceneKey;
+    if (choice.diamondPrice > 0) {
+      if (!_viewModel.canOpenPaidChoice(choice)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Условия этой сцены пока не выполнены. Алмазы не списаны.',
+            ),
+          ),
+        );
+        return;
+      }
+      setState(() => _buyingChoice = true);
+      try {
+        final player = await StorageService.loadPlayerId();
+        if (player.isEmpty) throw StateError('Сначала войди в аккаунт');
+        final purchases = await _shop.getPurchases(player);
+        if (!mounted) return;
+        final owned = purchases.purchases.any(
+          (p) =>
+              p.itemId == choice.premiumKey &&
+              p.itemType == 'choice' &&
+              p.entitlementActive,
+        );
+        if (!owned) {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF3F0404),
+              title: const Text(
+                'Особый выбор',
+                style: TextStyle(color: Color(0xFFFFA0A0)),
+              ),
+              content: Text(
+                'Открыть этот выбор за ${choice.diamondPrice} алмазов? Покупка останется при переигрывании.',
+                style: const TextStyle(color: Colors.white),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: withButtonSound(
+                    () => Navigator.pop(context, false),
+                  ),
+                  child: const Text(
+                    'Отмена',
+                    style: TextStyle(color: Color(0xFFFFA0A0)),
+                  ),
+                ),
+                TextButton(
+                  onPressed: withButtonSound(
+                    () => Navigator.pop(context, true),
+                  ),
+                  child: const Text(
+                    'Открыть',
+                    style: TextStyle(color: Color(0xFFFFA0A0)),
+                  ),
+                ),
+              ],
+            ),
+          );
+          if (confirmed != true || !mounted) return;
+        }
+        // Повтор покупки возвращает подтверждённое право без нового списания.
+        final paid = await _shop.purchase(
+          playerId: player,
+          itemId: choice.premiumKey,
+          itemType: 'choice',
+          expectedPrice: choice.diamondPrice,
+        );
+        if (!mounted) return;
+        if (!paid.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${paid.message}. Можно выбрать бесплатное продолжение или пополнить алмазы в магазине.',
+              ),
+            ),
+          );
+          return;
+        }
+        _ownedChoices.add(choice.premiumKey);
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(networkError(error))));
+        }
+        return;
+      } finally {
+        if (mounted) setState(() => _buyingChoice = false);
+      }
+    }
+    if (!mounted || _viewModel.currentScene?.sceneKey != sceneKey) return;
+    final current = _viewModel.currentScene!.choices;
+    if (index >= current.length || !identical(current[index], choice)) return;
+    final notices = choice.actions.where((a) => a.type == 'notification');
+    _viewModel.onChoiceSelected(index);
+    _consequence.show(context, notices.isEmpty ? '' : notices.first.title);
+  }
+
+  final _consequence =
+      ConsequenceNotice(); // Не сохраняю уведомления между запусками
   late GameViewModel _viewModel; // ViewModel
   late EpisodeGrpcService _episodeService; // gRPC-сервис эпизодов
   late ProgressGrpcService _progressService; // gRPC-сервис прогресса
@@ -43,7 +179,8 @@ class _GameScreenState extends State<GameScreen> {
   late AssetGrpcService _assetService; // gRPC-сервис ассетов
   late EpisodeRepositoryRemote _episodeRepository; // Репозиторий эпизодов
   late ProgressRepositoryRemote _progressRepository; // Репозиторий прогресса
-  late AchievementRepositoryRemote _achievementRepository; // Репозиторий достижений
+  late AchievementRepositoryRemote
+  _achievementRepository; // Репозиторий достижений
   late AssetRepository _assetRepository; // Репозиторий ассетов
 
   // Кэш картинок
@@ -59,12 +196,14 @@ class _GameScreenState extends State<GameScreen> {
 
   // Перед выходом дожидаюсь последнего сохранения
   Future<void> _leaveGame() async {
+    if (_buyingChoice) return;
     if (_leaving) return;
     _leaving = true;
     await _viewModel.flushProgress();
     if (!mounted) return;
     if (_viewModel.saveError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_viewModel.saveError!)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_viewModel.saveError!)));
     }
     setState(() => _allowPop = true);
     await WidgetsBinding.instance.endOfFrame;
@@ -74,6 +213,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    _shop = widget.shopService ?? ShopGrpcService();
     _episodeService = EpisodeGrpcService();
     _progressService = ProgressGrpcService();
     _achievementService = AchievementGrpcService();
@@ -81,15 +221,27 @@ class _GameScreenState extends State<GameScreen> {
     _episodeRepository = EpisodeRepositoryRemote(_episodeService);
     _progressRepository = ProgressRepositoryRemote(_progressService);
     _achievementRepository = AchievementRepositoryRemote(_achievementService);
-    _assetRepository = widget.assetRepository ?? AssetRepositoryRemote(_assetService);
-    _viewModel = widget.viewModel ?? GameViewModel(_episodeRepository, _progressRepository, _achievementRepository);
+    _assetRepository =
+        widget.assetRepository ?? AssetRepositoryRemote(_assetService);
+    _viewModel =
+        widget.viewModel ??
+        GameViewModel(
+          _episodeRepository,
+          _progressRepository,
+          _achievementRepository,
+        );
     _viewModel.addListener(_loadAssets);
-    _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
+    _viewModel.loadEpisode(
+      widget.episode.id,
+      startFromBeginning: widget.startFromBeginning,
+    );
     _loadAssets();
   }
 
   @override
   void dispose() {
+    if (widget.shopService == null) _shop.close();
+    _consequence.hide();
     _viewModel.removeListener(_loadAssets);
     _episodeService.close();
     _viewModel.flushProgress().then((_) => _progressService.close());
@@ -106,24 +258,54 @@ class _GameScreenState extends State<GameScreen> {
       if (!_viewModel.state.isLoading) _assetsLoaded = true;
       return;
     }
-    final key = '${scene.sceneKey}|${scene.background}|${scene.character}|${scene.characterEmotion}';
+    final key =
+        '${scene.sceneKey}|${scene.background}|${scene.character}|${scene.characterEmotion}';
     if (_assetScene == key) return;
     _assetScene = key;
     _assetsLoaded = false;
     String? error;
     Future<Uint8List?> load(String type, String name, String emotion) async {
       if (name.isEmpty) return null;
+      // Локальная копия нужна только при отсутствии точной картинки на сервере.
+      final local = type == 'background'
+          ? endingSceneArtwork(name)
+          : name == 'marinet' && emotion == 'running'
+          ? 'assets/characters/marinet_running.png'
+          : null;
       try {
-        return (await _assetRepository.getAsset(type: type, name: name, emotion: emotion,
-          episodeId: 'episode:${widget.episode.id}', variant: 'screen',
+        return (await _assetRepository.getAsset(
+          type: type,
+          name: name,
+          emotion: emotion,
+          episodeId: 'episode:${widget.episode.id}',
+          variant: 'screen',
           targetWidth: View.of(context).physicalSize.width.ceil(),
-          targetHeight: View.of(context).physicalSize.height.ceil())).fileData;
+          targetHeight: View.of(context).physicalSize.height.ceil(),
+        )).fileData;
       } catch (e) {
-        if (e is GrpcError && (e.code == StatusCode.deadlineExceeded || e.code == StatusCode.unavailable)) error = networkError(e);
+        if (local != null && e is GrpcError && e.code == StatusCode.notFound) {
+          try {
+            final bytes = await rootBundle.load(local);
+            return bytes.buffer.asUint8List(
+              bytes.offsetInBytes,
+              bytes.lengthInBytes,
+            );
+          } catch (localError) {
+            debugPrint(
+              'Не удалось прочитать точную локальную картинку: $localError',
+            );
+          }
+        }
+        if (e is GrpcError &&
+            (e.code == StatusCode.deadlineExceeded ||
+                e.code == StatusCode.unavailable)) {
+          error = networkError(e);
+        }
         debugPrint('Ошибка загрузки картинки сцены: $e');
         return null;
       }
     }
+
     final images = await Future.wait([
       load('background', scene.background, ''),
       load('character', scene.character, scene.characterEmotion),
@@ -134,7 +316,9 @@ class _GameScreenState extends State<GameScreen> {
       _backgroundsCache.clear();
       _charactersCache.clear();
       if (images[0] != null) _backgroundsCache[scene.background] = images[0]!;
-      final charKey = scene.characterEmotion.isEmpty ? scene.character : '${scene.character}_${scene.characterEmotion}';
+      final charKey = scene.characterEmotion.isEmpty
+          ? scene.character
+          : '${scene.character}_${scene.characterEmotion}';
       if (images[1] != null) _charactersCache[charKey] = images[1]!;
       _assetsLoaded = true;
     });
@@ -143,20 +327,29 @@ class _GameScreenState extends State<GameScreen> {
   // Получаю Alignment для позиции
   Alignment _getAlignment(String position) {
     switch (position) {
-      case 'top_left': return Alignment.topLeft;
+      case 'top_left':
+        return Alignment.topLeft;
       case 'top_center':
-      case 'top': return Alignment.topCenter;
-      case 'top_right': return Alignment.topRight;
+      case 'top':
+        return Alignment.topCenter;
+      case 'top_right':
+        return Alignment.topRight;
       case 'center_left':
-      case 'left': return Alignment.centerLeft;
+      case 'left':
+        return Alignment.centerLeft;
       case 'center_right':
-      case 'right': return Alignment.centerRight;
-      case 'bottom_left': return Alignment.bottomLeft;
+      case 'right':
+        return Alignment.centerRight;
+      case 'bottom_left':
+        return Alignment.bottomLeft;
       case 'bottom_center':
-      case 'bottom': return Alignment.bottomCenter;
-      case 'bottom_right': return Alignment.bottomRight;
+      case 'bottom':
+        return Alignment.bottomCenter;
+      case 'bottom_right':
+        return Alignment.bottomRight;
       case 'center':
-      default: return Alignment.center;
+      default:
+        return Alignment.center;
     }
   }
 
@@ -178,7 +371,9 @@ class _GameScreenState extends State<GameScreen> {
 
   Uint8List? _getCharacterBytes(String character, String emotion) {
     if (character.isEmpty) return null;
-    final keyWithEmotion = emotion.isEmpty ? character : '${character}_$emotion';
+    final keyWithEmotion = emotion.isEmpty
+        ? character
+        : '${character}_$emotion';
     if (_charactersCache.containsKey(keyWithEmotion)) {
       return _charactersCache[keyWithEmotion];
     }
@@ -186,15 +381,59 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   String _getCharacterName(String character) {
+    if (!ActiveNovel.shared.legacyRules) return character;
     switch (character) {
-      case 'marinet': return 'Маринетт';
-      case 'adrian': return 'Адриан';
-      case 'cat': return 'Супер-Кот';
-      case 'ladybug': return 'Леди Баг';
-      case 'luka': return 'Лука';
-      case 'mama': return 'Мама';
-      case 'grandpa': return 'Дедушка';
-      default: return character;
+      case 'marinet':
+        return 'Маринетт';
+      case 'adrian':
+        return 'Адриан';
+      case 'catnoir':
+      case 'cat':
+        return 'Супер-Кот';
+      case 'ladybug':
+        return 'Леди Баг';
+      case 'luka':
+        return 'Лука';
+      case 'mama':
+        return 'Мама';
+      case 'grandpa':
+        return 'Дедушка';
+      case 'tikki':
+        return 'Тикки';
+      case 'fu':
+        return 'Мастер Фу';
+      case 'alya':
+        return 'Алья';
+      case 'chloe':
+        return 'Хлоя';
+      case 'nino':
+        return 'Нино';
+      case 'kagami':
+        return 'Кагами';
+      case 'stone_heart':
+        return 'Каменное Сердце';
+      case 'hawkmoth':
+        return 'Бражник';
+      case 'kalin':
+        return 'Калин';
+      case 'miraculer':
+        return 'Миракулер';
+      case 'renarouge':
+        return 'Рена Руж';
+      case 'carapace':
+        return 'Карапас';
+      case 'ryuko':
+        return 'Рюко';
+      case 'viperion':
+        return 'Виперион';
+      case 'queenbee':
+        return 'Квин Би';
+      case 'audrey':
+        return 'Одри';
+      case 'gabriel':
+        return 'Габриэль';
+      default:
+        return character;
     }
   }
 
@@ -206,378 +445,466 @@ class _GameScreenState extends State<GameScreen> {
         if (!didPop) _leaveGame();
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
-      body: ListenableBuilder(
-        listenable: _viewModel,
-        builder: (context, _) {
-          final state = _viewModel.state;
-          if (_viewModel.saveError != null) {
-            return Center(child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(_viewModel.saveError!, style: const TextStyle(color: Colors.red)),
-                ElevatedButton(
-                  onPressed: () => _viewModel.loadEpisode(widget.episode.id),
-                  child: const Text('Загрузить сохранённый прогресс'),
-                ),
-              ]),
-            ));
-          }
-
-          if (state.isLoading || !_assetsLoaded) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state.error != null || _assetError != null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Ошибка: ${state.error ?? _assetError}', style: const TextStyle(color: Colors.red)),
-                    if (!_viewModel.progressSceneMissing)
-                      TextButton(onPressed: () {
-                        if (state.error != null) {
-                          _viewModel.loadEpisode(widget.episode.id, startFromBeginning: widget.startFromBeginning);
-                        } else {
-                          setState(() { _assetScene = ''; _assetError = null; });
-                          _loadAssets();
-                        }
-                      }, child: const Text('Повторить')),
-                    if (_viewModel.progressSceneMissing) ...[
-                      const SizedBox(height: 16),
+        backgroundColor: const Color(0xFF1A1A1A),
+        body: ListenableBuilder(
+          listenable: _viewModel,
+          builder: (context, _) {
+            final state = _viewModel.state;
+            if (_viewModel.saveError != null) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _viewModel.saveError!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
                       ElevatedButton(
-                        onPressed: () => _viewModel.loadEpisode(widget.episode.id, startFromBeginning: true),
-                        child: const Text('Начать эпизод заново'),
+                        onPressed: withButtonSound(
+                          () => _viewModel.loadEpisode(widget.episode.id),
+                        ),
+                        child: const Text('Загрузить сохранённый прогресс'),
                       ),
                     ],
-                  ],
-                ),
-              ),
-            );
-          }
-
-          final scene = _viewModel.currentScene;
-
-          if (scene == null) {
-            return const Center(
-              child: Text(
-                'Нет сцены',
-                style: TextStyle(color: Colors.white),
-              ),
-            );
-          }
-
-          final bgBytes = _getBackgroundBytes(scene.background);
-          final charBytes = _getCharacterBytes(scene.character, scene.characterEmotion);
-          final charName = _getCharacterName(scene.character);
-
-          return GestureDetector(
-            onTap: () {
-              if (_viewModel.hasMoreTexts) {
-                _viewModel.nextText();
-              }
-            },
-            child: Stack(
-              children: [
-                // Фон сцены
-                Positioned.fill(
-                  child: bgBytes == null
-                      ? Container(color: const Color(0xFF333333))
-                      : Image.memory(
-                          bgBytes,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(color: const Color(0xFF333333));
-                          },
-                        ),
-                ),
-                // Затемнение снизу
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.6),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
-                // Персонаж
-                if (charBytes != null)
-                  Positioned(
-                    top: 60,
-                    left: 0,
-                    right: 0,
-                    bottom: 200,
-                    child: Align(
-                      alignment: _getAlignment(
-                        scene.characterPosition.isNotEmpty
-                            ? scene.characterPosition
-                            : 'center',
-                      ),
-                      child: FractionallySizedBox(
-                        widthFactor: 0.55,
-                        heightFactor: 0.55,
-                        child: Image.memory(
-                          charBytes,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.person,
-                              size: 250,
-                              color: Colors.red[300],
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                // Верхняя панель: баллы и кнопка выхода
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  right: 16,
-                  child: Row(
+              );
+            }
+
+            if (state.isLoading || !_assetsLoaded) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (state.error != null || _assetError != null) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      GestureDetector(
-                    onTap: _leaveGame,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
+                      Text(
+                        'Ошибка: ${state.error ?? _assetError}',
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                      if (!_viewModel.progressSceneMissing)
+                        TextButton(
+                          onPressed: withButtonSound(() {
+                            if (state.error != null) {
+                              _viewModel.loadEpisode(
+                                widget.episode.id,
+                                startFromBeginning: widget.startFromBeginning,
+                              );
+                            } else {
+                              setState(() {
+                                _assetScene = '';
+                                _assetError = null;
+                              });
+                              _loadAssets();
+                            }
+                          }),
+                          child: const Text('Повторить'),
+                        ),
+                      if (_viewModel.progressSceneMissing) ...[
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: withButtonSound(
+                            () => _viewModel.loadEpisode(
+                              widget.episode.id,
+                              startFromBeginning: true,
+                            ),
+                          ),
+                          child: const Text('Начать эпизод заново'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final scene = _viewModel.currentScene;
+
+            if (scene == null) {
+              return const Center(
+                child: Text('Нет сцены', style: TextStyle(color: Colors.white)),
+              );
+            }
+
+            final bgBytes = _getBackgroundBytes(scene.background);
+            final charBytes = _getCharacterBytes(
+              scene.character,
+              scene.characterEmotion,
+            );
+            final charName = _getCharacterName(scene.character);
+
+            return GestureDetector(
+              onTap: withButtonSound(() {
+                if (_viewModel.hasMoreTexts) {
+                  _viewModel.nextText();
+                }
+              }),
+              child: Stack(
+                children: [
+                  // Фон сцены
+                  Positioned.fill(
+                    child: bgBytes == null
+                        ? Container(color: const Color(0xFF333333))
+                        : Image.memory(
+                            bgBytes,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(color: const Color(0xFF333333));
+                            },
+                          ),
+                  ),
+                  // Затемнение снизу
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.6),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Персонаж
+                  if (charBytes != null)
+                    Positioned(
+                      top: 60,
+                      left: 0,
+                      right: 0,
+                      bottom: 200,
+                      child: Align(
+                        alignment: _getAlignment(
+                          scene.characterPosition.isNotEmpty
+                              ? scene.characterPosition
+                              : 'center',
+                        ),
+                        child: FractionallySizedBox(
+                          widthFactor: 0.55,
+                          heightFactor: 0.55,
+                          child: Image.memory(
+                            charBytes,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.person,
+                                size: 250,
+                                color: Colors.red[300],
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Верхняя панель: баллы и кнопка выхода
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    right: 16,
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: withButtonSound(_leaveGame),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3F0404)
+                                  .withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back,
+                              color: Color(0xFFD30010),
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        // Любовь
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF3F0404).withValues(alpha: 0.7),
+                            color: const Color(0xFF3F0404)
+                                .withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(
-                            Icons.arrow_back,
-                            color: Color(0xFFD30010),
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      // Любовь
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3F0404).withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '❤️ ${_viewModel.lovePoints}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Дружба
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3F0404).withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '💌 ${_viewModel.friendshipPoints}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Текст (с отступами)
-                Align(
-                  alignment: _getAlignment(
-                    scene.textPosition.isNotEmpty
-                        ? scene.textPosition
-                        : 'bottom_center',
-                  ),
-                  child: Padding(
-                    padding: _getTextPadding(
-                      scene.textPosition.isNotEmpty
-                          ? scene.textPosition
-                          : 'bottom_center',
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (charName.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8, bottom: 4),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFA0A0),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                charName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                          child: Text(
+                            '❤️ ${_viewModel.lovePoints}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        GestureDetector(
-                          onTap: () {
-                            if (_viewModel.hasMoreTexts) {
-                              _viewModel.nextText();
-                            }
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFA0A0),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              _viewModel.currentText.isNotEmpty
-                                  ? _viewModel.currentText
-                                  : 'нет текста',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Дружба
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3F0404)
+                                .withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '💌 ${_viewModel.friendshipPoints}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                // Выборы - внизу экрана
-                if (_viewModel.isTextFinished && scene.choices.isNotEmpty)
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: 16,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: scene.choices.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final choice = entry.value;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: GestureDetector(
-                            onTap: () => _viewModel.onChoiceSelected(index),
+                  // Текст (с отступами)
+                  Align(
+                    alignment: _getAlignment(
+                      scene.textPosition.isNotEmpty
+                          ? scene.textPosition
+                          : 'bottom_center',
+                    ),
+                    child: Padding(
+                      padding: _getTextPadding(
+                        scene.textPosition.isNotEmpty
+                            ? scene.textPosition
+                            : 'bottom_center',
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (charName.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 8,
+                                bottom: 4,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFA0A0),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  charName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          GestureDetector(
+                            onTap: withButtonSound(() {
+                              if (_viewModel.hasMoreTexts) {
+                                _viewModel.nextText();
+                              }
+                            }),
                             child: Container(
-                              padding: const EdgeInsets.all(12),
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFFA0A0),
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      choice.text,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.grey,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                _viewModel.currentText.isNotEmpty
+                                    ? _viewModel.currentText
+                                    : 'нет текста',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                           ),
-                        );
-                      }).toList(),
+                        ],
+                      ),
                     ),
-                  )
-                // Кнопка дальше - внизу экрана
-                else if (_viewModel.isTextFinished && scene.choices.isEmpty)
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: 16,
-                    child: Center(
-                      child: SizedBox(
-                        width: 200,
-                        height: 55,
-                        child: ElevatedButton(
-                          onPressed: _finishingEpisode ? null : () async {
-                            if (_viewModel.isLastScene) {
-                              setState(() => _finishingEpisode = true);
-                              final saved = await _viewModel.completeEpisode();
-                              if (!mounted || !context.mounted) return;
-                              setState(() => _finishingEpisode = false);
-                              if (!saved) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
-                                  _viewModel.saveError ?? 'Не удалось сохранить завершение эпизода')));
-                                return;
-                              }
-                              final ending = _viewModel.determineEnding();
-
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EpisodeEndScreen(
-                                    currentEpisode: widget.episode,
-                                    ending: ending,
-                                  ),
+                  ),
+                  // Выборы - внизу экрана
+                  if (_viewModel.isTextFinished && scene.choices.isNotEmpty)
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: scene.choices.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final choice = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: GestureDetector(
+                              onTap: withButtonSound(
+                                _buyingChoice
+                                    ? null
+                                    : () => _choose(index, choice),
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFA0A0),
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
-                              );
-                              return;
-                            }
-                            _viewModel.nextScene();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD30010),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        choice.text,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                    if (choice.diamondPrice > 0) ...[
+                                      const SizedBox(width: 8),
+                                      const Icon(
+                                        Icons.diamond_outlined,
+                                        size: 19,
+                                        color: Color(0xFF3F0404),
+                                      ),
+                                      if (_buyingChoice)
+                                        const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFF3F0404),
+                                          ),
+                                        )
+                                      else
+                                        Text(
+                                          _ownedChoices.contains(
+                                                choice.premiumKey,
+                                              )
+                                              ? ' Открыто'
+                                              : ' ${choice.diamondPrice}',
+                                          style: const TextStyle(
+                                            color: Color(0xFF3F0404),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                    ] else
+                                      Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.grey,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            _viewModel.isLastScene ? 'конец эпизода' : 'дальше',
-                            style: const TextStyle(
-                              color: Color(0xFF3F0404),
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                          );
+                        }).toList(),
+                      ),
+                    )
+                  // Кнопка дальше - внизу экрана
+                  else if (_viewModel.isTextFinished && scene.choices.isEmpty)
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
+                      child: Center(
+                        child: SizedBox(
+                          width: 200,
+                          height: 55,
+                          child: ElevatedButton(
+                            onPressed: withButtonSound(
+                              _finishingEpisode
+                                  ? null
+                                  : () async {
+                                      if (_viewModel.isLastScene) {
+                                        setState(
+                                          () => _finishingEpisode = true,
+                                        );
+                                        final saved = await _viewModel
+                                            .completeEpisode();
+                                        if (!mounted || !context.mounted) {
+                                          return;
+                                        }
+                                        setState(
+                                          () => _finishingEpisode = false,
+                                        );
+                                        if (!saved) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    _viewModel.saveError ?? 'Не удалось сохранить завершение эпизода',
+                                                  ),
+                                                ),
+                                              );
+                                          return;
+                                        }
+                                        final ending = _viewModel
+                                            .determineEnding();
+
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                EpisodeEndScreen(
+                                                  currentEpisode:
+                                                      widget.episode,
+                                                  ending: ending,
+                                                ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      _viewModel.nextScene();
+                                    },
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD30010),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              _viewModel.isLastScene
+                                  ? 'конец эпизода'
+                                  : 'дальше',
+                              style: const TextStyle(
+                                color: Color(0xFF3F0404),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

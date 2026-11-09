@@ -450,6 +450,7 @@ impl AuthApi for AuthApiService {
         }
     }
 }
+
 #[cfg(test)]
 #[path = "auth_tests.rs"]
 mod tests; // Проверки уникальности регистрации

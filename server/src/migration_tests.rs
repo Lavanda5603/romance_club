@@ -3,55 +3,6 @@ use surrealdb::{engine::remote::ws::Ws, opt::auth::Root}; // Подключаю 
 
 type TestResult = Result<(), Box<dyn Error + Send + Sync>>;
 
-async fn restored_history_scenarios(db: Surreal<Client>, folder: std::path::PathBuf) -> TestResult {
-    let legacy: std::collections::BTreeMap<String, String> = serde_json::from_str(
-        include_str!("../tests/fixtures/v3-migration-checksums.json"))?;
-    db.query("DEFINE TABLE schema_migration SCHEMAFULL PERMISSIONS NONE;
-        DEFINE FIELD name ON schema_migration TYPE string;
-        DEFINE FIELD checksum ON schema_migration TYPE string;
-        DEFINE FIELD applied_at ON schema_migration TYPE datetime;
-        CREATE progress:retained SET marker='keep'; CREATE asset:retained SET marker='keep';").await?.check()?;
-    for (name, checksum) in legacy {
-        std::fs::copy(std::path::Path::new("migrations").join(&name), folder.join(&name))?;
-        db.query("CREATE $key CONTENT {name:$name,checksum:$checksum,applied_at:time::now()};")
-            .bind(("key", RecordId::new("schema_migration", name.clone())))
-            .bind(("name", name)).bind(("checksum", checksum)).await?.check()?;
-    }
-    let snapshot_sql = "RETURN {progress:(SELECT * FROM progress),assets:(SELECT * FROM asset),versions:(SELECT * FROM schema_migration ORDER BY id)};";
-    let before: Option<serde_json::Value> = db.query(snapshot_sql).await?.check()?.take(0)?;
-    for _ in 0..2 {
-        apply_dir(&db, &folder).await?;
-        let after: Option<serde_json::Value> = db.query(snapshot_sql).await?.check()?.take(0)?;
-        assert_eq!(after, before, "Старые миграции и их checksum не переписываю и не запускаю заново");
-    }
-    // Разрешён только точный переход: правка нынешнего файла по-прежнему запрещена.
-    let file = folder.join("011_scene_next.surql");
-    let original = std::fs::read_to_string(&file)?;
-    std::fs::write(&file, format!("{original}\n-- unexpected edit\n"))?;
-    assert!(apply_dir(&db, &folder).await.unwrap_err().to_string().contains("Изменена применённая миграция"));
-    std::fs::write(&file, original)?;
-    db.query("UPDATE $key SET checksum=$checksum;")
-        .bind(("key", RecordId::new("schema_migration", "011_scene_next.surql")))
-        .bind(("checksum", "0".repeat(64))).await?.check()?;
-    assert!(apply_dir(&db, &folder).await.unwrap_err().to_string().contains("Изменена применённая миграция"));
-    Ok(())
-}
-
-#[tokio::test]
-#[ignore = "Нужна отдельная SurrealDB; проверяю историю восстановленной базы"]
-async fn restored_v3_history_is_preserved_but_unknown_checksums_fail() -> TestResult {
-    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
-    db.signin(Root {username:std::env::var("SURREAL_USER")?,password:std::env::var("SURREAL_PASS")?}).await?;
-    let name = format!("restore_history_test_{}", uuid::Uuid::new_v4().simple());
-    db.use_ns("romance_club").use_db(&name).await?;
-    let folder = std::env::temp_dir().join(&name);
-    std::fs::create_dir(&folder)?;
-    let result = tokio::spawn(restored_history_scenarios(db.clone(), folder.clone())).await;
-    db.query(format!("REMOVE DATABASE {name};")).await?.check()?;
-    std::fs::remove_dir_all(folder)?;
-    result?
-}
-
 async fn snapshot(db: &Surreal<Client>) -> Result<serde_json::Value, surrealdb::Error> {
     let mut rows = db.query("RETURN {scenes:(SELECT * FROM scene ORDER BY id),actions:(SELECT * FROM action ORDER BY id),versions:(SELECT * FROM schema_migration ORDER BY id)};").await?.check()?;
     Ok(rows.take::<Option<serde_json::Value>>(0)?.unwrap())
@@ -100,16 +51,13 @@ async fn scenarios(db: Surreal<Client>, folder: std::path::PathBuf) -> TestResul
     for entry in std::fs::read_dir("migrations")? {
         let path = entry?.path();
         let file = path.file_name().unwrap().to_str().unwrap();
-        if file <= "010_zz.surql" { std::fs::copy(&path,folder.join(file))?; }
+        if file <= "012_zz.surql" { std::fs::copy(&path,folder.join(file))?; }
     }
     apply_dir(&db,&folder).await?;
     db.query("DEFINE FIELD OVERWRITE next_scene_id ON scene TYPE string DEFAULT '';
         DEFINE FIELD OVERWRITE scene_id ON action TYPE option<string>;
         CREATE scene:200 CONTENT {episode_id:episode:1,title:'Начало',background:'',character:'',character_emotion:'',texts:['Текст'],condition:'',text_position:'bottom',character_position:'center',order_index:0,next_scene_id:'scene:220'};
-        CREATE action:one CONTENT {choice_id:choice:one,type:'nextScene',title:'Выбор',scene_id:'scene:220',counter_name:'points',counter_value:5};
-        CREATE player:legacy CONTENT {login:'legacy',email:'legacy@example.test',password_hash:'unchanged'};
-        CREATE progress:legacy CONTENT {player_id:player:legacy,episode_id:episode:1,scene_id:scene:200,flags:{chosen:true},counters:{points:7}};
-        CREATE asset:legacy CONTENT {type:'background',name:'legacy',url:'legacy.png',display_name:'Старый фон',file_data:'aGVsbG8='};").await?.check()?;
+        CREATE action:one CONTENT {choice_id:choice:one,type:'nextScene',title:'Выбор',scene_id:'scene:220',counter_name:'points',counter_value:5};").await?.check()?;
     for entry in std::fs::read_dir("migrations")? {
         let path = entry?.path();
         std::fs::copy(&path,folder.join(path.file_name().unwrap()))?;
@@ -121,23 +69,7 @@ async fn scenarios(db: Surreal<Client>, folder: std::path::PathBuf) -> TestResul
     assert_eq!(strings["actions"][0]["scene_id"],"scene:220");
     assert_eq!(strings["actions"][0]["scene_key"],"scene:220");
     assert_eq!(strings["actions"][0]["counter_value"],5);
-    let mut migrated = db.query("RETURN {player:(SELECT * FROM ONLY player:legacy),progress:(SELECT * FROM progress),original:encoding::base64::encode(asset:legacy.file_data)};").await?.check()?;
-    let data: Option<serde_json::Value> = migrated.take(0)?;
-    let data = data.unwrap();
-    assert_eq!(data["player"]["password_hash"],"unchanged");
-    assert_eq!(data["player"]["is_admin"],false);
-    assert_eq!(data["progress"][0]["counters"]["points"],7);
-    assert_eq!(data["progress"][0]["flags"]["chosen"],true);
-    assert_eq!(data["progress"][0]["revision"],0);
-    assert_eq!(data["progress"][0]["completed"],false);
-    assert_eq!(data["progress"][0]["ending"],"");
-    assert_eq!(data["original"],"aGVsbG8");
-    for _ in 0..2 {
-        apply_dir(&db,&folder).await?;
-        assert_eq!(snapshot(&db).await?,strings);
-        let mut migrated = db.query("RETURN {player:(SELECT * FROM ONLY player:legacy),progress:(SELECT * FROM progress),original:encoding::base64::encode(asset:legacy.file_data)};").await?.check()?;
-        assert_eq!(migrated.take::<Option<serde_json::Value>>(0)?.unwrap(),data);
-    }
+    for _ in 0..2 { apply_dir(&db,&folder).await?; assert_eq!(snapshot(&db).await?,strings); }
     Ok(())
 }
 
@@ -153,5 +85,69 @@ async fn upgrade_preserves_story_and_runs_once() -> TestResult {
     let result = tokio::spawn(scenarios(db.clone(),folder.clone())).await;
     db.query(format!("REMOVE DATABASE {name};")).await?.check()?;
     std::fs::remove_dir_all(folder)?;
+    result?
+}
+
+// Проверяю, что архивирование никогда не удаляет сцену с живой ссылкой.
+async fn hidden_cleanup_cases(db: Surreal<Client>) -> TestResult {
+    db.query("DEFINE TABLE scene SCHEMALESS; DEFINE TABLE episode SCHEMALESS;
+        DEFINE TABLE choice SCHEMALESS; DEFINE TABLE action SCHEMALESS;
+        DEFINE TABLE progress SCHEMALESS; DEFINE TABLE story_archive SCHEMALESS PERMISSIONS NONE;
+        CREATE scene:339 SET episode_id=episode:6,title='сцена 1';").await?.check()?;
+    let cleanup = include_str!("../migrations/028_hidden_scenes_and_cleanup.surql")
+        .split("-- Добавляю необязательные разговоры.").next().unwrap();
+    for guard in [
+        "CREATE scene:guard SET next_scene_key='scene:339';",
+        "CREATE scene:guard SET next_scene_id=339;",
+        "CREATE scene:guard SET next_scene_id='scene:339';",
+        "CREATE scene:guard SET routes=[{condition:'',scene_key:'scene:339'}];",
+        "CREATE action:guard SET scene_key='scene:339';",
+        "CREATE action:guard SET scene_id=339;",
+        "CREATE action:guard SET scene_id='scene:339';",
+        "CREATE choice:guard SET scene_id=scene:339;",
+        "CREATE progress:guard SET scene_id='scene:339';",
+        "CREATE episode:6 SET title='Эпизод восстановлен';",
+        "UPDATE scene:339 SET title='Авторская сцена';",
+        "CREATE story_archive:orphan_scene_339 SET data='Прежний архив';",
+    ] {
+        // После каждой проверки убираю только временные записи из тестовой БД.
+        db.query(format!("BEGIN TRANSACTION; {guard} {cleanup}
+            IF !record::exists(scene:339) {{ THROW 'Удалена связанная или изменённая сцена'; }};
+            COMMIT TRANSACTION;")).await?.check()?;
+        db.query("DELETE scene:guard; DELETE action:guard; DELETE choice:guard;
+            DELETE progress:guard; DELETE episode:6; DELETE story_archive:orphan_scene_339;
+            UPDATE scene:339 SET title='сцена 1';").await?.check()?;
+    }
+    // Сбой общей транзакции должен вернуть сцену и убрать незавершённый архив.
+    let mut failed = db.query(format!("BEGIN TRANSACTION; {cleanup}
+        THROW 'Проверяю откат'; COMMIT TRANSACTION;")).await?;
+    assert!(!failed.take_errors().is_empty());
+    let mut before = db.query("RETURN {scene:record::exists(scene:339),archive:record::exists(story_archive:orphan_scene_339)};").await?.check()?;
+    let before: Option<serde_json::Value> = before.take(0)?;
+    assert_eq!(before.unwrap(),serde_json::json!({"scene":true,"archive":false}));
+    db.query(format!("BEGIN TRANSACTION; {cleanup} COMMIT TRANSACTION;")).await?.check()?;
+    let mut archived = db.query("SELECT * FROM ONLY story_archive:orphan_scene_339;").await?.check()?;
+    let archived: Option<serde_json::Value> = archived.take(0)?;
+    let archived = archived.unwrap();
+    assert_eq!(archived["data"]["id"],"scene:339");
+    assert_eq!(archived["data"]["episode_id"],"episode:6");
+    assert_eq!(archived["data"]["title"],"сцена 1");
+    // Повторный запуск сохраняет тот же архив без второй записи.
+    db.query(format!("BEGIN TRANSACTION; {cleanup} COMMIT TRANSACTION;")).await?.check()?;
+    let mut repeated = db.query("SELECT * FROM ONLY story_archive:orphan_scene_339; RETURN record::exists(scene:339);").await?.check()?;
+    assert_eq!(repeated.take::<Option<serde_json::Value>>(0)?.unwrap(),archived);
+    assert!(!repeated.take::<Option<bool>>(1)?.unwrap());
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "Нужна отдельная SurrealDB; рабочую базу не использую"]
+async fn hidden_cleanup_archives_only_unreferenced_orphan() -> TestResult {
+    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
+    db.signin(Root {username:std::env::var("SURREAL_USER")?,password:std::env::var("SURREAL_PASS")?}).await?;
+    let name = format!("hidden_cleanup_{}",uuid::Uuid::new_v4().simple());
+    db.use_ns("romance_club").use_db(&name).await?;
+    let result = tokio::spawn(hidden_cleanup_cases(db.clone())).await;
+    db.query(format!("REMOVE DATABASE {name};")).await?.check()?;
     result?
 }

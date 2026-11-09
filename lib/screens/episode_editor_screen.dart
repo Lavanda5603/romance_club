@@ -1,6 +1,11 @@
+import '../widgets/novel_background.dart'; // Импорт фона выбранной истории
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
+import '../src/core/scene_condition.dart'; // Подключаю проверку условий перед сохранением
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import '../src/core/scene_links.dart'; // Ключи переходов
+
 import 'package:flutter/material.dart'; // Импорт Material UI
+
 import '../generated/episode.pb.dart'; // Импорт Protobuf-модели Episode
 import '../generated/scene.pb.dart'; // Импорт Protobuf-модели Scene
 import 'scene_editor_screen.dart'; // Импорт экрана редактирования сцены
@@ -8,7 +13,8 @@ import 'scene_editor_screen.dart'; // Импорт экрана редактир
 // Экран редактирования эпизода
 class EpisodeEditorScreen extends StatefulWidget {
   final Episode episode; // Эпизод
-  final Future<Episode> Function(Episode) onSave; // Функция, вызывается при сохранении
+  final Future<Episode> Function(Episode)
+  onSave; // Функция, вызывается при сохранении
 
   // Конструктор
   const EpisodeEditorScreen({
@@ -66,7 +72,9 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
       _episode.scenes.add(newScene);
 
       // Добавила сцену
-      debugPrint('[FLUTTER] Добавлена сцена: ${newScene.title}, всего сцен: ${_episode.scenes.length}');
+      debugPrint(
+        '[FLUTTER] Добавлена сцена: ${newScene.title}, всего сцен: ${_episode.scenes.length}',
+      );
     });
   }
 
@@ -83,11 +91,15 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false), // Отмена
+              onPressed: withButtonSound(
+                () => Navigator.pop(context, false),
+              ), // Отмена
               child: const Text('Отмена'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true), // Подтверждение
+              onPressed: withButtonSound(
+                () => Navigator.pop(context, true),
+              ), // Подтверждение
               child: const Text('Удалить'),
             ),
           ],
@@ -106,6 +118,20 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
   // Сохранить эпизод
   Future<void> _saveEpisode() async {
     if (_isSaving) return;
+    for (final scene in _episode.scenes) {
+      for (final condition in [
+        scene.condition,
+        ...scene.routes.map((r) => r.condition),
+      ]) {
+        final error = SceneCondition.error(condition);
+        if (error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Сцена «${scene.title}»: $error')),
+          );
+          return;
+        }
+      }
+    }
     _episode.title = _titleController.text;
     setState(() => _isSaving = true);
     try {
@@ -137,23 +163,29 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
           Positioned.fill(
             child: Container(
               color: const Color(0xFF1A1A1A),
-              child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
-              ),
+              child: const NovelBackground(),
             ),
           ),
           SafeArea(
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Color(0xFFD30010), size: 28),
-                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFFD30010),
+                          size: 28,
+                        ),
+                        onPressed: withButtonSound(
+                          () => Navigator.pop(context),
+                        ),
                       ),
                       const Text(
                         'Клуб романтики',
@@ -184,13 +216,19 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                         const SizedBox(height: 20),
                         const Text(
                           'название эпизода',
-                          style: TextStyle(color: Color(0xFF7E7E7E), fontSize: 16),
+                          style: TextStyle(
+                            color: Color(0xFF7E7E7E),
+                            fontSize: 16,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         TextField(
                           controller: _titleController,
                           readOnly: _isSaving,
-                          style: const TextStyle(color: Color(0xFFFFA0A0), fontSize: 18),
+                          style: const TextStyle(
+                            color: Color(0xFFFFA0A0),
+                            fontSize: 18,
+                          ),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                             isDense: true,
@@ -218,7 +256,9 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                   itemBuilder: (context, index) {
                                     final scene = _episode.scenes[index];
                                     return Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
                                       child: Row(
                                         children: [
                                           Expanded(
@@ -233,28 +273,49 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                                             ),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.edit, color: Colors.white, size: 24),
-                                            onPressed: _isSaving ? null : () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) => SceneEditorScreen(
-                                                    scene: scene,
-                                                    episodeId: 'episode:${_episode.id}',
-                                                    allScenes: _episode.scenes, // Передаю все сцены эпизода
-                                                    onSave: (newScene) {
-                                                      setState(() {
-                                                        _episode.scenes[index] = newScene;
-                                                      });
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              color: Colors.white,
+                                              size: 24,
+                                            ),
+                                            onPressed: withButtonSound(
+                                              _isSaving
+                                                  ? null
+                                                  : () {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              SceneEditorScreen(
+                                                                scene: scene,
+                                                                episodeId:
+                                                                    'episode:${_episode.id}',
+                                                                allScenes:
+                                                                    _episode
+                                                                        .scenes, // Передаю все сцены эпизода
+                                                                onSave: (newScene) {
+                                                                  setState(() {
+                                                                    _episode.scenes[index] =
+                                                                        newScene;
+                                                                  });
+                                                                },
+                                                              ),
+                                                        ),
+                                                      );
                                                     },
-                                                  ),
-                                                ),
-                                              );
-                                            },
+                                            ),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
-                                            onPressed: _isSaving ? null : () => _deleteScene(index),
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                              color: Colors.white,
+                                              size: 24,
+                                            ),
+                                            onPressed: withButtonSound(
+                                              _isSaving
+                                                  ? null
+                                                  : () => _deleteScene(index),
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -267,7 +328,9 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                           width: 260,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _isSaving ? null : _addScene,
+                            onPressed: withButtonSound(
+                              _isSaving ? null : _addScene,
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(
@@ -290,7 +353,9 @@ class _EpisodeEditorScreenState extends State<EpisodeEditorScreen> {
                           width: 200,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: _isSaving ? null : _saveEpisode,
+                            onPressed: withButtonSound(
+                              _isSaving ? null : _saveEpisode,
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFD30010),
                               shape: RoundedRectangleBorder(

@@ -1,6 +1,14 @@
+#[cfg(test)]
+mod novel_tests; // Проверяю независимость новелл
+mod relationship_rules; // Подключаю настройки уровней отношений
+mod novel_service; // Подключаю каталог независимых новелл
+mod novel_audio; // Подключаю проверку загружаемых MP3
+#[cfg(test)]
+mod premium_choice_tests; // Проверяю платный выбор без расходов рабочего игрока
+#[cfg(test)]
+mod ending_gallery_tests; // Проверяю историю финалов отдельно от рабочего прогресса
 mod episode_delete; // Подключаю транзакционное удаление дерева эпизода
 mod migrations; // Подключаю одноразовый запуск миграций
-mod config;
 #[cfg(test)]
 mod shop_transaction_tests; // Проверки покупок в транзакции
 #[cfg(test)]
@@ -51,7 +59,7 @@ use romance_club::{
     Episode, GetEpisodeRequest, GetAllEpisodesRequest, GetAllEpisodesResponse,
     SaveEpisodeRequest, SaveEpisodeResponse,
     DeleteEpisodeRequest, DeleteEpisodeResponse,
-    Scene, Choice, Action,
+    Scene, SceneRoute, Choice, Action,
 }; // Импорт структур
 
 // Интерцептор для проверки JWT
@@ -72,6 +80,7 @@ impl Interceptor for AuthInterceptor {
 // Структура эпизода (то, что хранится в SurrealDB)
 #[derive(Debug, SurrealValue)]
 struct EpisodeRecord {
+    novel_id: Option<surrealdb::types::RecordId>, // Принадлежность главы
     title: String, // Название
     version: i32, // Версия
 }
@@ -81,7 +90,7 @@ struct EpisodeRecord {
 struct ActionRecord {
     choice_id: surrealdb::types::RecordId,
     r#type: String, // Тип действия
-    scene_id: Option<i64>, // ID сцены
+    scene_id: Option<Value>, // Сохраняю старый числовой или строковый переход
     scene_key: Option<String>, // Ключ сцены
     flag_name: Option<String>, // Имя флага
     flag_value: Option<bool>, // Значение флага
@@ -106,6 +115,32 @@ impl EpisodeApiService {
 
 #[tonic::async_trait]
 impl EpisodeApi for EpisodeApiService {
+    async fn get_relationship_rules(&self, request: Request<GetAllEpisodesRequest>) -> Result<Response<romance_club::RelationshipRules>, Status> {
+        let novel_id=novel_service::scope(&request.into_inner().novel_id)?;
+        let key=if novel_id==novel_service::LEGACY {"main".to_owned()}else{novel_id.clone()};
+        let mut result = self.db.query("SELECT json, revision FROM ONLY type::record('relationship_rules',$key)").bind(("key",key)).await
+            .map_err(|e| Status::internal(e.to_string()))?.check().map_err(|e| Status::internal(e.to_string()))?;
+        let record: Option<Value> = result.take(0).map_err(|e| Status::internal(e.to_string()))?;
+        let rules = record.map(|v| romance_club::RelationshipRules {
+            json: v["json"].as_str().unwrap_or("").to_owned(), revision: v["revision"].as_i64().unwrap_or(0) as i32,novel_id:novel_id.clone(),
+        }).unwrap_or_else(|| romance_club::RelationshipRules { json: relationship_rules::defaults(), revision: 0,novel_id });
+        Ok(Response::new(rules))
+    }
+
+    async fn save_relationship_rules(&self, request: Request<romance_club::RelationshipRules>) -> Result<Response<romance_club::RelationshipRules>, Status> {
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
+        let rules = request.into_inner();
+        let novel_id=novel_service::scope(&rules.novel_id)?;
+        let key=if novel_id==novel_service::LEGACY {"main".to_owned()}else{novel_id.clone()};
+        let json = relationship_rules::validate(&rules.json)?;
+        let revision = rules.revision.checked_add(1).filter(|_| rules.revision >= 0)
+            .ok_or_else(|| Status::invalid_argument("Неверная версия настроек"))?;
+        self.db.query("BEGIN TRANSACTION; LET $target=type::record('relationship_rules',$key); LET $old = (SELECT * FROM ONLY $target); IF ($old != NONE AND $old.revision != $expected) OR ($old = NONE AND $expected != 0) { THROW 'RULES_CONFLICT'; }; UPSERT $target CONTENT {json:$json, revision:$revision}; COMMIT TRANSACTION;")
+            .bind(("key",key))
+            .bind(("expected", rules.revision)).bind(("revision", revision)).bind(("json", json.clone())).await
+            .map_err(|e| Status::internal(e.to_string()))?.check().map_err(|_| Status::aborted("Настройки изменились или не сохранены. Перезагрузите их и повторите"))?;
+        Ok(Response::new(romance_club::RelationshipRules { json, revision,novel_id }))
+    }
     // Получить эпизод по ID (со сценами, выборами, действиями)
     async fn get_episode(
         &self,
@@ -180,21 +215,28 @@ impl EpisodeApi for EpisodeApiService {
                 // Собираю действия
                 let actions = action_records
                     .into_iter()
-                    .map(|a| Action {
-                        r#type: a.r#type,
-                        scene_id: a.scene_id.unwrap_or(0) as i32,
-                        scene_key: episode_store::target_key(a.scene_key.as_deref(), a.scene_id.unwrap_or(0) as i32),
-                        flag_name: a.flag_name.unwrap_or_default(),
-                        flag_value: a.flag_value.unwrap_or(false),
-                        counter_name: a.counter_name.unwrap_or_default(),
-                        counter_value: a.counter_value.unwrap_or(0) as i32,
-                        sound_path: a.sound_path.unwrap_or_default(),
-                        image_path: a.image_path.unwrap_or_default(),
-                        title: a.title,
+                    .map(|a| {
+                        let legacy_id = a.scene_id.as_ref().and_then(Value::as_i64)
+                            .and_then(|id| i32::try_from(id).ok()).unwrap_or(0);
+                        let key = a.scene_key.as_deref().or_else(|| a.scene_id.as_ref().and_then(Value::as_str));
+                        Action {
+                            r#type: a.r#type,
+                            scene_id: legacy_id,
+                            scene_key: episode_store::target_key(key, legacy_id),
+                            flag_name: a.flag_name.unwrap_or_default(),
+                            flag_value: a.flag_value.unwrap_or(false),
+                            counter_name: a.counter_name.unwrap_or_default(),
+                            counter_value: a.counter_value.unwrap_or(0) as i32,
+                            sound_path: a.sound_path.unwrap_or_default(),
+                            image_path: a.image_path.unwrap_or_default(),
+                            title: a.title,
+                        }
                     })
                     .collect();
 
-                choices.push(Choice { text, title: choice_title, actions });
+                choices.push(Choice { text, title: choice_title, actions,
+                    diamond_price: choice_value.get("diamond_price").and_then(Value::as_i64).unwrap_or(0) as i32,
+                    premium_key: choice_value.get("premium_key").and_then(Value::as_str).unwrap_or_default().to_owned() });
             }
 
             // Читаю next_scene_id (0 = конец)
@@ -216,11 +258,16 @@ impl EpisodeApi for EpisodeApiService {
                 next_scene_id,
                 next_scene_key: episode_store::target_key(scene_value.get("next_scene_key").and_then(Value::as_str), next_scene_id),
                 order_index,
+                routes: scene_value.get("routes").and_then(Value::as_array).map(|routes| routes.iter().map(|r| SceneRoute {
+                    condition:r.get("condition").and_then(Value::as_str).unwrap_or_default().to_owned(),
+                    scene_key:r.get("scene_key").and_then(Value::as_str).unwrap_or_default().to_owned(),
+                }).collect()).unwrap_or_default(),
             });
         }
 
         // 4. Собираю финальный эпизод
         let episode = Episode {
+            novel_id:episode_record.novel_id.map(|id|id.to_sql()).unwrap_or_else(||novel_service::LEGACY.into()),
             id,
             title: episode_record.title,
             version: episode_record.version,
@@ -234,11 +281,13 @@ impl EpisodeApi for EpisodeApiService {
     // Получить все эпизоды
     async fn get_all_episodes(
         &self,
-        _request: Request<GetAllEpisodesRequest>,
+        request: Request<GetAllEpisodesRequest>,
     ) -> Result<Response<GetAllEpisodesResponse>, Status> {
+        let novel_id=novel_service::scope(&request.into_inner().novel_id)?;
         let mut response = self
             .db
-            .query("SELECT * FROM episode ORDER BY created_at ASC")
+            .query("SELECT * FROM episode WHERE (novel_id ?? novel:ladybug)=type::record($novel) ORDER BY id ASC")
+            .bind(("novel",novel_id.clone()))
             .await
             .map_err(|e| Status::internal(e.to_string()))?
             .check().map_err(|e| Status::internal(e.to_string()))?;
@@ -256,7 +305,7 @@ impl EpisodeApi for EpisodeApiService {
                     .unwrap_or(0);
                 let title = v.get("title").and_then(|s| s.as_str()).unwrap_or("").to_string();
                 let version = v.get("version").and_then(|s| s.as_i64()).unwrap_or(1) as i32;
-                Episode { id, title, version, scenes: vec![] }
+                Episode { id, title, version, scenes: vec![],novel_id:novel_id.clone() }
             })
             .collect();
 
@@ -269,7 +318,7 @@ impl EpisodeApi for EpisodeApiService {
         request: Request<SaveEpisodeRequest>,
     ) -> Result<Response<SaveEpisodeResponse>, Status> {
         // Проверяю админа
-        crate::request_auth::check_admin(&request)?;
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
 
         let episode = request.into_inner().episode
             .ok_or_else(|| Status::invalid_argument("Эпизод не передан"))?;
@@ -294,7 +343,7 @@ impl EpisodeApi for EpisodeApiService {
         request: Request<DeleteEpisodeRequest>,
     ) -> Result<Response<DeleteEpisodeResponse>, Status> {
         // Проверяю админа
-        crate::request_auth::check_admin(&request)?;
+        crate::request_auth::check_current_admin(&request, &self.db).await?;
 
         let id = request.into_inner().id;
         println!("[DELETE_EPISODE] Удаляю эпизод ID: {}", id);
@@ -321,21 +370,21 @@ async fn apply_migrations(db: &Surreal<Client>) -> Result<(), Box<dyn std::error
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Проверяю ключ до подключения к БД и запуска API
     let jwt = jwt::JwtKeys::from_env()?;
-    let config = config::Config::from_env()?;
 
     // Подключаюсь к SurrealDB
-    let db = Surreal::new::<Ws>(&config.surreal_endpoint).await?;
+    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
 
     // Авторизуюсь
     db.signin(Root {
-        username: config.surreal_user,
-        password: config.surreal_pass,
+        username: "root".to_string(),
+        password: "root".to_string(),
     })
     .await?;
 
     // Использую namespace и database
-    let namespace = config.namespace;
-    let database = config.database;
+    let namespace = std::env::var("SURREAL_NAMESPACE")
+        .unwrap_or_else(|_| "romance_club".into());
+    let database = std::env::var("SURREAL_DATABASE").unwrap_or_else(|_| "main".into());
     db.use_ns(&namespace).use_db(&database).await?;
 
     println!("Подключение к SurrealDB установлено: namespace={}, database={}", namespace, database);
@@ -343,10 +392,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Применяю миграции
     apply_migrations(&db).await?;
     // Удаление ассетов выполняю без прав на остальные таблицы
-    let asset_delete_db = asset_delete::connection(&db, &config.surreal_endpoint, &namespace, &database).await
+    let asset_delete_db = asset_delete::connection(&db, &namespace, &database).await
         .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     let episode_service = EpisodeApiService::new(db.clone()); // Сервис эпизодов
+    let novel_service = novel_service::NovelApiService::new(db.clone());
+    let novel_server = romance_club::novel_api_server::NovelApiServer::new(novel_service)
+        .max_decoding_message_size(16*1024*1024).max_encoding_message_size(16*1024*1024);
     let progress_service = ProgressApiService::new(db.clone()); // Сервис прогресса
     let auth_service = AuthApiService::new(db.clone(), jwt.clone()); // Сервис авторизации
     let achievement_service = AchievementApiService::new(db.clone()); // Сервис достижений
@@ -354,7 +406,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let asset_service = AssetApiService::new(db.clone()).with_delete_db(asset_delete_db.clone()); // Сервис ассетов
     asset_service.backfill_previews().await?; // Готовлю превью старых картинок перед открытием каталога
     let admin_service = AdminApiService::new(db).with_delete_db(asset_delete_db); // Сервис админа
-    let addr = config.grpc_bind;
+    let addr = std::env::var("GRPC_BIND")
+        .unwrap_or_else(|_| "127.0.0.1:50051".into())
+        .parse()?;
 
     println!("Сервер запущен на {}", addr);
 
@@ -362,6 +416,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let interceptor = AuthInterceptor { jwt };
 
     Server::builder()
+        .add_service(tonic::service::interceptor::InterceptedService::new(novel_server,interceptor.clone()))
         .add_service(EpisodeApiServer::with_interceptor(episode_service, interceptor.clone())) // Сервис эпизодов
         .add_service(ProgressApiServer::with_interceptor(progress_service, interceptor.clone())) // Сервис прогресса
         .add_service(AuthApiServer::new(auth_service).max_decoding_message_size(auth_limits::MAX_AUTH_MESSAGE_BYTES)) // Сервис авторизации с ограничением размера запроса

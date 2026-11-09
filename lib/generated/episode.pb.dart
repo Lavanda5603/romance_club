@@ -25,12 +25,14 @@ class Episode extends $pb.GeneratedMessage {
     $core.String? title,
     $core.Iterable<$0.Scene>? scenes,
     $core.int? version,
+    $core.String? novelId,
   }) {
     final result = Episode._();
     if (id != null) result.id = id;
     if (title != null) result.title = title;
     if (scenes != null) result.scenes.addAll(scenes);
     if (version != null) result.version = version;
+    if (novelId != null) result.novelId = novelId;
     return result;
   }
 
@@ -52,6 +54,7 @@ class Episode extends $pb.GeneratedMessage {
     ..pPM<$0.Scene>(3, _omitFieldNames ? '' : 'scenes',
         subBuilder: $0.Scene.$_createMessage)
     ..aI(4, _omitFieldNames ? '' : 'version')
+    ..aOS(5, _omitFieldNames ? '' : 'novelId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -103,6 +106,15 @@ class Episode extends $pb.GeneratedMessage {
   $core.bool hasVersion() => $_has(3);
   @$pb.TagNumber(4)
   void clearVersion() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get novelId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set novelId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasNovelId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearNovelId() => $_clearField(5);
 }
 
 const $core.bool _omitFieldNames =

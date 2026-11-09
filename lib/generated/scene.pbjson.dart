@@ -52,6 +52,14 @@ const Scene$json = {
     {'1': 'next_scene_id', '3': 12, '4': 1, '5': 5, '10': 'nextSceneId'},
     {'1': 'next_scene_key', '3': 13, '4': 1, '5': 9, '10': 'nextSceneKey'},
     {'1': 'order_index', '3': 14, '4': 1, '5': 5, '10': 'orderIndex'},
+    {
+      '1': 'routes',
+      '3': 15,
+      '4': 3,
+      '5': 11,
+      '6': '.romance_club.SceneRoute',
+      '10': 'routes'
+    },
   ],
 };
 
@@ -65,4 +73,19 @@ final $typed_data.Uint8List sceneDescriptor = $convert.base64Decode(
     'JhY3RlclBvc2l0aW9uEhsKCXNjZW5lX2tleRgKIAEoCVIIc2NlbmVLZXkSKwoRY2hhcmFjdGVy'
     'X2Vtb3Rpb24YCyABKAlSEGNoYXJhY3RlckVtb3Rpb24SIgoNbmV4dF9zY2VuZV9pZBgMIAEoBV'
     'ILbmV4dFNjZW5lSWQSJAoObmV4dF9zY2VuZV9rZXkYDSABKAlSDG5leHRTY2VuZUtleRIfCgtv'
-    'cmRlcl9pbmRleBgOIAEoBVIKb3JkZXJJbmRleA==');
+    'cmRlcl9pbmRleBgOIAEoBVIKb3JkZXJJbmRleBIwCgZyb3V0ZXMYDyADKAsyGC5yb21hbmNlX2'
+    'NsdWIuU2NlbmVSb3V0ZVIGcm91dGVz');
+
+@$core.Deprecated('Use sceneRouteDescriptor instead')
+const SceneRoute$json = {
+  '1': 'SceneRoute',
+  '2': [
+    {'1': 'condition', '3': 1, '4': 1, '5': 9, '10': 'condition'},
+    {'1': 'scene_key', '3': 2, '4': 1, '5': 9, '10': 'sceneKey'},
+  ],
+};
+
+/// Descriptor for `SceneRoute`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List sceneRouteDescriptor = $convert.base64Decode(
+    'CgpTY2VuZVJvdXRlEhwKCWNvbmRpdGlvbhgBIAEoCVIJY29uZGl0aW9uEhsKCXNjZW5lX2tleR'
+    'gCIAEoCVIIc2NlbmVLZXk=');

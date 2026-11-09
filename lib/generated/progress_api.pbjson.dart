@@ -34,6 +34,7 @@ const GetProgressSummaryRequest$json = {
   '1': 'GetProgressSummaryRequest',
   '2': [
     {'1': 'player_id', '3': 1, '4': 1, '5': 9, '10': 'playerId'},
+    {'1': 'novel_id', '3': 2, '4': 1, '5': 9, '10': 'novelId'},
   ],
 };
 
@@ -41,13 +42,21 @@ const GetProgressSummaryRequest$json = {
 final $typed_data.Uint8List getProgressSummaryRequestDescriptor =
     $convert.base64Decode(
         'ChlHZXRQcm9ncmVzc1N1bW1hcnlSZXF1ZXN0EhsKCXBsYXllcl9pZBgBIAEoCVIIcGxheWVySW'
-        'Q=');
+        'QSGQoIbm92ZWxfaWQYAiABKAlSB25vdmVsSWQ=');
 
 @$core.Deprecated('Use getProgressSummaryResponseDescriptor instead')
 const GetProgressSummaryResponse$json = {
   '1': 'GetProgressSummaryResponse',
   '2': [
     {'1': 'episode_ids', '3': 1, '4': 3, '5': 5, '10': 'episodeIds'},
+    {'1': 'seen_endings', '3': 2, '4': 3, '5': 9, '10': 'seenEndings'},
+    {
+      '1': 'endings_available',
+      '3': 3,
+      '4': 1,
+      '5': 8,
+      '10': 'endingsAvailable'
+    },
   ],
 };
 
@@ -55,7 +64,8 @@ const GetProgressSummaryResponse$json = {
 final $typed_data.Uint8List getProgressSummaryResponseDescriptor =
     $convert.base64Decode(
         'ChpHZXRQcm9ncmVzc1N1bW1hcnlSZXNwb25zZRIfCgtlcGlzb2RlX2lkcxgBIAMoBVIKZXBpc2'
-        '9kZUlkcw==');
+        '9kZUlkcxIhCgxzZWVuX2VuZGluZ3MYAiADKAlSC3NlZW5FbmRpbmdzEisKEWVuZGluZ3NfYXZh'
+        'aWxhYmxlGAMgASgIUhBlbmRpbmdzQXZhaWxhYmxl');
 
 @$core.Deprecated('Use saveProgressRequestDescriptor instead')
 const SaveProgressRequest$json = {

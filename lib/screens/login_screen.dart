@@ -1,7 +1,12 @@
+import '../widgets/novel_background.dart'; // Импорт фона выбранной истории
+import 'server_connection_screen.dart'; // Импорт выбора сервера
+import '../widgets/button_sound.dart'; // Импорт общего щелчка для кнопок
 import '../src/data/services/rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
+
 import 'package:flutter/material.dart'; // Импорт Material UI
+
 import 'register_screen.dart'; // Импорт экрана регистрации
-import 'main_menu_screen.dart'; // Импорт главного меню
+import 'novel_catalog_screen.dart'; // Импорт главного меню
 import '../src/data/repositories/auth_repository_remote.dart'; // Импорт репозитория
 import '../src/data/services/auth_grpc_service.dart'; // Импорт gRPC-сервиса
 import '../services/session_store.dart'; // Импорт единого хранилища сессии
@@ -53,9 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     // Проверяю, что поля не пустые
     if (_loginController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Заполните все поля')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Заполните все поля')));
       return;
     }
 
@@ -84,19 +88,17 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MainMenu()),
+          MaterialPageRoute(builder: (context) => const NovelCatalogScreen()),
         );
       } else {
         // Ошибка
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.message)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(result.message)));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: ${networkError(e)}')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Ошибка: ${networkError(e)}')));
     }
 
     if (mounted) {
@@ -108,9 +110,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( // Каркас экрана
+    return Scaffold(
+      // Каркас экрана
       backgroundColor: const Color(0xFF1A1A1A), // Фон экрана
-
       // Использую Stack, чтобы наложить контент на фон
       body: Stack(
         children: [
@@ -119,10 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Container(
               color: const Color(0xFF1A1A1A), // Цвет фона-заглушки
               // Картинка фона
-              child: Image.asset(
-                'assets/images/main_background.png',
-                fit: BoxFit.cover,
-              ),
+              child: const NovelBackground(),
             ),
           ),
 
@@ -132,7 +131,10 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 // Верхняя панель
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center, // Центрирую
                     children: [
@@ -167,14 +169,44 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 32),
 
+                        TextButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () async {
+                                  final changed = await Navigator.push<bool>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const ServerConnectionScreen(),
+                                    ),
+                                  );
+                                  if (changed == true && mounted) {
+                                    _service.close();
+                                    _service = AuthGrpcService();
+                                    _repository = AuthRepositoryRemote(
+                                      _service,
+                                    );
+                                  }
+                                },
+                          child: const Text('Подключение к серверу'),
+                        ),
                         // Подпись
-                        const Text('логин', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16)),
+                        const Text(
+                          'логин',
+                          style: TextStyle(
+                            color: Color(0xFFFFA0A0),
+                            fontSize: 16,
+                          ),
+                        ),
                         const SizedBox(height: 8),
 
                         // Поле логина
                         TextField(
                           controller: _loginController,
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                           decoration: InputDecoration(
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -185,32 +217,45 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFD30010)),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD30010),
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 16),
 
                         // Подпись
-                        const Text('пароль', style: TextStyle(color: Color(0xFFFFA0A0), fontSize: 16)),
+                        const Text(
+                          'пароль',
+                          style: TextStyle(
+                            color: Color(0xFFFFA0A0),
+                            fontSize: 16,
+                          ),
+                        ),
                         const SizedBox(height: 8),
 
                         // Поле пароля
                         TextField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
-                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                           decoration: InputDecoration(
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                _obscurePassword
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
                                 color: Colors.grey,
                               ),
-                              onPressed: () {
+                              onPressed: withButtonSound(() {
                                 setState(() {
                                   _obscurePassword = !_obscurePassword;
                                 });
-                              },
+                              }),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -221,7 +266,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFD30010)),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD30010),
+                              ),
                             ),
                           ),
                         ),
@@ -233,7 +280,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 160,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _login,
+                              onPressed: withButtonSound(
+                                _isLoading ? null : _login,
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(
@@ -242,13 +291,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 elevation: 0,
                               ),
                               child: _isLoading
-                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  ? const CircularProgressIndicator(
+                                      color: Colors.white,
+                                    )
                                   : const Text(
                                       'войти',
                                       style: TextStyle(
                                         color: Color(0xFF3F0404),
                                         fontSize: 18,
-                                        fontWeight: FontWeight.bold
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                             ),
@@ -263,14 +314,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 200,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: withButtonSound(() {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const RegisterScreen(),
+                                    builder: (context) =>
+                                        const RegisterScreen(),
                                   ),
                                 );
-                              },
+                              }),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFD30010),
                                 shape: RoundedRectangleBorder(
@@ -283,7 +335,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 style: TextStyle(
                                   color: Color(0xFF3F0404),
                                   fontSize: 18,
-                                  fontWeight: FontWeight.bold
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),

@@ -1,4 +1,4 @@
-import 'grpc_config.dart';
+import '../../../services/server_connection.dart'; // Импорт выбранного адреса сервера
 import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'package:grpc/grpc.dart'; // Импорт gRPC
 import '../../../generated/auth_api.pbgrpc.dart'; // Импорт gRPC-клиента
@@ -10,9 +10,15 @@ class AuthGrpcService {
   late final AuthApiClient _client; // gRPC-клиент
 
   // Конструктор
-  AuthGrpcService({String host = GrpcConfig.host, int port = GrpcConfig.port, bool tls = GrpcConfig.tls, RpcDeadline? deadlines}) {
+  AuthGrpcService({String? host, int? port, RpcDeadline? deadlines}) {
     // Создаю канал связи
-    _channel = GrpcConfig.createChannel(host: host, port: port, tls: tls);
+    _channel = ClientChannel(
+      host ?? ServerConnection.host,
+      port: port ?? ServerConnection.port,
+      options: const ChannelOptions(
+        credentials: ChannelCredentials.insecure(),
+      ),
+    );
     // Создаю gRPC-клиент
     _client = AuthApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }

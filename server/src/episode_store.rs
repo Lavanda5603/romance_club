@@ -11,6 +11,7 @@ pub fn target_key(key: Option<&str>, id: i32) -> String {
 }
 
 pub async fn save(db: &Surreal<Client>, episode: &Episode) -> Result<(), Status> {
+    let novel_id=crate::novel_service::scope(&episode.novel_id)?;
     if episode.id <= 0 {
         return Err(Status::invalid_argument("Неверный ID эпизода"));
     }
@@ -24,6 +25,7 @@ pub async fn save(db: &Surreal<Client>, episode: &Episode) -> Result<(), Status>
     // Все изменения выполняю вместе. При ошибке база откатывает транзакцию
     let mut response = db.query(include_str!("save_episode.surql"))
         .bind(("episode_id", episode.id))
+        .bind(("novel_id",novel_id))
         .bind(("title", episode.title.clone()))
         .bind(("version", episode.version))
         .bind(("scenes", scenes))
@@ -86,12 +88,38 @@ fn prepare_scenes(episode: &Episode, records: &[Value]) -> Result<Vec<Value>, St
     };
     let numeric_id = |key: &str| key.strip_prefix("scene:").and_then(|id| id.parse::<i32>().ok()).unwrap_or(0);
     let mut scenes = Vec::new();
+    let mut premium_targets = HashMap::<String,String>::new();
+    let mut premium_keys = HashSet::new();
     for (order, scene) in episode.scenes.iter().enumerate() {
+        if scene.choices.iter().any(|c| c.diamond_price > 0) && !scene.choices.iter().any(|c| c.diamond_price == 0) {
+            return Err(Status::invalid_argument("Рядом с платным выбором нужно бесплатное продолжение"));
+        }
         let next_key = resolve(&scene.next_scene_key, scene.next_scene_id)?;
+        let routes = scene.routes.iter().map(|route| {
+            if route.scene_key.is_empty() { return Err(Status::invalid_argument("Выберите сцену условного перехода")); }
+            Ok(json!({"condition":route.condition,"scene_key":resolve(&route.scene_key,0)?}))
+        }).collect::<Result<Vec<Value>,Status>>()?;
         let mut choices = Vec::new();
         for (index, choice) in scene.choices.iter().enumerate() {
+            if choice.diamond_price != 0 {
+                if !(15..=50).contains(&choice.diamond_price) || !crate::shop_catalog::valid_choice_sku(&choice.premium_key) ||
+                    !premium_keys.insert(choice.premium_key.clone()) {
+                    return Err(Status::invalid_argument("Цена выбора от 15 до 50; ключ покупки должен быть уникальным"));
+                }
+                let targets = choice.actions.iter().filter(|a| a.r#type == "nextScene").collect::<Vec<_>>();
+                if targets.len() != 1 { return Err(Status::invalid_argument("Платному выбору нужен один явный переход к отдельной сцене")); }
+                let target = resolve(&targets[0].scene_key,targets[0].scene_id)?;
+                if premium_targets.insert(target,choice.premium_key.clone()).is_some() {
+                    return Err(Status::invalid_argument("Платная сцена должна иметь один товар"));
+                }
+            }
             let mut actions = Vec::new();
             for action in &choice.actions {
+                if action.r#type == "notification" && (action.title.trim().is_empty() || action.title.chars().count() > 160 ||
+                    !action.flag_name.is_empty() || action.flag_value || !action.counter_name.is_empty() || action.counter_value != 0 ||
+                    action.scene_id != 0 || !action.scene_key.is_empty()) {
+                    return Err(Status::invalid_argument("Уведомление: текст от 1 до 160 символов, без баллов, флагов и переходов"));
+                }
                 let key = if action.r#type == "nextScene" { resolve(&action.scene_key, action.scene_id)? } else { String::new() };
                 actions.push(json!({
                     "type": action.r#type, "scene_id": numeric_id(&key), "scene_key": key,
@@ -101,16 +129,35 @@ fn prepare_scenes(episode: &Episode, records: &[Value]) -> Result<Vec<Value>, St
                     "title": action.title
                 }));
             }
-            choices.push(json!({"text":choice.text,"title":choice.title,"order_index":index,"actions":actions}));
+            choices.push(json!({"text":choice.text,"title":choice.title,"order_index":index,"actions":actions,
+                "diamond_price":choice.diamond_price,"premium_key":choice.premium_key}));
         }
         scenes.push(json!({
             "key":keys[order],"is_new":scene.scene_key.is_empty() || scene.scene_key.starts_with("draft:"),
             "title":scene.title,"background":scene.background,"character":scene.character,
             "character_emotion":scene.character_emotion,"texts":scene.texts,
-            "condition":scene.condition,"text_position":scene.text_position,
+            "condition":scene.condition,"routes":routes,"text_position":scene.text_position,
             "character_position":scene.character_position,"order_index":order,
             "next_scene_id":numeric_id(&next_key),"next_scene_key":next_key,"choices":choices
         }));
+    }
+    for scene in &mut scenes {
+        scene["premium_key"] = json!(premium_targets.get(scene["key"].as_str().unwrap_or_default()).cloned().unwrap_or_default());
+    }
+    if keys.first().is_some_and(|key| premium_targets.contains_key(key)) {
+        return Err(Status::invalid_argument("Первая сцена эпизода должна быть бесплатной"));
+    }
+    for scene in &scenes {
+        if premium_targets.contains_key(scene["next_scene_key"].as_str().unwrap_or_default()) ||
+            scene["routes"].as_array().is_some_and(|routes| routes.iter().any(|r| premium_targets.contains_key(r["scene_key"].as_str().unwrap_or_default()))) {
+            return Err(Status::invalid_argument("В платную сцену можно входить только через оплачиваемый выбор"));
+        }
+        for choice in scene["choices"].as_array().into_iter().flatten() {
+            if choice["diamond_price"].as_i64().unwrap_or(0) == 0 && choice["actions"].as_array().into_iter().flatten().any(|a|
+                a["type"] == "nextScene" && premium_targets.contains_key(a["scene_key"].as_str().unwrap_or_default())) {
+                return Err(Status::invalid_argument("Бесплатное продолжение должно вести в другую сцену"));
+            }
+        }
     }
     Ok(scenes)
 }
@@ -126,6 +173,42 @@ mod tests {
 
     fn record(key: &str, episode: i32) -> Value {
         json!({"id":key, "episode_id":format!("episode:{episode}")})
+    }
+
+    #[test]
+    fn paid_choice_keeps_sku_and_requires_free_alternative() {
+        let paid = Choice {text:"Особый разговор".into(),diamond_price:30,premium_key:"choice:mask_rooftop".into(),actions:vec![
+            Action {r#type:"nextScene".into(),scene_key:"draft:paid".into(),..Default::default()}],..Default::default()};
+        let free = Choice {text:"Вернуться к делу".into(),actions:vec![Action {r#type:"nextScene".into(),scene_key:"draft:free".into(),..Default::default()}],..Default::default()};
+        let mut episode = Episode {id:4,scenes:vec![
+            Scene {scene_key:"draft:prompt".into(),choices:vec![paid,free],..Default::default()},
+            Scene {scene_key:"draft:paid".into(),..Default::default()},
+            Scene {scene_key:"draft:free".into(),..Default::default()},
+        ],..Default::default()};
+        let prepared = prepare_scenes(&episode,&[]).unwrap();
+        assert_eq!(prepared[0]["choices"][0]["diamond_price"],30);
+        assert_eq!(prepared[1]["premium_key"],"choice:mask_rooftop");
+        episode.scenes[0].choices[0].diamond_price=40;
+        assert_eq!(prepare_scenes(&episode,&[]).unwrap()[0]["choices"][0]["premium_key"],"choice:mask_rooftop");
+        episode.scenes[0].choices[0].diamond_price=14;
+        assert!(prepare_scenes(&episode,&[]).is_err());
+        episode.scenes[0].choices[0].diamond_price=30;
+        episode.scenes[0].choices.remove(1);
+        assert!(prepare_scenes(&episode,&[]).is_err());
+    }
+
+    #[test]
+    fn notification_is_text_only() {
+        let mut episode = Episode {id:1, scenes:vec![Scene {scene_key:"draft:notice".into(), choices:vec![Choice {
+            actions:vec![Action {r#type:"notification".into(),title:"Алья это запомнит".into(),..Default::default()}],
+            ..Default::default()}],..Default::default()}],..Default::default()};
+        let prepared = prepare_scenes(&episode,&[]).unwrap();
+        assert_eq!(prepared[0]["choices"][0]["actions"][0]["title"],"Алья это запомнит");
+        episode.scenes[0].choices[0].actions[0].counter_value = 2;
+        assert!(prepare_scenes(&episode,&[]).is_err());
+        episode.scenes[0].choices[0].actions[0].counter_value = 0;
+        episode.scenes[0].choices[0].actions[0].title = "я".repeat(161);
+        assert!(prepare_scenes(&episode,&[]).is_err());
     }
 
     #[test]

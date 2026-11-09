@@ -1,4 +1,4 @@
-import 'grpc_config.dart';
+import '../../../services/server_connection.dart'; // Импорт выбранного адреса сервера
 import 'rpc_policy.dart'; // Импорт сроков ожидания и ошибок сети
 import 'dart:math'; // Импорт математических функций и случайных чисел
 import 'auth_options.dart'; // Метаданные с токеном
@@ -11,9 +11,15 @@ class ShopGrpcService {
   late final ShopApiClient _client; // gRPC-клиент
 
   // Конструктор
-  ShopGrpcService({String host = GrpcConfig.host, int port = GrpcConfig.port, bool tls = GrpcConfig.tls, RpcDeadline? deadlines}) {
+  ShopGrpcService({String? host, int? port, RpcDeadline? deadlines}) {
     // Создаю канал связи
-    _channel = GrpcConfig.createChannel(host: host, port: port, tls: tls);
+    _channel = ClientChannel(
+      host ?? ServerConnection.host,
+      port: port ?? ServerConnection.port,
+      options: const ChannelOptions(
+        credentials: ChannelCredentials.insecure(),
+      ),
+    );
     // Создаю gRPC-клиент
     _client = ShopApiClient(_channel, interceptors: [deadlines ?? RpcDeadline()]);
   }
@@ -30,12 +36,14 @@ class ShopGrpcService {
     required String itemId,
     required String itemType,
     String? requestId,
+    int expectedPrice = 0,
   }) async {
     final request = PurchaseRequest(
       playerId: playerId,
       itemId: itemId,
       itemType: itemType,
       requestId: requestId ?? List.generate(16, (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0')).join(),
+      expectedPrice: expectedPrice,
     );
     return await _client.purchase(request, options: await authOptions());
   }

@@ -372,12 +372,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let jwt = jwt::JwtKeys::from_env()?;
 
     // Подключаюсь к SurrealDB
-    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
+    let endpoint = std::env::var("SURREAL_ENDPOINT")?;
+    let db = Surreal::new::<Ws>(endpoint.trim_start_matches("ws://")).await?;
 
     // Авторизуюсь
     db.signin(Root {
-        username: "root".to_string(),
-        password: "root".to_string(),
+        username: std::env::var("SURREAL_USER")?,
+        password: std::env::var("SURREAL_PASS")?,
     })
     .await?;
 
@@ -392,7 +393,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Применяю миграции
     apply_migrations(&db).await?;
     // Удаление ассетов выполняю без прав на остальные таблицы
-    let asset_delete_db = asset_delete::connection(&db, &namespace, &database).await
+    let asset_delete_db = asset_delete::connection(&db, endpoint.trim_start_matches("ws://"), &namespace, &database).await
         .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     let episode_service = EpisodeApiService::new(db.clone()); // Сервис эпизодов

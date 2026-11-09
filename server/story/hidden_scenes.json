@@ -1,0 +1,637 @@
+{
+  "note": "Дополнительные диалоги по кратким идеям из документа; написаны при этой доработке, не являются дословным текстом автора.",
+  "scenes": [
+    {
+      "key": "scene:hidden_ep1_alya",
+      "episode": 1,
+      "title": "Настоящие подруги",
+      "source": 156,
+      "parents": [
+        29
+      ],
+      "next": "scene:30",
+      "condition": "(friendship_alya>=2) И flag:seen_hidden_ep1_alya!=true",
+      "texts": [
+        "На перемене Алья замечает, как я всё ещё поглядываю на Адриана, и тихо смеётся.",
+        "Алья: «Можешь не рассказывать всё сразу. Но если тебе понадобится помощь, я рядом. Хлоя больше не будет решать, какой у тебя сегодня день».",
+        "Маринетт: «Спасибо. Мне давно не хватало человека, которому можно просто довериться».",
+        "Мы договариваемся держаться вместе. Кажется, это начало настоящей дружбы."
+      ],
+      "seen_flag": "seen_hidden_ep1_alya",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1000,
+      "presentation": {
+        "background": "ep1/school_yard",
+        "character": "alya",
+        "character_emotion": "happy",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep1_tikki",
+      "episode": 1,
+      "title": "Тайна талисманов",
+      "source": 34,
+      "parents": [
+        34,
+        35,
+        36
+      ],
+      "next": "scene:37",
+      "condition": "(flag:помог_дедушке=true ИЛИ friendship>=3) И flag:seen_hidden_ep1_tikki!=true",
+      "texts": [
+        "Прежде чем я произношу слова превращения, Тикки просит меня прислушаться.",
+        "Тикки: «Квами связаны с талисманами. Но сила украшения не решает всё за тебя: ты сама выбираешь, кому помочь и как поступить».",
+        "Маринетт: «А если я ошибусь?»",
+        "Тикки: «Тогда попробуешь снова. И ещё: береги свою тайну. Так ты защитишь и себя, и тех, кто тебе дорог».",
+        "Я делаю глубокий вдох. Теперь я лучше понимаю, какую ответственность принимаю."
+      ],
+      "seen_flag": "seen_hidden_ep1_tikki",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1001,
+      "presentation": {
+        "background": "ep1/corridor",
+        "character": "tikki",
+        "character_emotion": "smile",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep2_luka",
+      "episode": 2,
+      "title": "Песня для Маринетт",
+      "source": 65,
+      "parents": [
+        70
+      ],
+      "next": "scene:71",
+      "condition": "(romance_luka>=3) И flag:seen_hidden_ep2_luka!=true",
+      "texts": [
+        "Когда мы уже собираемся вернуться к остальным, Лука негромко окликает меня.",
+        "Лука: «Подожди. Эта мелодия появилась, пока мы разговаривали. Хочу, чтобы ты услышала её первой».",
+        "Он перебирает струны. Музыка звучит тихо и тепло; в ней будто есть место всем моим несказанным словам.",
+        "Маринетт: «Ты правда только что её придумал?» Лука улыбается: «Иногда достаточно встретить правильного человека».",
+        "Я благодарю его и ещё несколько секунд остаюсь рядом, прежде чем выйти в коридор."
+      ],
+      "seen_flag": "seen_hidden_ep2_luka",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1002,
+      "presentation": {
+        "background": "ep1/party",
+        "character": "luka",
+        "character_emotion": "calm",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep2_cat",
+      "episode": 2,
+      "title": "Супер-Кот ищет Маринетт",
+      "source": 82,
+      "parents": [
+        110
+      ],
+      "next": "scene:111",
+      "condition": "(romance_cat>=1) И flag:seen_hidden_ep2_cat!=true",
+      "texts": [
+        "У своего дома я слышу знакомый голос с крыши: «Маринетт! Наконец-то нашёл».",
+        "Супер-Кот спускается на тротуар. «После сегодняшнего я хотел убедиться, что ты добралась домой. И, если честно, просто поговорить».",
+        "Маринетт: «Со мной всё хорошо. Спасибо, что искал».",
+        "Мы немного говорим о городе и о том, как странно иногда складывается день. Он не торопится уходить, а я впервые не ищу повод закончить разговор.",
+        "Наконец Супер-Кот возвращается к патрулю. Я поднимаюсь к себе, всё ещё улыбаясь."
+      ],
+      "seen_flag": "seen_hidden_ep2_cat",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1003,
+      "presentation": {
+        "background": "ep1/crosswalk",
+        "character": "catnoir",
+        "character_emotion": "smile",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep2_adrian",
+      "episode": 2,
+      "title": "Адриан ждёт Леди Баг",
+      "source": 112,
+      "parents": [
+        112,
+        113
+      ],
+      "next": "scene:114",
+      "condition": "(romance_ladybug_adrian>=2 И flag:говорила_с_адрианом_ночью=true) И flag:seen_hidden_ep2_adrian!=true",
+      "texts": [
+        "Когда я собираюсь улетать, Адриан просит меня задержаться ещё на мгновение.",
+        "Адриан: «Я выхожу сюда не только подышать. Иногда надеюсь увидеть тебя над крышами».",
+        "Леди Баг: «Ты ведь не можешь знать, когда я появлюсь».",
+        "Адриан улыбается: «Знаю. Но ждать всё равно хочется». Я обещаю помахать ему, если снова окажусь рядом на патруле."
+      ],
+      "seen_flag": "seen_hidden_ep2_adrian",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1004,
+      "presentation": {
+        "background": "ep1/roof",
+        "character": "adrian",
+        "character_emotion": "smile",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep3_fu",
+      "episode": 3,
+      "title": "Фу рассказывает о Бражнике",
+      "source": 91,
+      "parents": [
+        116
+      ],
+      "next": "scene:117",
+      "condition": "(flag:помог_дедушке=true И friendship>=3) И flag:seen_hidden_ep3_fu!=true",
+      "texts": [
+        "Перед колледжем я ненадолго заглядываю к мастеру Фу. После последних нападений у меня накопились вопросы.",
+        "Фу: «Ты уже заслужила моё доверие. Твой противник называет себя Бражником. Он использует талисман мотылька и чужие сильные чувства».",
+        "Маринетт: «Вы знаете, кто скрывается под маской?» Фу качает головой: «Нет. Не делай поспешных выводов. Следи за его поступками, а не за обещаниями».",
+        "Я ухожу с новым знанием, но без ответа на главный вопрос. Пора в колледж: сегодня турнир."
+      ],
+      "seen_flag": "seen_hidden_ep3_fu",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1005,
+      "presentation": {
+        "background": "ep1/roof",
+        "character": "fu",
+        "character_emotion": "serious",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep3_blog",
+      "episode": 3,
+      "title": "Алья начинает блог",
+      "source": 156,
+      "parents": [
+        156
+      ],
+      "next": "scene:hidden_ep3_kagami",
+      "condition": "(friendship_alya>=2) И flag:seen_hidden_ep3_blog!=true",
+      "texts": [
+        "На перемене Алья показывает мне страницу, которую пока никому не отправляла.",
+        "Алья: «Хочу вести блог о Леди Баг и Супер-Коте. Не слухи, а настоящие истории о том, как они помогают людям».",
+        "Маринетт: «Только не подвергай себя опасности ради кадра. И не выкладывай то, что может выдать чужую тайну».",
+        "Алья кивает: «Обещаю. А ты будешь моим первым читателем?» Я с улыбкой соглашаюсь."
+      ],
+      "seen_flag": "seen_hidden_ep3_blog",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1006,
+      "presentation": {
+        "background": "ep1/school_yard",
+        "character": "alya",
+        "character_emotion": "happy",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep3_kagami",
+      "episode": 3,
+      "title": "Тренировка с Кагами",
+      "source": 131,
+      "parents": [],
+      "next": "scene:157",
+      "condition": "(friendship_kagami>=2 И flag:дружелюбна_с_кагами=true) И flag:seen_hidden_ep3_kagami!=true",
+      "texts": [
+        "Позже Кагами встречает меня у спортивного зала и предлагает попробовать простое упражнение на равновесие.",
+        "Кагами: «Не нужно быть сильнее всех. Сначала научись спокойно держать стойку».",
+        "Я ошибаюсь, мы пробуем снова, и наконец у меня получается. Кагами впервые смеётся без напряжения.",
+        "Маринетт: «Значит, мы можем тренироваться вместе?» Кагами кивает: «Если ты сама этого хочешь. Без соревнования за чьё-то внимание».",
+        "После короткой тренировки я возвращаюсь в коридор."
+      ],
+      "seen_flag": "seen_hidden_ep3_kagami",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1007,
+      "presentation": {
+        "background": "ep1/corridor",
+        "character": "kagami",
+        "character_emotion": "surprised",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep3_chloe",
+      "episode": 3,
+      "title": "Признание Хлои",
+      "source": 159,
+      "parents": [
+        159,
+        160,
+        161
+      ],
+      "next": "scene:162",
+      "condition": "(flag:ответила_хлое=false И friendship>=2) И flag:seen_hidden_ep3_chloe!=true",
+      "texts": [
+        "Я уже собираюсь уйти, когда Хлоя неожиданно зовёт меня обратно. На этот раз без насмешки.",
+        "Хлоя: «У тебя всё получается так легко. Друзья, родители, которые тебя слушают… Иногда я тебе завидую».",
+        "Маринетт: «Мне тоже бывает трудно. Но это не повод делать друг другу больно».",
+        "Хлоя отводит взгляд: «Никому не рассказывай, что я это сказала». Я обещаю сохранить разговор между нами. Мы ещё не стали подругами, но я начинаю понимать её лучше."
+      ],
+      "seen_flag": "seen_hidden_ep3_chloe",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1008,
+      "presentation": {
+        "background": "ep1/corridor",
+        "character": "chloe",
+        "character_emotion": "smirk",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep4_luka",
+      "episode": 4,
+      "title": "Лука доверяет свою тайну",
+      "source": 218,
+      "parents": [
+        213
+      ],
+      "next": "scene:214",
+      "condition": "(romance_luka>=5 И flag:намекнула_о_секрете=true) И flag:seen_hidden_ep4_luka!=true",
+      "texts": [
+        "Пока команда приходит в себя после битвы, Лука тихо просит меня отойти на несколько шагов.",
+        "Лука: «Когда я возвращал время, я увидел то, чего не должен был видеть. Я знаю, что ты Леди Баг. И знаю, кто Супер-Кот».",
+        "Я замираю. Лука сразу добавляет: «Я не назову его имени. Ваша тайна принадлежит вам. Просто хочу, чтобы ты знала: со мной можно быть собой».",
+        "Маринетт: «Значит, ты понял, о каком секрете я говорила…» Лука кивает и ждёт моего ответа."
+      ],
+      "seen_flag": "seen_hidden_ep4_luka",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Я тебе доверяю. Сохрани нашу тайну.",
+          "counter": "romance_luka",
+          "value": 2,
+          "flag": "доверилась_луке",
+          "flag_value": true
+        },
+        {
+          "text": "Мне страшно. Пожалуйста, никому не говори.",
+          "counter": "romance_luka",
+          "value": -1,
+          "flag": "доверилась_луке",
+          "flag_value": false
+        }
+      ],
+      "order": 1009,
+      "presentation": {
+        "background": "ep1/street_rain",
+        "character": "luka",
+        "character_emotion": "smile",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep4_mask",
+      "episode": 4,
+      "title": "Почти снятая маска",
+      "source": 228,
+      "parents": [
+        228,
+        229
+      ],
+      "next": "scene:230",
+      "condition": "(romance_ladybug_cat>=5) И flag:seen_hidden_ep4_mask!=true",
+      "texts": [
+        "Супер-Кот вдруг становится непривычно серьёзным и подносит руку к маске.",
+        "Супер-Кот: «Иногда хочется, чтобы ты увидела меня без всего этого. Просто меня».",
+        "Я мягко останавливаю его руку: «Ты мне доверяешь. Но мы оба обещали беречь наши тайны. Не нужно доказывать мне ничего таким способом».",
+        "Он опускает руку и улыбается: «Хорошо, моя леди. Когда-нибудь — если мы оба будем готовы». Его личность остаётся тайной."
+      ],
+      "seen_flag": "seen_hidden_ep4_mask",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1010,
+      "presentation": {
+        "background": "ep1/roof",
+        "character": "catnoir",
+        "character_emotion": "smile",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep4_adrian",
+      "episode": 4,
+      "title": "Невысказанное признание Адриана",
+      "source": 239,
+      "parents": [
+        241
+      ],
+      "next": "scene:250",
+      "condition": "(romance_ladybug_adrian>=5) И flag:seen_hidden_ep4_adrian!=true",
+      "texts": [
+        "Я уже отлетаю от окна, когда Адриан всё-таки произносит мне вслед: «Леди Баг, я хотел сказать, что…»",
+        "В комнате раздаётся голос, и он замолкает. Я останавливаюсь над соседней крышей, но возвращаться сейчас нельзя.",
+        "Адриан успевает только помахать мне. Я отвечаю тем же и чувствую, что наш разговор ещё не закончен."
+      ],
+      "seen_flag": "seen_hidden_ep4_adrian",
+      "kind": "bonus",
+      "replies": [
+        {
+          "text": "Продолжить"
+        }
+      ],
+      "order": 1011,
+      "presentation": {
+        "background": "ep1/adrian_room_night",
+        "character": "adrian",
+        "character_emotion": "smile",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_ep4_luka_reminder",
+      "episode": 4,
+      "title": "Обещание Луки",
+      "source": 218,
+      "parents": [],
+      "next": "scene:220",
+      "condition": "",
+      "texts": [
+        "Лука вновь подходит ко мне после ухода Бражника: «Я хотел сказать ещё одно. Всё, о чём мы говорили после битвы, останется между нами».",
+        "Я киваю. Нам больше не нужно повторять признание: его обещание уже дано."
+      ],
+      "seen_flag": "seen_hidden_ep4_luka_reminder",
+      "kind": "continuity",
+      "replies": [],
+      "order": 1012,
+      "presentation": {
+        "background": "ep1/street_rain",
+        "character": "luka",
+        "character_emotion": "smile",
+        "character_position": "center_left",
+        "text_position": "center_right"
+      }
+    },
+    {
+      "key": "scene:hidden_self_final",
+      "episode": 5,
+      "title": "Маринетт выбирает себя",
+      "source": 338,
+      "parents": [],
+      "next": "",
+      "condition": "",
+      "texts": [
+        "Бражник побеждён. Впервые за долгое время у меня есть возможность остановиться и послушать собственные мысли.",
+        "Все эти встречи важны для меня. Но я не хочу выбирать кого-то только потому, что боюсь остаться одна.",
+        "Сегодня я выбираю себя: свои мечты, учёбу, друзей и право разобраться в чувствах без спешки.",
+        "Париж постепенно зажигает огни. Впереди ещё столько всего, и я хочу встретить это будущее собой.",
+        "Конец сезона."
+      ],
+      "seen_flag": "seen_hidden_self_final",
+      "kind": "ending",
+      "replies": [],
+      "order": 1013,
+      "presentation": {
+        "background": "ep1/street_rain",
+        "character": "marinet",
+        "character_emotion": "happy",
+        "character_position": "center",
+        "text_position": "bottom_center"
+      }
+    },
+    {
+      "key": "scene:hidden_team_final",
+      "episode": 5,
+      "title": "Команда вместе",
+      "source": 338,
+      "parents": [],
+      "next": "",
+      "condition": "",
+      "texts": [
+        "После победы мы собираемся вместе. Теперь можно говорить не о плане битвы, а о том, что будет завтра.",
+        "Алья первой предлагает не теряться. Нино обещает устроить встречу, Кагами кивает, а Хлоя неожиданно остаётся рядом со всеми.",
+        "Я смотрю на друзей и понимаю: команда держится не только на талисманах. Мы выбирали поддерживать друг друга и тогда, когда никто не видел.",
+        "Что бы ни случилось дальше, мы не останемся одни. Этот вечер принадлежит всем нам.",
+        "Конец сезона."
+      ],
+      "seen_flag": "seen_hidden_team_final",
+      "kind": "ending",
+      "replies": [],
+      "order": 1014,
+      "presentation": {
+        "background": "ep1/street_rain",
+        "character": "marinet",
+        "character_emotion": "happy",
+        "character_position": "center",
+        "text_position": "bottom_center"
+      }
+    }
+  ],
+  "entries": [
+    {
+      "key": "scene:29",
+      "episode": 1,
+      "previous_next": "scene:30",
+      "next": "scene:hidden_ep1_alya"
+    },
+    {
+      "key": "scene:34",
+      "episode": 1,
+      "previous_next": "scene:37",
+      "next": "scene:hidden_ep1_tikki"
+    },
+    {
+      "key": "scene:35",
+      "episode": 1,
+      "previous_next": "scene:37",
+      "next": "scene:hidden_ep1_tikki"
+    },
+    {
+      "key": "scene:36",
+      "episode": 1,
+      "previous_next": "scene:37",
+      "next": "scene:hidden_ep1_tikki"
+    },
+    {
+      "key": "scene:70",
+      "episode": 2,
+      "previous_next": "scene:71",
+      "next": "scene:hidden_ep2_luka"
+    },
+    {
+      "key": "scene:110",
+      "episode": 2,
+      "previous_next": "scene:111",
+      "next": "scene:hidden_ep2_cat"
+    },
+    {
+      "key": "scene:112",
+      "episode": 2,
+      "previous_next": "scene:114",
+      "next": "scene:hidden_ep2_adrian"
+    },
+    {
+      "key": "scene:113",
+      "episode": 2,
+      "previous_next": "scene:114",
+      "next": "scene:hidden_ep2_adrian"
+    },
+    {
+      "key": "scene:116",
+      "episode": 3,
+      "previous_next": "scene:117",
+      "next": "scene:hidden_ep3_fu"
+    },
+    {
+      "key": "scene:156",
+      "episode": 3,
+      "previous_next": "scene:157",
+      "next": "scene:hidden_ep3_blog"
+    },
+    {
+      "key": "scene:159",
+      "episode": 3,
+      "previous_next": "scene:162",
+      "next": "scene:hidden_ep3_chloe"
+    },
+    {
+      "key": "scene:160",
+      "episode": 3,
+      "previous_next": "scene:162",
+      "next": "scene:hidden_ep3_chloe"
+    },
+    {
+      "key": "scene:161",
+      "episode": 3,
+      "previous_next": "scene:162",
+      "next": "scene:hidden_ep3_chloe"
+    },
+    {
+      "key": "scene:213",
+      "episode": 4,
+      "previous_next": "scene:214",
+      "next": "scene:hidden_ep4_luka"
+    },
+    {
+      "key": "scene:228",
+      "episode": 4,
+      "previous_next": "scene:230",
+      "next": "scene:hidden_ep4_mask"
+    },
+    {
+      "key": "scene:229",
+      "episode": 4,
+      "previous_next": "scene:230",
+      "next": "scene:hidden_ep4_mask"
+    },
+    {
+      "key": "scene:241",
+      "episode": 4,
+      "previous_next": "scene:250",
+      "next": "scene:hidden_ep4_adrian"
+    }
+  ],
+  "conditional_entries": [
+    {
+      "key": "scene:216",
+      "episode": 4,
+      "next": "scene:217",
+      "routes": [
+        {
+          "condition": "flag:seen_hidden_ep4_luka=true",
+          "scene_key": "scene:hidden_ep4_luka_reminder"
+        }
+      ]
+    },
+    {
+      "key": "scene:307",
+      "episode": 5,
+      "next": "scene:308",
+      "routes": [
+        {
+          "condition": "friendship_alya>=2 AND friendship_nino>=2 AND friendship_kagami>=2 AND friendship_chloe>=2",
+          "scene_key": "scene:hidden_team_final"
+        },
+        {
+          "condition": "romance_adrian=romance_cat AND romance_adrian=romance_luka AND romance_adrian=romance_ladybug_adrian AND romance_adrian=romance_ladybug_cat",
+          "scene_key": "scene:hidden_self_final"
+        },
+        {
+          "condition": "romance_adrian>0 AND romance_adrian>=romance_cat AND romance_adrian>=romance_luka AND romance_adrian>=romance_ladybug_adrian AND romance_adrian>=romance_ladybug_cat",
+          "scene_key": "scene:308"
+        },
+        {
+          "condition": "romance_cat>0 AND romance_cat>=romance_adrian AND romance_cat>=romance_luka AND romance_cat>=romance_ladybug_adrian AND romance_cat>=romance_ladybug_cat",
+          "scene_key": "scene:328"
+        },
+        {
+          "condition": "romance_luka>0 AND romance_luka>=romance_adrian AND romance_luka>=romance_cat AND romance_luka>=romance_ladybug_adrian AND romance_luka>=romance_ladybug_cat",
+          "scene_key": "scene:320"
+        },
+        {
+          "condition": "romance_ladybug_adrian>0 AND romance_ladybug_adrian>=romance_adrian AND romance_ladybug_adrian>=romance_cat AND romance_ladybug_adrian>=romance_luka AND romance_ladybug_adrian>=romance_ladybug_cat",
+          "scene_key": "scene:334"
+        },
+        {
+          "condition": "romance_ladybug_cat>0 AND romance_ladybug_cat>=romance_adrian AND romance_ladybug_cat>=romance_cat AND romance_ladybug_cat>=romance_luka AND romance_ladybug_cat>=romance_ladybug_adrian",
+          "scene_key": "scene:314"
+        }
+      ]
+    }
+  ]
+}

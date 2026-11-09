@@ -82,12 +82,12 @@ async fn grpc_scenarios(db: Surreal<Client>, limited: Surreal<Client>) -> TestRe
     result
 }
 
-async fn scenarios(db: Surreal<Client>, database: String) -> TestResult {
+async fn scenarios(db: Surreal<Client>, endpoint: &str, database: String) -> TestResult {
     db.query("CREATE player:test SET marker='keep'; CREATE episode:1 SET marker='keep'; CREATE progress:test SET marker='keep'; CREATE asset:one; CREATE asset:123; CREATE asset:`player:test`; CREATE asset:other;").await?.check()?;
     crate::request_auth::seed_test_admin(&db,"player:test").await?;
     let before = snapshot(&db).await?;
     db.query(include_str!("../migrations/022_asset_delete_access.surql")).await?.check()?;
-    let limited = connection(&db,"romance_club",&database).await?;
+    let limited = connection(&db,endpoint,"romance_club",&database).await?;
     // Даже прямой запрос ограниченного подключения не трогает чужие таблицы
     let _ = limited.query("DELETE player; DELETE episode; DELETE progress; DELETE asset_delete_identity; UPDATE player SET marker='changed'; CREATE player:intruder;").await?;
     assert_eq!(snapshot(&db).await?,before);
@@ -116,13 +116,14 @@ async fn scenarios(db: Surreal<Client>, database: String) -> TestResult {
 #[tokio::test]
 #[ignore = "Нужна SurrealDB; удаление проверяю только в отдельной БД"]
 async fn asset_deletion_cannot_touch_other_tables() -> TestResult {
-    let db = Surreal::new::<Ws>("127.0.0.1:8000/rpc").await?;
+    let endpoint = "127.0.0.1:8000/rpc";
+    let db = Surreal::new::<Ws>(endpoint).await?;
     db.signin(Root {username:std::env::var("SURREAL_USER")?,password:std::env::var("SURREAL_PASS")?}).await?;
     let name = format!("asset_delete_test_{}",uuid::Uuid::new_v4().simple());
     db.use_ns("romance_club").await?;
     db.query(format!("DEFINE DATABASE {name};")).await?.check()?;
     db.use_db(&name).await?;
-    let result = tokio::spawn(scenarios(db.clone(),name.clone())).await;
+    let result = tokio::spawn(scenarios(db.clone(),endpoint,name.clone())).await;
     db.query(format!("REMOVE DATABASE {name};")).await?.check()?;
     result?
 }

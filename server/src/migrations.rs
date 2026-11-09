@@ -28,13 +28,6 @@ where
     unreachable!()
 }
 
-#[cfg(test)]
-pub(crate) async fn test_query(db: &Surreal<Client>, sql: &str) -> Result<surrealdb::IndexedResults, Box<dyn Error + Send + Sync>> {
-    let sql = if sql.contains("BEGIN TRANSACTION;") { sql.to_owned() }
-        else { format!("BEGIN TRANSACTION;\n{sql}\nCOMMIT TRANSACTION;") };
-    retry_transaction(|| async { db.query(sql.clone()).await }).await
-}
-
 // Версию записываю в той же транзакции, что и изменение базы
 pub async fn apply_dir(db: &Surreal<Client>, directory: &Path) -> MigrationResult {
     let mut paths = std::fs::read_dir(directory)?.map(|entry| entry.map(|entry| entry.path()))
